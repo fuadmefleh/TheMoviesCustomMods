@@ -131,6 +131,7 @@ extern "C" HRESULT WINAPI Proxy_DirectInput8Create(HINSTANCE inst, DWORD version
             manager::Install();
             selfcheck::Install();
             moviemaker::Install();
+            production::Install();
             mod::RegisterInspector();
         }
     }

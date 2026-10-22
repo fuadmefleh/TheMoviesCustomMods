@@ -15,6 +15,10 @@ void ShowInspector(bool show);   // hidden by default; toggled from the Televisi
 
 } // namespace mod
 
+namespace production {
+void Install();   // production.cpp: continuity makeup and the second unit
+}
+
 namespace buildmenu {
 void Install();   // buildmenu.cpp: category buttons on the build menu's building list
 }

@@ -191,7 +191,8 @@ void LoadTuningOverrides()
             _wcsicmp(sec, L"Ratings") == 0 ||
             _wcsicmp(sec, L"Manager") == 0 ||
             _wcsicmp(sec, L"MovieMaker") == 0 ||
-            _wcsicmp(sec, L"BuildMenu") == 0)
+            _wcsicmp(sec, L"BuildMenu") == 0 ||
+            _wcsicmp(sec, L"Production") == 0)
             continue;
         std::vector<wchar_t> body(32768);
         GetPrivateProfileSectionW(sec, body.data(), static_cast<DWORD>(body.size()), g_iniPath);
