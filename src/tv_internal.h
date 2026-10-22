@@ -447,6 +447,18 @@ bool   StartPilotForProject(uintptr_t project);   // a shelf script object dropp
 bool   IsUnshotScript(uintptr_t project);
 bool   CastPilot(const std::string& name, float stars, bool director);   // a person dropped on a soundstage
 void   AutoPilots(bool castStandIns);             // shoot the best scripts on free soundstages
+// The script shelf for display (native screen): one entry per script not yet pitched.
+struct ShelfEntry {
+    std::string title, lead, director;
+    int         format = 0;
+    int         pilot = 0;          // 0 script, 1 shooting, 2 pilot ready
+    float       quality = 0;        // the script
+    float       pilotQuality = 0;
+    float       wrapDay = 0;        // shooting: 0 = waiting for a lead
+};
+std::vector<ShelfEntry> ShelfSummary();
+int    FreeSoundstages();
+std::string PitchBestPilot();   // pitches the best finished pilot to the likeliest network; its title, or ""
 int    ShelfScriptFormat(const game::Project& p);   // -1 unless it's a TV script from the shelf
 void   DrawWriters();
 void   WritersSave(std::map<std::string, std::string>& out);

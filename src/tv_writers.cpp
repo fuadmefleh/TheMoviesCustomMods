@@ -413,16 +413,9 @@ void KeepTvBusy(float day)
         if (!Pitched(t) && (g_filmPilots || t.pilot == PilotShot) && (!best || t.quality > best->quality))
             best = &t;
     if (g_level == Casual && best) {
-        Series s;
-        s.id = g_nextId++;
-        s.title = best->title;
-        s.format = best->format;
-        ApplyPilot(s, ShelfProject(*best));
-        StartPitch(s, std::max(0, BestNetwork(s)));
-        g_series.push_back(s);
-        Notify(Format("Your TV team pitches '%s'", best->title.c_str()),
+        std::string title = PitchBestPilot();
+        Notify(Format("Your TV team pitches '%s'", title.c_str()),
                "Nothing was in development, so they took the best pilot off the shelf.", kGreen);
-        mod::Log("tv: auto-pitched '%s' (q %.2f)", best->title.c_str(), best->quality);
         return;
     }
     if (day - g_lastNudge < kDaysPerYear)
@@ -590,6 +583,49 @@ bool CastPilot(const std::string& name, float stars, bool director)
         return true;
     }
     return false;
+}
+
+std::vector<ShelfEntry> ShelfSummary()
+{
+    std::vector<ShelfEntry> out;
+    for (const TvScript& t : g_shelf) {
+        if (Pitched(t))
+            continue;
+        ShelfEntry e;
+        e.title = t.title;
+        e.lead = t.lead;
+        e.director = t.director;
+        e.format = t.format;
+        e.pilot = t.pilot;
+        e.quality = t.quality;
+        e.pilotQuality = t.pilotQuality;
+        e.wrapDay = t.shootEnd;
+        out.push_back(e);
+    }
+    return out;
+}
+
+int FreeSoundstages() { return FreeStages(); }
+
+std::string PitchBestPilot()
+{
+    const TvScript* best = nullptr;
+    for (const TvScript& t : g_shelf)
+        if (!Pitched(t) && (g_filmPilots || t.pilot == PilotShot) &&
+            (!best || (t.pilot == PilotShot ? t.pilotQuality : t.quality) >
+                          (best->pilot == PilotShot ? best->pilotQuality : best->quality)))
+            best = &t;
+    if (!best)
+        return "";
+    Series s;
+    s.id = g_nextId++;
+    s.title = best->title;
+    s.format = best->format;
+    ApplyPilot(s, ShelfProject(*best));
+    StartPitch(s, std::max(0, BestNetwork(s)));
+    g_series.push_back(s);
+    mod::Log("tv: pitched '%s' (pilot %.2f)", best->title.c_str(), s.pilotQuality);
+    return best->title;
 }
 
 void AutoPilots(bool castStandIns)

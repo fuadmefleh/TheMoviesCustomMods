@@ -16,7 +16,7 @@
 namespace tv {
 namespace {
 
-enum NativeTab { NShows, NRatings, NNetworks, NBoxOffice, NPress, NTabCount };
+enum NativeTab { NShows, NPilots, NRatings, NNetworks, NBoxOffice, NPress, NTabCount };
 
 const wchar_t* kGold = L"#F9E81E";
 const wchar_t* kDim  = L"#9FB4D8";
@@ -82,6 +82,40 @@ std::wstring ShowsPage()
         }
     if (ended)
         h += Heading(L"Finished") + past + L"</table>";
+    return h;
+}
+
+std::wstring PilotsPage()
+{
+    std::vector<ShelfEntry> shelf = ShelfSummary();
+    std::wstring h = Heading(L"Scripts and pilots");
+    if (shelf.empty())
+        return h + L"<p>No scripts waiting. Put writers on the desks of a TV Writers' Office: finished scripts come out "
+                   L"of its door.</p>";
+    std::sort(shelf.begin(), shelf.end(), [](const ShelfEntry& a, const ShelfEntry& b) {
+        return a.pilot != b.pilot ? a.pilot > b.pilot : a.quality > b.quality;
+    });
+    h += L"<table width=100% cellspacing=1>" + Row({ L"Title", L"Format", L"Script", L"Pilot" }, true);
+    for (const ShelfEntry& e : shelf) {
+        std::wstring state;
+        if (e.pilot == 2)
+            state = W(Format("Ready: %.0f%%, starring %s", e.pilotQuality * 100, e.lead.c_str()));
+        else if (e.pilot == 1 && e.wrapDay == 0)
+            state = L"Shooting - drop a star on the soundstage";
+        else if (e.pilot == 1)
+            state = W(Format("Shooting with %s, wraps %s", e.lead.c_str(), DateText(e.wrapDay).c_str()));
+        else
+            state = L"Script only";
+        h += Row({ W(e.title), W(kFormats[e.format].name), W(Format("%.0f%%", e.quality * 100)), state }, false,
+                 e.pilot == 2);
+    }
+    h += L"</table>";
+    int free = FreeSoundstages();
+    h += std::wstring(L"<p><font color=") + kDim + L">" +
+         (free > 0 ? W(Format("%d soundstage%s free.", free, free == 1 ? "" : "s"))
+                   : std::wstring(L"No soundstage free: every one is shooting, or none is built.")) +
+         L" Shoot a pilot: the best waiting script goes before the cameras. Pitch a pilot: the best finished pilot goes "
+         L"to the network likeliest to buy it. Full controls pick the network, budget and deal.</font></p>";
     return h;
 }
 
@@ -191,12 +225,27 @@ std::wstring Page(int tab)
                L"<p>Television arrives in your world in 1949. Build a TV Production Office to start making shows.</p>";
     switch (tab) {
     case NShows:     return ShowsPage();
+    case NPilots:    return PilotsPage();
     case NRatings:   return RatingsPage();
     case NNetworks:  return NetworksPage();
     case NBoxOffice: return BoxOfficePage();
     case NPress:     return PressPage();
     }
     return L"";
+}
+
+void ShootNextPilot()
+{
+    AutoPilots(false);
+    nativeui::Refresh();
+}
+
+void PitchNextPilot()
+{
+    if (PitchBestPilot().empty())
+        Notify("No pilot to pitch", "Shoot a pilot first: drop a TV script on a TV building, then a star on the soundstage.",
+               kYellow);
+    nativeui::Refresh();
 }
 
 void OpenFullControls()
@@ -215,10 +264,13 @@ void OpenNative()
     s.title = L"Television";
     s.buttons = {
         { "button_star.",    L"Your shows",            NShows,     nullptr },
+        { "button_scripts.", L"Scripts and pilots",    NPilots,    nullptr },
         { "button_interest.", L"Ratings",              NRatings,   nullptr },
         { "button_marketing.", L"Networks",            NNetworks,  nullptr },
         { "button_finance.", L"Box office",            NBoxOffice, nullptr },
         { "button_reviews.", L"The press",             NPress,     nullptr },
+        { "button_shooting.", L"Shoot a pilot from the best waiting script", -1, &ShootNextPilot },
+        { "button_ok.",      L"Pitch the best finished pilot",           -1, &PitchNextPilot },
         { "button_sliders.", L"Full controls: pitch, schedule, research", -1, &OpenFullControls },
     };
     s.html = &Page;
