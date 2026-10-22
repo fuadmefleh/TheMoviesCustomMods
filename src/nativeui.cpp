@@ -88,6 +88,25 @@ void FreeN(NStr& s)
     if (s.cap > 0x14 && s.text != s.inline_)
         reinterpret_cast<void(__cdecl*)(void*)>(kFree)(s.text);
 }
+// Logs where a guarded game call faulted (code and address, game exe or our DLL), then lets
+// the guard recover.
+int Fault(EXCEPTION_POINTERS* e, const char* what)
+{
+    uintptr_t at = reinterpret_cast<uintptr_t>(e->ExceptionRecord->ExceptionAddress);
+    HMODULE mod = nullptr;
+    GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                       reinterpret_cast<LPCWSTR>(at), &mod);
+    wchar_t name[MAX_PATH] = L"?";
+    if (mod)
+        GetModuleFileNameW(mod, name, MAX_PATH);
+    const wchar_t* base = wcsrchr(name, L'\\');
+    mod::Log("nativeui: %s faulted - exception %08lX at %08X (%ls+0x%X), reading %08X", what,
+             e->ExceptionRecord->ExceptionCode, static_cast<unsigned>(at), base ? base + 1 : name,
+             static_cast<unsigned>(at - reinterpret_cast<uintptr_t>(mod)),
+             e->ExceptionRecord->NumberParameters > 1 ? static_cast<unsigned>(e->ExceptionRecord->ExceptionInformation[1]) : 0u);
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+
 void* GameNew(size_t size) { return reinterpret_cast<void*(__cdecl*)(size_t)>(kNew)(size); }
 
 void SetClick(void* w, Handler fn, void* ctx, const char* name)
@@ -128,16 +147,17 @@ bool __stdcall OnAddedButton(void*, void* ctx);
 void* NewImageButton(const char* texture, const wchar_t* tooltip, float w, float h)
 {
     __try {
+        // The texture name is passed BY VALUE (the game builds the String in the argument
+        // area, e.g. "button_quit." at 0x00669B80's caller); the constructor owns and frees it.
         NStr base;
         WStr tip;
         MakeN(base, texture);
         MakeW(tip, tooltip);
         void* b = GameNew(kImgButtonSize);
-        reinterpret_cast<void*(__thiscall*)(void*, NStr*, WStr*, float, float)>(kImgButtonCtor)(b, &base, &tip, w, h);
-        FreeN(base);
+        reinterpret_cast<void*(__thiscall*)(void*, NStr, WStr*, float, float)>(kImgButtonCtor)(b, base, &tip, w, h);
         FreeW(tip);
         return b;
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
+    } __except (Fault(GetExceptionInformation(), "image button")) {
         return nullptr;
     }
 }
@@ -151,7 +171,7 @@ bool SetHtml(void* html, const wchar_t* text)
         VCall<float>(html, 0x8C, 0);
         FreeW(s);
         return true;
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
+    } __except (Fault(GetExceptionInformation(), "page text")) {
         return false;
     }
 }
@@ -200,7 +220,7 @@ bool BuildDialog(const wchar_t* title, float width, float height, int buttons, c
         g_dialog = d;
         g_html = h;
         return true;
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
+    } __except (Fault(GetExceptionInformation(), "screen")) {
         return false;
     }
 }
@@ -210,7 +230,7 @@ bool CloseDialog(void* d)
     __try {
         reinterpret_cast<Handler>(kCloseHandler)(nullptr, d);
         return true;
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
+    } __except (Fault(GetExceptionInformation(), "close")) {
         return false;
     }
 }
@@ -227,7 +247,7 @@ void* AddHudWidget(const char* texture, const wchar_t* tooltip, int index)
         VCall(b, 0x60, 2, r, 12.0f);
         VCall(b, 0x64, 1, r, 140.0f + 56.0f * index);
         return b;
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
+    } __except (Fault(GetExceptionInformation(), "HUD button")) {
         return nullptr;
     }
 }
@@ -243,7 +263,7 @@ void* AddButtonTo(void* parent, const char* texture, const wchar_t* tooltip, flo
         VCall(b, 0x5C, 1, parent, x);
         VCall(b, 0x64, 1, parent, y);
         return b;
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
+    } __except (Fault(GetExceptionInformation(), "button")) {
         return nullptr;
     }
 }
@@ -257,7 +277,7 @@ void* CallConfirm(const wchar_t* title, const wchar_t* body, ConfirmCb yes, Conf
         void* d = reinterpret_cast<void*(__cdecl*)(const WStr*, ConfirmCb, ConfirmCb, WStr)>(kShowConfirm)(&t, yes, no, b);
         FreeW(t);
         return d;
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
+    } __except (Fault(GetExceptionInformation(), "yes/no dialog")) {
         return nullptr;
     }
 }
