@@ -1,0 +1,26 @@
+# Build output
+build/
+tools/sim/obj/
+tools/sim/*.exe
+tools/sim/*.ilk
+tools/sim/*.pdb
+tools/sim/*.log
+__pycache__/
+*.pyc
+
+# The game's own files: its executable, extracted pak contents and textures
+re/MoviesSE.exe
+re/ui/
+extracted/
+work/
+
+# Ghidra project databases (rebuilt by analysing MoviesSE.exe; see docs/DEVELOPMENT.md)
+ghidra/
+ghidra_a/
+ghidra_b/
+ghidra_c/
+ghidra_d/
+
+# Ghidra dumps and logs: decompiled game code, regenerated with ghidra_scripts/
+re/*.txt
+re/*.log

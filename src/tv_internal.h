@@ -1,0 +1,479 @@
+#pragma once
+// Shared state and helpers of the Television & Streaming system. Only tv*.cpp include this.
+//
+//   tv.cpp          rules tables, series (pitch, verdict, seasons), daily simulation, save data
+//   tv_network.cpp  networks, prime-time schedules, rival shows, audience model, your own network
+//   tv_story.cpp    long-running shows: season plans, finales, star contracts, renewals, spinoffs
+//   tv_ui.cpp       the Television window and the news ticker
+//   tv_paper.cpp    the Season Finale newspaper
+//   tv_library.cpp  the library: syndication, residuals, the Media Archive, your cable channel
+//   tv_streaming.cpp your streaming service, rival streamers, originals
+//   tv_events.cpp   the Golden Antenna Awards, TV history and scandals, Media Empire Value
+//   tv_research.cpp research, challenges, live episodes
+//   tv_writers.cpp  the TV Writers' Office: format desks, TV scripts, the script shelf
+
+#include <cstdint>
+#include <deque>
+#include <map>
+#include <string>
+#include <vector>
+
+#include "game.h"
+#include "imgui.h"
+
+namespace tv {
+
+// ---------------------------------------------------------------------------------
+// Rules
+
+constexpr float kDaysPerYear     = 365.0f;
+constexpr int   kTelevisionYear  = 1938;    // regular broadcasts begin
+constexpr int   kOwnNetworkYear  = 1946;    // independent networks can be founded
+constexpr float kVerdictDelay    = 21.0f;   // days a network takes to screen a pilot
+constexpr float kPremiereDelay   = 14.0f;   // days from order to the first airing
+constexpr float kSummerHiatus    = 60.0f;   // days between a renewal and the next season
+constexpr int   kLimitedOrder    = 8;
+constexpr int   kShowsPerOffice  = 2;
+constexpr int   kShowsPerStage   = 1;
+constexpr float kMinFreshness    = 0.3f;    // how tired an audience can get of a show
+
+// Building file names (they must start with "facility" or the build menu ignores them).
+extern const char* const kOfficeType;
+extern const char* const kStageType;
+extern const char* const kHqType;
+extern const char* const kControlRoomType;
+extern const char* const kArchiveType;
+extern const char* const kDatacenterType;
+
+enum FormatId { Sitcom, Procedural, Serialized, Soap, SciFi, TalkShow, GameShow, Reality, Documentary, Miniseries, FormatCount };
+
+struct FormatInfo {
+    const char* name;
+    int         fromYear;     // when the format becomes available
+    float       cost1950;     // per-episode production cost in 1950 dollars
+    float       fee1950;      // per-episode license fee in 1950 dollars
+    float       appeal1950;   // audience appeal then...
+    float       appeal2000;   // ...and later (interpolated)
+    bool        multiCamera;  // benefits from a Multi-Camera Soundstage
+    int         bestHour;     // preferred prime-time hour (0 = 8 PM, 2 = 10 PM)
+    const char* blurb;
+};
+extern const FormatInfo kFormats[FormatCount];
+
+// Rival networks are 0..kRivalCount-1; the player's own network is kPlayerNetwork.
+constexpr int kRivalCount    = 3;
+constexpr int kPlayerNetwork = 3;
+constexpr int kStreamingNetwork = 4;   // originals on your streaming service (no schedule)
+constexpr int kNetworkSlots  = 4;
+
+struct NetworkInfo {
+    const char* name;
+    const char* shortName;
+    const char* identity;
+    float       bar;          // pilot score needed for an order
+    float       feeMul;       // how well they pay
+    float       strength;     // audience pull of the brand
+    float       showQuality;  // average quality of their own shows
+    float       reachCap;     // share of TV homes they reach once fully grown
+    float       taste[FormatCount];
+};
+extern const NetworkInfo kNetworks[kRivalCount];
+
+enum Budget { BudgetLow, BudgetStandard, BudgetPremium, BudgetCount };
+extern const char* const kBudgetNames[BudgetCount];
+extern const float kBudgetCost[BudgetCount];
+extern const float kBudgetQuality[BudgetCount];
+extern const float kBudgetPitch[BudgetCount];
+
+enum Deal { DealLicense, DealAdShare, DealNetworkOwned, DealCount };
+extern const char* const kDealNames[DealCount];
+
+enum Level { Casual, StudioBoss, MediaMogul, LevelCount };
+extern const char* const kLevelNames[LevelCount];
+extern const char* const kLevelHelp[LevelCount];
+
+enum Status { Pitching, Rework, PassedOn, Ordered, OnAir, OnHold, RenewalOffered, Cancelled, Ended, StatusCount };
+extern const char* const kStatusNames[StatusCount];
+
+// Prime time: 7 nights x 3 hours.
+constexpr int kNights = 7;
+constexpr int kHours  = 3;
+constexpr int kSlots  = kNights * kHours;
+extern const char* const kNightNames[kNights];
+extern const char* const kHourNames[kHours];
+inline int SlotIndex(int night, int hour) { return night * kHours + hour; }
+
+// Own network reach levels.
+enum Reach { ReachLocal, ReachRegional, ReachNational, ReachCount };
+extern const char* const kReachNames[ReachCount];
+extern const float kReachShare[ReachCount];      // share of TV homes
+extern const float kReachCost1950[ReachCount];   // one-off cost to reach this level
+extern const float kReachUpkeep1950[ReachCount]; // weekly station costs
+
+// Long-running shows (Phase 3).
+enum SeasonPlan { PlanStandalone, PlanArc, PlanEvent, PlanCount };
+extern const char* const kPlanNames[PlanCount];
+extern const char* const kPlanHelp[PlanCount];
+enum Finale { FinaleClosure, FinaleCliffhanger, FinaleCount };
+extern const char* const kFinaleNames[FinaleCount];
+
+// ---------------------------------------------------------------------------------
+// State
+
+struct Series {
+    int         id = 0;
+    std::string title;
+    int         format = Sitcom;
+    int         status = Pitching;
+    int         network = 0;       // 0..2 rival, kPlayerNetwork = your own network
+    int         budget = BudgetStandard;
+    int         deal = DealLicense;
+    std::string pilotKey;          // identifies the pilot film: title + start date
+    std::string pilotTitle;
+    float       pilotQuality = 0;  // 0..1, from the game when pitched
+    float       pilotStars = 0;
+    float       pitchScore = 0;
+    int         passedMask = 0;    // networks that turned it down
+    int         reworkMask = 0;    // networks that asked for a rework of the current pilot
+    int         attempts = 0;
+    int         season = 0;
+    int         order = 0;         // episodes ordered this season
+    int         aired = 0;         // episodes aired this season
+    int         totalAired = 0;
+    int         slot = -1;         // prime-time slot on its network, -1 = none yet
+    float       verdictDay = 0;
+    float       nextAirDay = 0;    // earliest day of the next airing
+    float       freshness = 1.0f;
+    float       lastRating = 0;
+    float       lastShare = 0;
+    float       bestRating = 0;
+    float       ratingSum = 0;     // this season
+    float       shareSum = 0;      // this season
+    double      income = 0;        // all seasons
+    double      cost = 0;
+    std::vector<float> ratings;    // this season, one per episode
+    // People assigned by dropping them on the TV Production Office's zones.
+    std::string lead;              // Cast zone: the star of the show
+    std::string showrunner;        // Showrunner zone
+    std::vector<std::string> writers;   // Writers' Room zone, up to kMaxWriters
+    // Phase 3: the season's plan and finale, contracts, renewals and spinoffs.
+    int         plan = PlanStandalone;
+    int         finale = FinaleClosure;
+    bool        cliffhanger = false;   // the last season ended on one; the next premiere is an event
+    float       qualitySum = 0;        // this season
+    float       premiereRating = 0;    // this season
+    float       lastQuality = 0;       // average episode quality of the last finished season
+    float       leadPay = 1.0f;        // the star's pay, as a multiple of the standard rate
+    int         leadSeasons = 0;       // seasons the current star has made
+    int         demand = 0;            // a raise (percent) the star wants before the next season
+    std::string formerLead;            // a star who walked out and hasn't been replaced
+    float       feeMul = 1.0f;         // license fee or ad share, raised in renewal talks
+    bool        askedForRaise = false; // already negotiated this renewal
+    int         parentId = 0;          // spun off from this series
+    int         lastSpinoffSeason = -9;
+    // Phase 4: the show as a library title.
+    double      ratingTotal = 0;       // every episode's rating, all seasons
+    float       wear = 0;              // 0 = fresh, rises while reruns air, recovers in the vault
+    double      syndIncome = 0;        // rerun money earned (after residuals)
+    double      residuals = 0;         // paid to cast and writers
+    // Phase 5: streaming originals.
+    bool        binge = false;         // every episode at once instead of weekly
+    float       lastReleaseDay = 0;    // last time an episode aired or streamed
+    // Phase 6.
+    int         awards = 0;            // Golden Antennas won
+    bool        scandal = false;       // the star is in trouble, awaiting your decision
+    bool        livePending = false;   // the next episode goes out live
+    int         liveSeason = -1;       // season of the last live episode
+};
+
+constexpr int kMaxWriters = 4;
+
+// A person dropped on a TV zone, waiting for the player to pick a show.
+struct PendingDrop {
+    bool        active = false;
+    std::string room;
+    std::string person;      // display name
+    std::string personClass;
+};
+extern PendingDrop g_pendingDrop;
+extern std::vector<uintptr_t> g_droppedProjects;   // scripts and films dropped on TV buildings
+void OpenPitchFor(uintptr_t project);              // the Pitch tab, with this script or film picked
+void OpenPitchForKey(const std::string& pilotKey); // ... or this pilot
+void AssignPerson(Series& s, const std::string& room, const std::string& person);
+
+struct AiShow {
+    int         id = 0;
+    std::string title;
+    int         network = 0;
+    int         format = Sitcom;
+    float       quality = 0.4f;
+    float       freshness = 1.0f;
+    int         season = 1;
+    int         weeks = 0;         // airings this season
+    float       shareSum = 0;
+    float       lastRating = 0;
+};
+
+// What occupies a schedule slot.
+struct SlotEntry {
+    int seriesId = 0;   // a player series, or
+    int aiShowId = 0;   // a rival network's own show; both 0 = filler
+};
+
+struct NetworkState {
+    bool        exists = false;
+    std::string name;            // player network only (rivals use kNetworks)
+    std::string shortName;
+    int         reach = ReachLocal;
+    bool        director = false; // a Programming Director is on staff
+    SlotEntry   slots[kSlots];
+    float       lastRating[kSlots] = {};
+    float       lastShare[kSlots] = {};
+    double      weekIncome = 0, weekCost = 0;     // player network, current week
+    double      lastWeekIncome = 0, lastWeekCost = 0;
+};
+
+struct ChartEntry {
+    std::string title;
+    int         network = 0;
+    int         format = 0;
+    int         slot = 0;
+    float       rating = 0;
+    float       share = 0;
+    bool        player = false;
+};
+
+// One edition of the Season Finale newspaper.
+struct Newspaper {
+    float       day = 0;
+    std::string paper;       // masthead
+    std::string kicker;      // small line above the headline
+    std::string headline;
+    std::string subhead;
+    std::string body;
+    std::string verdict;     // renewal news
+    std::string quote;       // the critics
+    std::string sidebar;     // the week's other top shows, one per line
+    int         seriesId = 0;
+};
+extern std::deque<Newspaper> g_papers;   // newest last
+extern int g_paperOpen;
+// Files a front page in the Press tab and puts it on the game's timeline as news.
+void PrintPaper(const Newspaper& p);                  // index into g_papers, -1 = closed
+extern bool g_paperAuto;                 // open the paper at every finale
+
+struct Toast {
+    std::string title;
+    std::string body;
+    ImVec4      colour;
+    double      born = -1;
+};
+
+extern std::vector<Series> g_series;
+extern int   g_level;
+extern int   g_nextId;
+extern float g_incomeScale;
+extern float g_costScale;
+extern int   g_offices, g_stages, g_hqs, g_controlRooms, g_archives, g_datacenters;
+extern bool  g_detectionWorks;
+extern bool  g_devTools;
+extern std::deque<Toast> g_toasts;
+
+extern NetworkState g_networks[kNetworkSlots];
+extern std::vector<AiShow> g_aiShows;
+extern std::vector<ChartEntry> g_lastWeek;   // the most recent complete week, best first
+
+// ---------------------------------------------------------------------------------
+// Helpers (tv.cpp)
+
+float Today();
+float Year();
+float EraFactor(float year);
+float Households(float year);   // homes with a TV, millions
+float Appeal(int format, float year);
+int   FullOrder(int format, float year);
+float Roll(uint32_t a, uint32_t b, uint32_t c, float lo, float hi);
+uint32_t HashText(const std::string& s);
+
+std::string Utf8(const std::wstring& w);
+std::string Dollars(double v);
+std::string Format(const char* fmt, ...);
+std::string DateText(float days);
+
+extern const ImVec4 kGold, kGreen, kRed, kYellow, kGrey;
+void Notify(const std::string& title, const std::string& body, ImVec4 colour);
+
+std::string PilotKey(const game::Project& p);
+std::vector<game::Project> AvailablePilots();   // released films not yet used as a pilot
+
+bool Unlocked();
+void InstallNative();   // tv_native.cpp: the Television screen in the game's own interface
+bool HasOffice();
+int  Capacity();
+bool InProduction(const Series& s);
+Series* FindSeries(int id);
+
+// Series actions (tv.cpp)
+float PitchScore(const Series& s, int network);
+int   BestNetwork(const Series& s);
+void  StartPitch(Series& s, int network);
+void  OrderSeason(Series& s, int episodes, float firstAirDay);
+float EpisodeQuality(const Series& s, int episode);
+void  RecordAiring(Series& s, float quality, float rating, float share);   // money, stats, notifications
+void  EndSeason(Series& s);
+float RenewalNeeded(const Series& s);   // share a rival network wants to see
+double StaffPay1950(const Series& s);
+
+// Long-running shows (tv_story.cpp)
+double LeadPay1950(const Series& s);
+float  PlanQuality(const Series& s, int episode);
+float  PlanCostMul(const Series& s);
+float  EventBoost(const Series& s);            // audience pull of tonight's episode: premieres, finales, recasts
+float  FreshnessLoss(const Series& s);         // per episode
+void   SeasonFinale(Series& s, float avgShare, float needed);   // after the network's decision: contracts, newspaper
+void   ResolveDemand(Series& s, bool pay);
+void   AskForRaise(Series& s);                 // renewal talks with a rival network
+void   AfterAiring(Series& s, float quality, float rating);
+bool   CanSpinOff(const Series& s, std::string* why);
+std::string SpinoffTitle(const Series& parent, int format, int variant);
+Series& CreateSpinoff(const Series& parent, const std::string& title, int format);
+void   StorySave(std::map<std::string, std::string>& out);
+void   StoryLoad(const std::map<std::string, std::string>& in);
+void   StoryReset();
+
+// Library (tv_library.cpp)
+enum RerunDeal { RerunLocal, RerunExclusive, RerunCable, RerunStream, RerunStreamLicense, RerunDealCount };
+struct LibraryDeal {
+    int    seriesId = 0;
+    int    kind = RerunLocal;
+    int    buyer = 0;          // network, for exclusive deals
+    float  start = 0, end = 0; // days
+    double weekly = 0;         // local stations: paid every week
+    double upfront = 0;        // exclusive: paid on signing
+};
+extern std::vector<LibraryDeal> g_deals;
+constexpr int kMinPackage = 22;          // episodes before reruns can be sold
+constexpr int kCableYear  = 1976;
+bool   InLibrary(const Series& s);
+bool   OwnsReruns(const Series& s);
+LibraryDeal* ActiveDeal(int seriesId);
+double LocalWeekly(const Series& s);              // current money, per week
+double ExclusiveOffer(const Series& s, int network, int years);
+float  ResidualRate(float year);
+void   PayReruns(Series& s, double gross);   // rerun money in, residuals out
+void   SellLocal(Series& s, int years);
+void   SellExclusive(Series& s, int network, int years);
+void   SetOnCable(Series& s, bool on);
+bool   CanLaunchCable(std::string* why);
+void   LaunchCable(const std::string& name);
+void   LibraryWeekly(float day);
+void   LibrarySave(std::map<std::string, std::string>& out);
+void   LibraryLoad(const std::map<std::string, std::string>& in);
+void   LibraryReset();
+double CableValue();
+void   DrawLibrary();
+
+// Streaming (tv_streaming.cpp)
+constexpr int kStreamingYear = 2007;
+struct StreamerInfo { const char* name; const char* shortName; int launch; float strength; };
+constexpr int kStreamerCount = 3;
+extern const StreamerInfo kStreamers[kStreamerCount];
+struct RegionInfo { const char* name; float potential; float priceFactor; float cost1950; };
+constexpr int kRegionCount = 5;
+extern const RegionInfo kRegions[kRegionCount];
+bool   StreamingExists();
+const char* StreamingName();
+const char* StreamingShort();
+float  StreamingSubscribers();   // millions
+bool   StreamerActive(int streamer);
+double StreamLicenseOffer(const Series& s, int streamer, int years);
+void   LicenseToStreamer(Series& s, int streamer, int years);
+void   SetOnStreaming(Series& s, bool on);
+void   StreamingDaily(float day);
+void   DrawStreaming();
+void   StreamingSave(std::map<std::string, std::string>& out);
+void   StreamingLoad(const std::map<std::string, std::string>& in);
+void   StreamingReset();
+double OutletValue();            // cable channel and streaming service, for the empire value
+
+// Events, awards, empire (tv_events.cpp)
+float  EventAppeal(int format, float year);
+float  StandardsBonus();          // extra pitch bar while networks are under fire
+void   EventsDaily(float day);
+bool   WritersOnStrike();
+void   ResolveScandal(Series& s, bool fire);
+double MediaEmpireValue(std::vector<std::pair<std::string, double>>* parts);
+void   DrawEmpire();
+void   EventsSave(std::map<std::string, std::string>& out);
+void   EventsLoad(const std::map<std::string, std::string>& in);
+void   EventsReset();
+
+void   RecordHistory(const std::string& text);   // the Empire tab's timeline
+
+// Research, challenges, live episodes (tv_research.cpp)
+enum TechId { TechLaughTrack, TechAudienceResearch, TechMultiCamera, TechRemoteVans, TechSalesTeam, TechVideotape,
+              TechColour, TechSatellite, TechStereo, TechHD, TechCDN, TechRecAI, TechCount };
+struct TechInfo { const char* name; int year; float cost1950; int weeks; const char* blurb; const char* effect; };
+extern const TechInfo kTechs[TechCount];
+bool   HasTech(int tech);
+float  TechQualityBonus(int format);
+float  TechCostMul();
+float  TechAppeal(int format);
+bool   CanGoLive(const Series& s, std::string* why);
+void   PlanLive(Series& s);
+void   LiveOutcome(Series& s);
+void   ResearchWeekly(float day);
+void   DrawResearch();
+void   ResearchSave(std::map<std::string, std::string>& out);
+void   ResearchLoad(const std::map<std::string, std::string>& in);
+void   ResearchReset();
+
+// TV Writers' Office (tv_writers.cpp)
+extern const char* const kWritersType;
+extern int g_writerOffices;
+bool   IsWritersZone(const std::string& zone);
+bool   IsShelfScriptObject(uintptr_t project);   // a script the Writers' Office put on the lot
+void   AssignWriterToDesk(const std::string& zone, const std::string& person, uintptr_t scriptRoom = 0);
+bool   AdoptIfWriting(uintptr_t project);   // a script still being written, dropped on a TV building
+void   WritersDaily(float day);
+void   AddShelfPilots(std::vector<game::Project>& out, std::vector<std::string>& seen);
+int    ShelfScriptFormat(const game::Project& p);   // -1 unless it's a TV script from the shelf
+void   DrawWriters();
+void   WritersSave(std::map<std::string, std::string>& out);
+void   WritersLoad(const std::map<std::string, std::string>& in);
+void   WritersReset();
+std::string ShowTitle(int format, uint32_t seed);   // a made-up show title (tv_network.cpp)
+
+inline bool OwnOutlet(int network) { return network == kPlayerNetwork || network == kStreamingNetwork; }
+
+// Networks (tv_network.cpp)
+const char* NetworkName(int network);
+const char* NetworkShort(int network);
+float NetworkReach(int network, float year);
+std::string SlotName(int network, int slot);
+AiShow* FindAiShow(int id);
+void  AssignSlot(Series& s);          // the series' network gives it a prime-time slot
+void  ReleaseSlot(Series& s);         // the series leaves the schedule
+void  AirNight(float day, int night); // everything on prime time tonight
+void  NetworkDaily(float day);        // fall season, weekly accounts, Programming Director
+void  AutoSchedule();                 // fill your network's empty slots with your shows
+bool  CanFoundNetwork(std::string* why);
+void  FoundNetwork(const std::string& name);
+bool  CanUpgradeReach(std::string* why);
+void  UpgradeReach();
+void  NetworksReset();
+void  NetworksSave(std::map<std::string, std::string>& out);
+void  NetworksLoad(const std::map<std::string, std::string>& in);
+void  EnsureRivalSchedules();
+
+// UI (tv_ui.cpp, tv_paper.cpp)
+void DrawWindow();
+void DrawToasts();
+void DrawNewspaper();
+void HelpMarker(const char* text);
+void RankBadge(int rank);   // a position in a rosette, like the ranking screen
+void DrawPressTab();
+int  TabTotal();          // the TV screen's tabs (for the simulator)
+void SelectTab(int tab);
+
+} // namespace tv
