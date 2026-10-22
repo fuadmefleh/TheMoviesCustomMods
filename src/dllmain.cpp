@@ -85,6 +85,7 @@ void OnAttach()
     mod::InstallHooks();
     text::Install();
     diag::Install();
+    diag::InstallCrashLog();
     g_hooksEnabled = true;
 }
 

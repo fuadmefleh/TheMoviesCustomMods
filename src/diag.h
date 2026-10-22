@@ -6,5 +6,8 @@
 namespace diag {
 
 void Install();
+// Logs faults in the game's code with a stack, and writes MoviesMod_crash.dmp on a fatal one.
+// [MoviesMod] LogCrashes = 0 turns it off.
+void InstallCrashLog();
 
 } // namespace diag

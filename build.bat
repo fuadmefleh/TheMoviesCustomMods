@@ -27,7 +27,7 @@ cl /nologo /O2 /MT /EHa /std:c++17 /W3 /LD /utf-8 ^
    "%MH%\src\buffer.c" "%MH%\src\hook.c" "%MH%\src\trampoline.c" "%MH%\src\hde\hde32.c" ^
    "%IG%\imgui.cpp" "%IG%\imgui_draw.cpp" "%IG%\imgui_tables.cpp" "%IG%\imgui_widgets.cpp" ^
    "%IG%\backends\imgui_impl_dx9.cpp" "%IG%\backends\imgui_impl_win32.cpp" ^
-   /Fe:dinput8.dll /link /DEF:"%ROOT%src\exports.def" user32.lib d3d9.lib dxguid.lib
+   /Fe:dinput8.dll /link /MAP /DEF:"%ROOT%src\exports.def" user32.lib d3d9.lib dxguid.lib
 set ERR=%ERRORLEVEL%
 popd
 if not %ERR%==0 exit /b %ERR%

@@ -448,7 +448,7 @@ void __fastcall HookRegister(void* button)
 {
     g_origRegister(button);
     int n = RegisterSubs(button);
-    mod::Log("buildmenu: %d Facilities sub-buttons registered with the build menu movie%s", n < 0 ? 0 : n,
+    mod::Log("buildmenu: %d Facilities and Sets sub-buttons registered with the build menu movie%s", n < 0 ? 0 : n,
              n < 0 ? " (FAILED)" : "");
 }
 
