@@ -115,6 +115,7 @@ struct Hud {
 std::vector<Hud> g_hud;
 
 std::function<void()> g_yes, g_no;
+std::vector<std::function<void()>> g_buttonActions;   // AddButton callbacks, by index
 
 // ---------------------------------------------------------------------------------
 // Game calls, each behind an SEH guard (no C++ objects in these functions).
@@ -122,6 +123,7 @@ std::function<void()> g_yes, g_no;
 bool __stdcall OnButton(void*, void* ctx);
 bool __stdcall OnClose(void* sender, void* ctx);
 bool __stdcall OnHud(void*, void* ctx);
+bool __stdcall OnAddedButton(void*, void* ctx);
 
 void* NewImageButton(const char* texture, const wchar_t* tooltip, float w, float h)
 {
@@ -230,6 +232,22 @@ void* AddHudWidget(const char* texture, const wchar_t* tooltip, int index)
     }
 }
 
+void* AddButtonTo(void* parent, const char* texture, const wchar_t* tooltip, float x, float y, float size, int index)
+{
+    __try {
+        void* b = NewImageButton(texture, tooltip, size, size);
+        if (!b)
+            return nullptr;
+        SetClick(b, &OnAddedButton, reinterpret_cast<void*>(static_cast<intptr_t>(index)), "MOVIESMOD_BUTTON");
+        VCall(parent, 0x0C, b, 1);
+        VCall(b, 0x5C, 1, parent, x);
+        VCall(b, 0x64, 1, parent, y);
+        return b;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return nullptr;
+    }
+}
+
 void* CallConfirm(const wchar_t* title, const wchar_t* body, ConfirmCb yes, ConfirmCb no)
 {
     __try {
@@ -285,6 +303,14 @@ bool __stdcall OnHud(void*, void* ctx)
     size_t i = static_cast<size_t>(reinterpret_cast<intptr_t>(ctx));
     if (i < g_hud.size() && g_hud[i].onClick)
         g_hud[i].onClick();
+    return true;
+}
+
+bool __stdcall OnAddedButton(void*, void* ctx)
+{
+    size_t i = static_cast<size_t>(reinterpret_cast<intptr_t>(ctx));
+    if (i < g_buttonActions.size() && g_buttonActions[i])
+        g_buttonActions[i]();
     return true;
 }
 
@@ -391,6 +417,15 @@ void Refresh()
 void AddHudButton(const char* texture, const std::wstring& tooltip, std::function<void()> onClick)
 {
     g_hud.push_back({ texture, tooltip, std::move(onClick), nullptr });
+}
+
+void* AddButton(void* parent, const char* texture, const std::wstring& tooltip, float x, float y, float size,
+                std::function<void()> onClick)
+{
+    if (!parent || !Ready())
+        return nullptr;
+    g_buttonActions.push_back(std::move(onClick));
+    return AddButtonTo(parent, texture, tooltip.c_str(), x, y, size, static_cast<int>(g_buttonActions.size()) - 1);
 }
 
 std::wstring Escape(const std::string& utf8)

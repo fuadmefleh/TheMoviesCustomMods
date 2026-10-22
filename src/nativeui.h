@@ -42,6 +42,11 @@ void Refresh();   // rebuild the page now
 // A round button on the game's HUD (right edge), re-added after every load.
 void AddHudButton(const char* texture, const std::wstring& tooltip, std::function<void()> onClick);
 
+// An icon button added to an existing game window (e.g. the build menu's list), placed at
+// (x, y) from its top-left; it goes when the window goes. Returns the widget or nullptr.
+void* AddButton(void* parent, const char* texture, const std::wstring& tooltip, float x, float y, float size,
+                std::function<void()> onClick);
+
 // Text for the game's rich-text renderer: escapes the characters it treats as markup.
 std::wstring Escape(const std::string& utf8);
 

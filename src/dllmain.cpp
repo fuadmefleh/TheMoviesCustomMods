@@ -122,6 +122,7 @@ extern "C" HRESULT WINAPI Proxy_DirectInput8Create(HINSTANCE inst, DWORD version
         if (g_hooksEnabled) {
             overlay::Install();
             nativeui::Install();
+            buildmenu::Install();
             persist::Install();
             overlay::AddFrameCallback(&persist::Tick);
             rooms::Install();

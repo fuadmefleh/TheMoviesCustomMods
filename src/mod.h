@@ -15,6 +15,10 @@ void ShowInspector(bool show);   // hidden by default; toggled from the Televisi
 
 } // namespace mod
 
+namespace buildmenu {
+void Install();   // buildmenu.cpp: category buttons on the build menu's building list
+}
+
 namespace lists {
 void MergeAll();   // lists.cpp: merge our entries into shared list files in Data (before the game reads them)
 }
