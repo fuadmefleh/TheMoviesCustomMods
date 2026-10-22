@@ -82,6 +82,7 @@ int __fastcall HookGetMenuType(void* bp)
 
 void Choose(int category)
 {
+    mod::Log("buildmenu: category %d chosen", category);
     g_category = category;
     __try {
         if (g_list && *reinterpret_cast<int*>(static_cast<char*>(g_list) + kListMode) == 0)
@@ -107,13 +108,26 @@ void __fastcall HookOpenFacList(void* button)
     if (!g_list)
         return;
     int added = 0;
-    for (int i = 0; i < CategoryCount; i++)
-        added += nativeui::AddButton(g_list, kTabs[i].texture, kTabs[i].tooltip, g_tabX + (g_tabSize + 4) * i, g_tabY,
-                                     g_tabSize, [i] { Choose(i); }) != nullptr;
+    void* first = nullptr;
+    for (int i = 0; i < CategoryCount; i++) {
+        void* b = nativeui::AddButton(g_list, kTabs[i].texture, kTabs[i].tooltip, g_tabX + (g_tabSize + 4) * i, g_tabY,
+                                      g_tabSize, [i] { Choose(i); });
+        added += b != nullptr;
+        if (!first)
+            first = b;
+    }
+    static bool shown = false;
+    if (!shown && first) {
+        shown = true;
+        nativeui::LogRect("first category button", first);
+    }
     static bool logged = false;
     if (!logged) {
         logged = true;
         mod::Log("buildmenu: %d category buttons on the building list", added);
+        nativeui::LogRect("build list", g_list);
+        nativeui::LogRect("build button", button);
+        nativeui::ShotOnce("buildmenu", 700);
     }
 }
 

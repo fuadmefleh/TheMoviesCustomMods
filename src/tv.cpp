@@ -405,7 +405,8 @@ void Verdict(Series& s)
         s.status = Rework;
         s.reworkMask |= 1 << s.network;
         Notify(Format("%s wants a rework", n.shortName),
-               Format("'%s' shows promise. Pitch it again with a stronger pilot film, or try another network.",
+               Format(g_filmPilots ? "'%s' shows promise. Pitch it again with a stronger pilot film, or try another network."
+                                : "'%s' shows promise. Shoot a stronger pilot (a better script, a bigger star, a director) or try another network.",
                       s.title.c_str()),
                kYellow);
         // Casual players don't manage reworks: the show goes straight to the next network.

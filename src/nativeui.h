@@ -47,6 +47,11 @@ void AddHudButton(const char* texture, const std::wstring& tooltip, std::functio
 void* AddButton(void* parent, const char* texture, const std::wstring& tooltip, float x, float y, float size,
                 std::function<void()> onClick);
 
+// Logs a game window's on-screen rectangle (for placing mod widgets).
+void LogRect(const char* what, void* window);
+// Saves one screenshot of the game (MoviesMod\shots\<name>.bmp) delayMs from now, once per session.
+void ShotOnce(const char* name, unsigned delayMs);
+
 // Text for the game's rich-text renderer: escapes the characters it treats as markup.
 std::wstring Escape(const std::string& utf8);
 

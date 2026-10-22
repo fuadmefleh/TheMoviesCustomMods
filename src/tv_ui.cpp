@@ -154,7 +154,8 @@ void DrawRepitch(Series& s)
         ImGui::TextDisabled("Every network has passed. This idea is dead.");
         return;
     }
-    ImGui::TextWrapped(s.status == Rework ? "Swap in a stronger pilot film and pitch again - or shop it elsewhere."
+    ImGui::TextWrapped(s.status == Rework ? (g_filmPilots ? "Swap in a stronger pilot film and pitch again - or shop it elsewhere."
+                                                         : "Swap in a stronger pilot and pitch again - or shop it elsewhere.")
                                           : "Try another network.");
     std::vector<game::Project> pilots = AvailablePilots();
     static int newPilot = -1;

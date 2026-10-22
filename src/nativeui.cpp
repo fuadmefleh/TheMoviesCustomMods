@@ -134,6 +134,13 @@ struct Hud {
 std::vector<Hud> g_hud;
 
 std::function<void()> g_yes, g_no;
+float g_hudX = 12, g_hudY = 140;   // [MoviesMod] HudButtonX (from the right edge) / HudButtonY (from the top)
+struct PendingShot {
+    std::string name;
+    DWORD       at;
+};
+std::vector<PendingShot> g_shots;
+std::vector<std::string> g_shotsTaken;
 std::vector<std::function<void()>> g_buttonActions;   // AddButton callbacks, by index
 
 // ---------------------------------------------------------------------------------
@@ -247,8 +254,8 @@ void* AddHudWidget(const char* texture, const wchar_t* tooltip, int index)
             return nullptr;
         SetClick(b, &OnHud, reinterpret_cast<void*>(static_cast<intptr_t>(index)), "MOVIESMOD_HUD");
         VCall(r, 0x0C, b, 1);
-        VCall(b, 0x60, 2, r, 12.0f);
-        VCall(b, 0x64, 1, r, 140.0f + 56.0f * index);
+        VCall(b, 0x60, 2, r, g_hudX);
+        VCall(b, 0x64, 1, r, g_hudY + 56.0f * index);
         return b;
     } __except (Fault(GetExceptionInformation(), "HUD button")) {
         return nullptr;
@@ -369,9 +376,23 @@ void Frame()
         if (g_hud[i].widget)
             continue;
         g_hud[i].widget = AddHudWidget(g_hud[i].texture, g_hud[i].tooltip.c_str(), static_cast<int>(i));
+        if (g_hud[i].widget) {
+            LogRect("HUD button", g_hud[i].widget);
+            LogRect("HUD root", Root());
+            ShotOnce("hud", 3000);
+        }
         mod::Log("nativeui: HUD button %s %s", g_hud[i].texture, g_hud[i].widget ? "added" : "FAILED");
         if (!g_hud[i].widget)
             g_hud[i].widget = reinterpret_cast<void*>(1);   // don't retry every frame
+    }
+    for (size_t i = 0; i < g_shots.size();) {
+        if (GetTickCount() - g_shots[i].at < 0x80000000u) {
+            overlay::RequestScreenshot(g_shots[i].name.c_str());
+            mod::Log("nativeui: screenshot '%s' requested", g_shots[i].name.c_str());
+            g_shots.erase(g_shots.begin() + i);
+        } else {
+            i++;
+        }
     }
     if (g_dialog && GetTickCount() - g_refreshed > 2000)
         ShowPage();
@@ -451,6 +472,36 @@ void* AddButton(void* parent, const char* texture, const std::wstring& tooltip, 
     return AddButtonTo(parent, texture, tooltip.c_str(), x, y, size, static_cast<int>(g_buttonActions.size()) - 1);
 }
 
+bool ReadRect(void* w, float r[4])
+{
+    __try {
+        auto at = [w](int off) { return *reinterpret_cast<float*>(static_cast<char*>(w) + off); };
+        r[0] = at(0xC0);   // left
+        r[1] = at(0x9C);   // top
+        r[2] = at(0x108);  // right
+        r[3] = at(0xE4);   // bottom
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
+
+void LogRect(const char* what, void* window)
+{
+    float r[4];
+    if (window && ReadRect(window, r))
+        mod::Log("nativeui: %s at left %.0f top %.0f right %.0f bottom %.0f", what, r[0], r[1], r[2], r[3]);
+}
+
+void ShotOnce(const char* name, unsigned delayMs)
+{
+    for (const std::string& n : g_shotsTaken)
+        if (n == name)
+            return;
+    g_shotsTaken.push_back(name);
+    g_shots.push_back({ name, GetTickCount() + delayMs });
+}
+
 std::wstring Escape(const std::string& utf8)
 {
     int n = MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), static_cast<int>(utf8.size()), nullptr, 0);
@@ -473,6 +524,13 @@ void Install()
         return;
     }
     g_enabled = true;
+    wchar_t buf[32];
+    GetPrivateProfileStringW(L"MoviesMod", L"HudButtonX", L"", buf, 32, ini);
+    if (buf[0])
+        g_hudX = static_cast<float>(_wtof(buf));
+    GetPrivateProfileStringW(L"MoviesMod", L"HudButtonY", L"", buf, 32, ini);
+    if (buf[0])
+        g_hudY = static_cast<float>(_wtof(buf));
     overlay::AddFrameCallback(&Frame);
 }
 
