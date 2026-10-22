@@ -24,6 +24,9 @@ void AddHud(DrawFn draw);
 
 // Runs every frame, whether or not the overlay is open (game thread, before Present).
 void AddFrameCallback(void (*fn)());
+// F8 with the overlay closed calls this first (Shift+F8 skips it); returning true means it
+// was handled (e.g. the native TV screen opened) and the overlay stays closed.
+void SetToggleHandler(bool (*fn)());
 
 bool IsOpen();
 void Open();   // shows the overlay (e.g. when the game hands the player a decision)

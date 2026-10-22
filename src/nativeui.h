@@ -11,6 +11,8 @@ namespace nativeui {
 
 // True while a game is running and its interface exists.
 bool Ready();
+// [MoviesMod] NativeUI = 1 (the default).
+bool Enabled();
 
 // A yes/no prompt in the game's style. body is the game's rich text (<br>, <b>,
 // <font color=#RRGGBB>, <table>...). Either callback may be empty.

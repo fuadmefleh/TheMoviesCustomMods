@@ -192,6 +192,7 @@ namespace overlay {
 void AddPanel(const char* name, DrawFn draw) { sim::g_panels.push_back({ name, draw }); }
 void AddHud(DrawFn draw) { sim::g_huds.push_back(draw); }
 void AddFrameCallback(void (*fn)()) { sim::g_frameCallbacks.push_back(fn); }
+void SetToggleHandler(bool (*)()) {}
 bool IsOpen() { return sim::g_overlayOpen; }
 void Open() { sim::g_overlayOpen = true; }
 void Close() { sim::g_overlayOpen = false; }
@@ -290,6 +291,7 @@ void Post(const std::string& headline, const std::string&, const std::string&)
 namespace nativeui {
 
 bool Ready() { return true; }
+bool Enabled() { return true; }
 void Confirm(const std::wstring&, const std::wstring&, std::function<void()> onYes, std::function<void()>)
 {
     if (onYes)

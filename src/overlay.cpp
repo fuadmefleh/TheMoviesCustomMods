@@ -58,6 +58,7 @@ ImFont* g_headingFont = nullptr;
 HWND    g_hwnd = nullptr;
 WNDPROC g_origWndProc = nullptr;
 UINT    g_toggleKey = VK_F8;
+bool  (*g_toggleHandler)() = nullptr;
 
 std::set<IDirectInputDevice8A*> g_mice;
 std::set<IDirectInputDevice8A*> g_keyboards;
@@ -230,6 +231,8 @@ bool CaptureKeyboard() { return g_imguiReady && g_open && ImGui::GetIO().WantCap
 LRESULT CALLBACK HookWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
     if (msg == WM_KEYDOWN && wp == g_toggleKey && !(lp & (1 << 30))) {
+        if (!g_open && g_toggleHandler && !(GetKeyState(VK_SHIFT) & 0x8000) && g_toggleHandler())
+            return 0;
         g_open = !g_open;
         if (g_open) {
             g_cursorX = g_cursorY = -1;   // recentre our cursor each time the overlay opens
@@ -533,6 +536,8 @@ void AddPanel(const char* name, DrawFn draw) { g_panels.push_back({ name, draw }
 void AddHud(DrawFn draw) { g_huds.push_back(draw); }
 
 void AddFrameCallback(void (*fn)()) { g_frameCallbacks.push_back(fn); }
+
+void SetToggleHandler(bool (*fn)()) { g_toggleHandler = fn; }
 
 bool IsOpen() { return g_open; }
 

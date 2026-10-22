@@ -352,11 +352,21 @@ void Prompts()
     }
 }
 
+bool OnToggleKey()
+{
+    if (!nativeui::Ready())
+        return false;   // no game running: the overlay's own screens
+    OpenNative();       // opens, or closes it if it is open
+    return true;
+}
+
 } // namespace
 
 void InstallNative()
 {
     nativeui::AddHudButton("button_video.", L"Television", &OpenNative);
+    if (nativeui::Enabled())
+        overlay::SetToggleHandler(&OnToggleKey);
     overlay::AddFrameCallback(&Prompts);
 }
 

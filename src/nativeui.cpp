@@ -330,6 +330,9 @@ void Frame()
 
 } // namespace
 
+bool g_enabled = false;
+bool Enabled() { return g_enabled; }
+
 bool Ready() { return *reinterpret_cast<void**>(kGameLoaded) && Root() && game::Ready(); }
 
 void Confirm(const std::wstring& title, const std::wstring& body, std::function<void()> onYes,
@@ -411,6 +414,7 @@ void Install()
         mod::Log("nativeui: NativeUI = 0 - off");
         return;
     }
+    g_enabled = true;
     overlay::AddFrameCallback(&Frame);
 }
 

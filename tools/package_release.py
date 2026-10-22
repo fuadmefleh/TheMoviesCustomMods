@@ -37,7 +37,8 @@ INSTALL
 4. Start the game. MoviesMod.log appears in the game folder.
 
 PLAYING
-- F8 or the TV button on the right of the HUD opens the Television screen.
+- F8 or the TV button on the right of the HUD opens the Television screen; Shift+F8 opens the
+  full mod windows.
 - Everything can be tuned or switched off in MoviesMod.ini (each setting is explained there).
 
 UNINSTALL

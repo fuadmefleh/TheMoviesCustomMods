@@ -68,7 +68,9 @@ Start the game as usual. `MoviesMod.log` appears in the game folder.
 
 ### In-game windows
 
-Press **F8** to open or close the mod's windows.
+Press **F8** (or click the TV button on the right of the HUD) to open the **Television screen in the game's own interface**: your shows, scripts and pilots, ratings, networks, the box office and the press, with buttons to shoot and pitch pilots. Its **Full controls** button (or **Shift+F8**) opens the mod's full windows, described below; `[MoviesMod] NativeUI = 0` makes F8 open those directly.
+
+The full windows:
 - While a window is open, the mouse and keyboard control the window, and the game sees no mouse input.
 - Press F8 again to return control to the game.
 
