@@ -47,7 +47,10 @@ GetMenuType_t g_origGetMenuType = nullptr;
 OpenFacList_t g_origOpen = nullptr;
 int   g_category = All;
 void* g_list = nullptr;
-float g_tabX = 6, g_tabY = -44, g_tabSize = 40;
+// The list window is a full-screen 1024x768 layer; the visible Facilities panel spans about
+// x 92..442, y 28..512 of it, so the buttons go in a column just right of the panel.
+float g_tabX = 450, g_tabY = 70, g_tabSize = 44;
+bool  g_vertical = true;
 
 bool IsTelevision(void* bp)
 {
@@ -110,8 +113,9 @@ void __fastcall HookOpenFacList(void* button)
     int added = 0;
     void* first = nullptr;
     for (int i = 0; i < CategoryCount; i++) {
-        void* b = nativeui::AddButton(g_list, kTabs[i].texture, kTabs[i].tooltip, g_tabX + (g_tabSize + 4) * i, g_tabY,
-                                      g_tabSize, [i] { Choose(i); });
+        float x = g_vertical ? g_tabX : g_tabX + (g_tabSize + 6) * i;
+        float y = g_vertical ? g_tabY + (g_tabSize + 6) * i : g_tabY;
+        void* b = nativeui::AddButton(g_list, kTabs[i].texture, kTabs[i].tooltip, x, y, g_tabSize, [i] { Choose(i); });
         added += b != nullptr;
         if (!first)
             first = b;
@@ -149,6 +153,7 @@ void Install()
     g_tabX = IniFloat(ini, L"ButtonsX", g_tabX);
     g_tabY = IniFloat(ini, L"ButtonsY", g_tabY);
     g_tabSize = IniFloat(ini, L"ButtonSize", g_tabSize);
+    g_vertical = GetPrivateProfileIntW(L"BuildMenu", L"Column", 1, ini) != 0;
     bool ok = MH_CreateHook(reinterpret_cast<LPVOID>(kGetMenuType), reinterpret_cast<LPVOID>(&HookGetMenuType),
                             reinterpret_cast<LPVOID*>(&g_origGetMenuType)) == MH_OK &&
               MH_CreateHook(reinterpret_cast<LPVOID>(kOpenFacList), reinterpret_cast<LPVOID>(&HookOpenFacList),

@@ -134,7 +134,9 @@ struct Hud {
 std::vector<Hud> g_hud;
 
 std::function<void()> g_yes, g_no;
-float g_hudX = 12, g_hudY = 140;   // [MoviesMod] HudButtonX (from the right edge) / HudButtonY (from the top)
+// [MoviesMod] HudButtonX: from the right edge; HudButtonY: from the top, or from the bottom
+// when negative. The default is the bottom-right corner (the top right holds the film list).
+float g_hudX = 16, g_hudY = -210;
 struct PendingShot {
     std::string name;
     DWORD       at;
@@ -254,8 +256,9 @@ void* AddHudWidget(const char* texture, const wchar_t* tooltip, int index)
             return nullptr;
         SetClick(b, &OnHud, reinterpret_cast<void*>(static_cast<intptr_t>(index)), "MOVIESMOD_HUD");
         VCall(r, 0x0C, b, 1);
+        float y = g_hudY >= 0 ? g_hudY + 56.0f * index : VCall<float>(r, 0x14) + g_hudY - 56.0f * index;
         VCall(b, 0x60, 2, r, g_hudX);
-        VCall(b, 0x64, 1, r, g_hudY + 56.0f * index);
+        VCall(b, 0x64, 1, r, y);
         return b;
     } __except (Fault(GetExceptionInformation(), "HUD button")) {
         return nullptr;
@@ -379,7 +382,7 @@ void Frame()
         if (g_hud[i].widget) {
             LogRect("HUD button", g_hud[i].widget);
             LogRect("HUD root", Root());
-            ShotOnce("hud", 3000);
+            ShotOnce("hud", 20000);
         }
         mod::Log("nativeui: HUD button %s %s", g_hud[i].texture, g_hud[i].widget ? "added" : "FAILED");
         if (!g_hud[i].widget)
