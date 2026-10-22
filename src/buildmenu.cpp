@@ -22,6 +22,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <map>
+#include <string>
 #include <string>
 
 #include "MinHook.h"
@@ -190,6 +192,169 @@ void __fastcall HookOpenFacList(void* button)
     }
 }
 
+// --- Sets ------------------------------------------------------------------------------
+// The sets list walks a global chain of set blueprints (first node [0x01050964], end node
+// 0x01050970; a node sits at blueprint+0xD0: +4 next, +8 the blueprint) twice - count
+// (0x006502A0) and fill (0x006550F0) - with no per-set getter to hook. So while they run, the
+// chain is relinked to the chosen group's sets and restored afterwards. A set's group isn't
+// kept by the game: it comes from its file's [blueprint] path, i.e. this table for the
+// game's own sets, or the loose file in Data\set for added ones.
+
+constexpr uintptr_t kOpenSetsList = 0x00642230;   // void __fastcall(WBuildButton*)
+constexpr uintptr_t kSetsCount    = 0x006502A0;   // void __fastcall(WBuildButtonList*)
+constexpr uintptr_t kSetsFill     = 0x006550F0;   // void __thiscall(WBuildButtonList*, char)
+constexpr uintptr_t kSetFirst = 0x01050964, kSetEnd = 0x01050970;
+constexpr int kSetNode = 0xD0;
+
+enum SetGroup { SAll, SCity, SFuturistic, SLifestyle, SOutdoors, SWorkplace, SetGroupCount };
+int g_setGroup = SAll, g_setPending = -1;
+bool g_setsOpensList = false;
+
+int GroupFromPath(const char* path)
+{
+    static const char* const kNames[SetGroupCount] = { "", "group_city", "group_futuristic", "group_lifestyle",
+                                                       "group_outdoors", "group_workplace" };
+    for (int i = 1; i < SetGroupCount; i++)
+        if (_stricmp(path, kNames[i]) == 0)
+            return i;
+    return SAll;
+}
+
+int SetGroupOf(const char* stem)
+{
+    static std::map<std::string, int> cache;
+    auto it = cache.find(stem);
+    if (it != cache.end())
+        return it->second;
+    int group = SAll;
+    char path[64] = "";
+    char file[MAX_PATH];
+    sprintf_s(file, "%ls\\Data\\set\\%s.ini", mod::GameDir(), stem);
+    if (GetPrivateProfileStringA("blueprint", "path", "", path, sizeof(path), file) > 0) {
+        char* t = path;
+        while (*t == ' ' || *t == '\t')
+            t++;
+        group = GroupFromPath(t);
+    }
+    if (group == SAll) {
+        static const struct { int group; const char* names; } kTable[] = {
+            { SCity, " set_alleyway set_bombedstreet set_citystreet set_citystreet_commercial set_mincity set_mincity_destroyed "
+                     "set_municipal set_roofsection set_rooftop set_subwaycarriage set_subwaystation set_wwstreet " },
+            { SFuturistic, " set_blue_screen set_bridge_variation set_bridgetz1 set_bridgetz2 set_bridgetz3 set_corridortz1 "
+                           "set_corridortz2 set_corridortz3 set_corridortz3_v2 set_corridortz4 set_greenscreen " },
+            { SLifestyle, " set_bar set_bathroom set_bathroom_30s set_cellarinterior set_diner set_hotelbedroom "
+                          "set_hotelbedroom_shabby set_livingroom set_livingroom_modern set_saloobedroom set_saloon "
+                          "set_shackinterior " },
+            { SOutdoors, " set_beach set_car set_graveyard set_landscape_alienplanet set_landscape_battlefield "
+                         "set_landscape_desert set_landscape_field set_landscape_forest set_landscape_jungle "
+                         "set_scrolling_miniature set_shackexterior set_stage set_stagecoach set_suburbanstreet " },
+            { SWorkplace, " set_bank set_bankww set_barracks set_citycorridor set_jail set_jail_modern "
+                          "set_municipal_reception set_office set_schoolcorridor set_schoollibrary " },
+        };
+        std::string key = " " + std::string(stem) + " ";
+        for (const auto& row : kTable)
+            if (strstr(row.names, key.c_str()))
+                group = row.group;
+    }
+    cache[stem] = group;
+    return group;
+}
+
+// The chain's nodes and which of them to keep (filled outside the SEH helpers).
+constexpr int kMaxSets = 1024;
+uintptr_t g_nodes[kMaxSets];
+bool      g_keep[kMaxSets];
+int       g_nodeCount = 0;
+
+int CollectNodes()
+{
+    __try {
+        int n = 0;
+        uintptr_t node = *reinterpret_cast<uintptr_t*>(kSetFirst);
+        while (node && node != kSetEnd && n < kMaxSets) {
+            g_nodes[n++] = node;
+            node = *reinterpret_cast<uintptr_t*>(node + 4);
+        }
+        return n;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return 0;
+    }
+}
+
+void MarkKeep()
+{
+    for (int i = 0; i < g_nodeCount; i++) {
+        char name[128];
+        uintptr_t bp = 0;
+        __try {
+            bp = *reinterpret_cast<uintptr_t*>(g_nodes[i] + 8);
+        } __except (EXCEPTION_EXECUTE_HANDLER) {
+        }
+        g_keep[i] = bp && BlueprintName(reinterpret_cast<void*>(bp), name, sizeof(name)) && SetGroupOf(name) == g_setGroup;
+    }
+}
+
+using ListFn = void(__fastcall*)(void* list);
+using FillFn = void(__fastcall*)(void* list, void* edx, char keep);
+ListFn g_origSetsCount = nullptr;
+FillFn g_origSetsFill = nullptr;
+ListFn g_origOpenSets = nullptr;
+
+// Runs the original with the chain relinked to the kept nodes, then restores it.
+void RunFiltered(void* list, char keepScroll, bool fill)
+{
+    uintptr_t savedFirst = *reinterpret_cast<uintptr_t*>(kSetFirst);
+    uintptr_t savedNext[kMaxSets];
+    __try {
+        uintptr_t prev = kSetFirst - 4;   // so that "prev + 4" is the first-node slot
+        for (int i = 0; i < g_nodeCount; i++) {
+            savedNext[i] = *reinterpret_cast<uintptr_t*>(g_nodes[i] + 4);
+            if (!g_keep[i])
+                continue;
+            *reinterpret_cast<uintptr_t*>(prev + 4) = g_nodes[i];
+            prev = g_nodes[i];
+        }
+        *reinterpret_cast<uintptr_t*>(prev + 4) = kSetEnd;
+        if (fill)
+            g_origSetsFill(list, nullptr, keepScroll);
+        else
+            g_origSetsCount(list);
+    } __finally {
+        *reinterpret_cast<uintptr_t*>(kSetFirst) = savedFirst;
+        for (int i = 0; i < g_nodeCount; i++)
+            *reinterpret_cast<uintptr_t*>(g_nodes[i] + 4) = savedNext[i];
+    }
+}
+
+void Filtered(void* list, char keepScroll, bool fill)
+{
+    if (g_setGroup == SAll || (g_nodeCount = CollectNodes()) == 0) {
+        if (fill)
+            g_origSetsFill(list, nullptr, keepScroll);
+        else
+            g_origSetsCount(list);
+        return;
+    }
+    MarkKeep();
+    RunFiltered(list, keepScroll, fill);
+}
+
+void __fastcall HookSetsCount(void* list) { Filtered(list, 0, false); }
+void __fastcall HookSetsFill(void* list, void*, char keepScroll) { Filtered(list, keepScroll, true); }
+
+void __fastcall HookOpenSetsList(void* button)
+{
+    g_setGroup = g_setPending >= 0 ? g_setPending : SAll;
+    g_setPending = -1;
+    static const wchar_t* const kTitles[SetGroupCount] = { L"", L"City", L"Futuristic", L"Lifestyle", L"Outdoors",
+                                                           L"Workplace" };
+    if (g_setGroup == SAll)
+        text::Unset("BB_SETS");
+    else
+        text::Set("BB_SETS", kTitles[g_setGroup]);
+    g_origOpenSets(button);
+}
+
 // --- The Flash sub-buttons ------------------------------------------------------------
 
 using RegisterCallbacks_t = void(__fastcall*)(void* button);
@@ -211,6 +376,20 @@ template <int N> bool __fastcall OnFacSub(void* button, void*)
 }
 using FlashCallback_t = bool(__fastcall*)(void*, void*);
 const FlashCallback_t kSubCallbacks[CategoryCount] = { &OnFacSub<1>, &OnFacSub<2>, &OnFacSub<3>, &OnFacSub<4>, &OnFacSub<5> };
+
+template <int N> bool __fastcall OnSetsSub(void* button, void*)
+{
+    char node[16];
+    sprintf_s(node, "$sets_sub%d", N);
+    GameStr s = Str(node);
+    __try {
+        reinterpret_cast<void(__thiscall*)(void*, GameStr*)>(kClickNode)(button, &s);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+    }
+    return true;
+}
+const FlashCallback_t kSetsCallbacks[SetGroupCount] = { &OnSetsSub<1>, &OnSetsSub<2>, &OnSetsSub<3>,
+                                                        &OnSetsSub<4>, &OnSetsSub<5>, &OnSetsSub<6> };
 
 void* Player(void* button)
 {
@@ -243,6 +422,22 @@ int RegisterSubs(void* button)
                 reinterpret_cast<void(__thiscall*)(void*, GameStr*, int, int)>(kSetTooltip)(elem, &tip, 1, 1);
             }
         }
+        for (int i = 0; i < SetGroupCount; i++) {
+            char name[16], element[16];
+            sprintf_s(name, "cb_sets_sub%d", i + 1);
+            GameStr s = Str(name);
+            reinterpret_cast<void(__thiscall*)(void*, GameStr*, void*, FlashCallback_t, int)>(kAddFlashCallback)(
+                registry, &s, button, kSetsCallbacks[i], 0);
+            n++;
+            sprintf_s(element, "setsbutt_sub%d", i + 1);
+            void* elem = reinterpret_cast<void*(__thiscall*)(void*, const char*)>(kFindElement)(player, element);
+            if (elem) {
+                static const char* const kTips[SetGroupCount] = { "All sets", "City", "Futuristic", "Lifestyle",
+                                                                  "Outdoors", "Workplace" };
+                GameStr tip = Str(kTips[i]);
+                reinterpret_cast<void(__thiscall*)(void*, GameStr*, int, int)>(kSetTooltip)(elem, &tip, 1, 1);
+            }
+        }
         return n;
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         return -1;
@@ -269,6 +464,21 @@ void __fastcall HookDispatch(void* button, void* edx, GameStr* node)
         } __except (EXCEPTION_EXECUTE_HANDLER) {
         }
         return;
+    }
+    if (strncmp(name, "$sets_sub", 9) == 0 && name[9] >= '1' && name[9] < '1' + SetGroupCount && !name[10]) {
+        g_setPending = name[9] - '1';
+        mod::Log("buildmenu: Sets sub-button %d chosen", g_setPending + 1);
+        __try {
+            *reinterpret_cast<int*>(static_cast<char*>(button) + kPropSub) = 0;
+            HookOpenSetsList(button);
+        } __except (EXCEPTION_EXECUTE_HANDLER) {
+        }
+        return;
+    }
+    if (strcmp(name, "$sets") == 0) {
+        g_setPending = SAll;
+        if (!g_setsOpensList)
+            return;   // only fan out: the sub-buttons open the list
     }
     if (strcmp(name, "$fac") == 0) {
         g_pending = All;
@@ -302,6 +512,7 @@ void Install()
     bool flash = GetFileAttributesW(movie) != INVALID_FILE_ATTRIBUTES;
     g_listButtons = GetPrivateProfileIntW(L"BuildMenu", L"ListButtons", flash ? 0 : 1, ini) != 0;
     g_facOpensList = !flash || GetPrivateProfileIntW(L"BuildMenu", L"FacilitiesOpensList", 0, ini) != 0;
+    g_setsOpensList = !flash || GetPrivateProfileIntW(L"BuildMenu", L"SetsOpensList", 0, ini) != 0;
     bool ok = MH_CreateHook(reinterpret_cast<LPVOID>(kGetMenuType), reinterpret_cast<LPVOID>(&HookGetMenuType),
                             reinterpret_cast<LPVOID*>(&g_origGetMenuType)) == MH_OK &&
               MH_CreateHook(reinterpret_cast<LPVOID>(kOpenFacList), reinterpret_cast<LPVOID>(&HookOpenFacList),
@@ -314,7 +525,16 @@ void Install()
              MH_CreateHook(reinterpret_cast<LPVOID>(kDispatch), reinterpret_cast<LPVOID>(&HookDispatch),
                            reinterpret_cast<LPVOID*>(&g_origDispatch)) == MH_OK &&
              MH_EnableHook(reinterpret_cast<LPVOID>(kRegisterCallbacks)) == MH_OK &&
-             MH_EnableHook(reinterpret_cast<LPVOID>(kDispatch)) == MH_OK;
+             MH_EnableHook(reinterpret_cast<LPVOID>(kDispatch)) == MH_OK &&
+             MH_CreateHook(reinterpret_cast<LPVOID>(kOpenSetsList), reinterpret_cast<LPVOID>(&HookOpenSetsList),
+                           reinterpret_cast<LPVOID*>(&g_origOpenSets)) == MH_OK &&
+             MH_CreateHook(reinterpret_cast<LPVOID>(kSetsCount), reinterpret_cast<LPVOID>(&HookSetsCount),
+                           reinterpret_cast<LPVOID*>(&g_origSetsCount)) == MH_OK &&
+             MH_CreateHook(reinterpret_cast<LPVOID>(kSetsFill), reinterpret_cast<LPVOID>(&HookSetsFill),
+                           reinterpret_cast<LPVOID*>(&g_origSetsFill)) == MH_OK &&
+             MH_EnableHook(reinterpret_cast<LPVOID>(kOpenSetsList)) == MH_OK &&
+             MH_EnableHook(reinterpret_cast<LPVOID>(kSetsCount)) == MH_OK &&
+             MH_EnableHook(reinterpret_cast<LPVOID>(kSetsFill)) == MH_OK;
     mod::Log("buildmenu: Facilities sub-buttons in the build menu %s, buttons beside the list %s",
              flash ? "on" : "off (buildmenu4.mfl not installed)", g_listButtons ? "on" : "off");
     mod::Log("buildmenu: category buttons %s", ok ? "on" : "FAILED");

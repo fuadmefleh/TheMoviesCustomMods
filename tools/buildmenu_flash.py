@@ -1,5 +1,6 @@
 """Builds a modified buildmenu4.mfl whose Facilities button fans out five category
-sub-buttons, the way the Props button fans out its four ($orna_sub1..4).
+sub-buttons and whose Sets button fans out six, the way the Props button fans out its
+four ($orna_sub1..4).
 
 How the original works (see tools/swf.py dump):
   $buildmenu > $build (sprite 64) > $fac (63), $sets (58), $ornaments (53) > $orna_sub1..4
@@ -11,15 +12,17 @@ How the original works (see tools/swf.py dump):
       Push 0.0, "cb_orna_subN"; CallFunction; Pop
   i.e. it calls a C++ function registered with 0x0087DE50.
 
-What this script adds:
-  * sprites $fac_sub1..5 inside $fac (sprite 63), placed on its cb_open frame like
-    $orna_subN in $ornaments (all of $fac's own depths are moved up by 10 so the new
-    sprites sit underneath its button);
+What this script adds, for each fan in FANS ($fac: 5 building categories, $sets: 6 set
+groups - All, City, Futuristic, Lifestyle, Outdoors, Workplace):
+  * sprites $<node>_sub1..N inside the node sprite ($fac 63, $sets 58), placed on its
+    cb_open frame like $orna_subN in $ornaments (all of the node's own depths except the
+    joiner at depth 1 are moved up by 10 so the new sprites sit underneath its button);
   * each is a copy of $orna_sub1 (sprite 34) whose movement is rotated/scaled to its
-    own spot on an arc around the Facilities button, delayed by 2 frames per index
+    own spot on an arc around the node's button, delayed by 2 frames per index
     (the props sub-buttons are staggered the same way);
-  * button facbutt_subN (copy of button 27) calling cb_fac_subN, icon fac_subNicon
-    (copy of the facicon shape with a different flash_*.dds texture).
+  * button <butt>_subN (copy of button 27: facbutt_subN / setsbutt_subN) calling
+    cb_<node>_subN (cb_fac_subN / cb_sets_subN), icon <node>_subNicon (copy of the
+    facicon shape with a different flash_*.dds texture).
 
 Usage: python buildmenu_flash.py [<in buildmenu4.mfl | pak>] [<out.mfl>]
   defaults: Addon_2704_0001.pak from the game dir -> content/data/ui/flash/buildmenu4.mfl
@@ -40,27 +43,45 @@ DEFAULT_OUT = os.path.join(os.path.dirname(HERE), 'content', 'data', 'ui', 'flas
 # (label, texture in data/textures/flash/, centre of the drawing in the 64x64 texture, scale)
 # - all are white UI icons from the game paks. The centre is used to line each drawing up
 # with the Facilities icon's (30, 32), since some textures are drawn off-centre.
-SUBS = [
+FAC_SUBS = [
     ('All', 'flash_68e2c97e.dds', (30.0, 32.0), 1.0),          # the Facilities icon (building)
     ('Production', 'flash_77af8f66.dds', (33.0, 26.0), 1.0),   # film reel
     ('Staff & Talent', 'flash_aae7b3d.dds', (26.0, 19.5), 1.1),  # comedy/tragedy masks
     ('Amenities', 'flash_454f575.dds', (32.0, 31.0), 1.0),     # snack box (also the Props icon)
     ('Television', 'flash_a32bfb84.dds', (21.5, 21.0), 1.2),   # megaphone / broadcast
 ]
+# The set inis' [blueprint] path groups. Centres and sizes measured from the textures' alpha.
+SETS_SUBS = [
+    ('All', 'flash_67882d1a.dds', (28.5, 32.5), 1.0),          # the Sets icon (a set flat)
+    ('City', 'flash_68e2c97e.dds', (31.0, 33.0), 1.0),         # building
+    ('Futuristic', 'flash_76d2b8ab.dds', (32.5, 32.5), 1.15),  # star (space)
+    ('Lifestyle', 'flash_127c2419.dds', (33.0, 32.5), 1.0),    # chair (the Props furniture icon)
+    ('Outdoors', 'flash_dc8c72b5.dds', (33.5, 32.0), 1.0),     # leaf (the Props flora icon)
+    ('Workplace', 'flash_a04c5fed.dds', (35.5, 33.0), 0.85),   # dollar sign (bank, office)
+]
 ICON_CENTRE = (30.0, 32.0)
 ICON_LEFT_TOP = (-34.5, -34.5)   # facicon shape: texture pixel (0, 0) sits here (px)
-# arc around the (expanded) Facilities button: degrees, 0 = right, -90 = up (y is down).
-# The build menu sits at the left edge of the screen, so nothing goes much further left
-# than the original buttons; the building list's joiner points up-right at about -60.
-ANGLES = [-88, -66, -44, -22, 0]   # leftmost stays on screen; clear of the shrunken Sets button (~+35 deg)
-RADIUS = 125.0         # px; sub-buttons are ~50 px across (props: 81-87 px, ~46 px apart)
+# Each fan is an arc around its parent's (expanded) button: degrees, 0 = right, -90 = up
+# (y is down). The build menu sits in the bottom-left screen corner: Facilities above the
+# build button, Sets up-right of it, Props right of it. The list window's joiner points
+# up-right at about -60 deg.
+#  * Facilities: the leftmost (straight up) stays on screen; clear of the shrunken Sets
+#    button (~+35 deg).
+#  * Sets: from just left of straight up round to right-and-down. Further left leaves the
+#    screen; further down hits the bottom edge and the shrunken Props button (~+96 deg).
+#    The shrunken Facilities button is at ~-175 deg, the build button at ~+120 deg.
+# Sub-buttons are ~50 px across (props: 81-87 px, ~46 px apart); 26 deg at 125 px is ~57 px.
+FANS = [
+    dict(sprite=63, button='facbutton', node='fac', butt='facbutt', subs=FAC_SUBS,
+         angles=[-88, -66, -44, -22, 0], radius=125.0),
+    dict(sprite=58, button='setbutton', node='sets', butt='setsbutt', subs=SETS_SUBS,
+         angles=[-104, -78, -52, -26, 0, 26], radius=125.0),
+]
 STAGGER = 2            # extra frames of delay per sub-button (props: 2)
-DEPTH_SHIFT = 10       # move $fac's own content up so the subs (depths 2..6) are below it
-KEEP_DEPTH = 1         # ...except building_joiner (depth 1), which stays under the subs
+DEPTH_SHIFT = 10       # move the parent's own content up so the subs (depths 2..7) sit below it
+KEEP_DEPTH = 1         # ...except the joiner back to the build button (depth 1), which stays under the subs
 
 # ids in the original buildmenu4
-FAC_SPRITE = 63        # "$fac"
-FAC_BUTTON_ID = 59     # "facbutton"
 FAC_ICON_SHAPE = 61    # facicon shape (bitmap 60 = flash_68e2c97e.dds)
 FAC_ICON_BITMAP = 60
 TEMPLATE_SUB = 34      # "$orna_sub1"
@@ -194,18 +215,15 @@ def transform_sub(tmpl_tags, S, L, delay, rename, char_map):
     return frames
 
 
-def build(data):
-    m = swf.Movie(data)
-    chars = m.characters()
-    nid = m.max_id() + 1
-
-    def new_id():
-        nonlocal nid
-        nid += 1
-        return nid - 1
-
+def add_fan(m, chars, new_id, fan):
+    """Gives the build menu node sprite fan['sprite'] ($fac, $sets) sub-buttons
+    $<node>_subN that pop out on an arc like the props ones, each holding a button
+    <butt>_subN that calls cb_<node>_subN. Returns report lines."""
+    node, butt = fan['node'], fan['butt']
+    if len(fan['angles']) != len(fan['subs']) or len(fan['subs']) >= DEPTH_SHIFT:
+        raise SystemExit('%s: bad fan config' % node)
     tmpl = chars[TEMPLATE_SUB]
-    fac = chars[FAC_SPRITE]
+    par = chars[fan['sprite']]
     orna = chars[ORNA_SPRITE]
 
     # ---- geometry (twips) ---------------------------------------------------------
@@ -222,24 +240,24 @@ def build(data):
     ob = depth_track(orna.tags, orna_btn, o_open)
     sub_place = placement(orna.tags, '$orna_sub1').matrix
     start_off = (sub_place.tx + S[0] - ob.tx, sub_place.ty + S[1] - ob.ty)   # ~ (8, 6) twips
-    # facilities: button position on its cb_open frame
-    f_open = cb_open_frame(fac.tags)
-    fb_depth = placement(fac.tags, 'facbutton').depth
-    fb = depth_track(fac.tags, fb_depth, f_open)
-    f_exp = next(i + 1 for i, fr in enumerate(frames_of(fac.tags))
+    # the parent: its button's position on its cb_open frame
+    f_open = cb_open_frame(par.tags)
+    fb_depth = placement(par.tags, fan['button']).depth
+    fb = depth_track(par.tags, fb_depth, f_open)
+    f_exp = next(i + 1 for i, fr in enumerate(frames_of(par.tags))
                  for t in fr if t.code == 12 and b'cb_expand' in t.body)
-    fx = depth_track(fac.tags, fb_depth, f_exp)          # button when fully expanded
+    fx = depth_track(par.tags, fb_depth, f_exp)          # button when fully expanded
     P = (fb.tx + start_off[0] - S[0], fb.ty + start_off[1] - S[1])          # sub sprite placement
     v = (E[0] - S[0], E[1] - S[1])
     vlen = math.hypot(*v)
     vang = math.atan2(v[1], v[0])
 
     # ---- new characters -------------------------------------------------------------
-    insert_at = m.tags.index(fac)      # define everything right before $fac
+    insert_at = m.tags.index(par)      # define everything right before the parent
     new_tags = []
     sub_sprite_ids = []
     report = []
-    for i, ((label, texture, centre, scale), ang) in enumerate(zip(SUBS, ANGLES), start=1):
+    for i, ((label, texture, centre, scale), ang) in enumerate(zip(fan['subs'], fan['angles']), start=1):
         # icon: ImportAssets + copy of the facicon shape + a one-frame sprite
         bmp = new_id()
         new_tags.append(swf.import_assets_tag([(bmp, texture)]))
@@ -263,23 +281,23 @@ def build(data):
         icon.body = struct.pack('<H', icon.char_id_value)
         new_tags.append(icon)
 
-        # button: copy of ornabutt_sub1's button, calling cb_fac_subN
+        # button: copy of ornabutt_sub1's button, calling cb_<node>_subN
         bt = swf.Button.parse(chars[TEMPLATE_BUTTON])
         bt.id = new_id()
-        bt.conds = [(c, swf.replace_strings_in_actions(a, {'cb_orna_sub1': 'cb_fac_sub%d' % i}))
+        bt.conds = [(c, swf.replace_strings_in_actions(a, {'cb_orna_sub1': 'cb_%s_sub%d' % (node, i)}))
                     for c, a in bt.conds]
         new_tags.append(bt.tag())
 
         # the sub sprite
         target = math.radians(ang)
-        end = (fx.tx + RADIUS * 20 * math.cos(target), fx.ty + RADIUS * 20 * math.sin(target))
+        end = (fx.tx + fan['radius'] * 20 * math.cos(target), fx.ty + fan['radius'] * 20 * math.sin(target))
         D = (end[0] - fb.tx, end[1] - fb.ty)            # travel from the cb_open position
         k = math.hypot(*D) / vlen
         rot = math.atan2(D[1], D[0]) - vang
         L = [[k * math.cos(rot), -k * math.sin(rot)], [k * math.sin(rot), k * math.cos(rot)]]
         frames = transform_sub(
             tmpl.tags, S, L, STAGGER * (i - 1),
-            {'ornabutt_sub1': 'facbutt_sub%d' % i, 'orna_sub1icon': 'fac_sub%dicon' % i},
+            {'ornabutt_sub1': '%s_sub%d' % (butt, i), 'orna_sub1icon': '%s_sub%dicon' % (node, i)},
             {TEMPLATE_BUTTON: bt.id, TEMPLATE_ICON: icon.char_id_value})
         sub = swf.Tag(39)
         sub.char_id_value, sub.sprite_frames = new_id(), len(frames)
@@ -288,14 +306,14 @@ def build(data):
         sub.long = True
         new_tags.append(sub)
         sub_sprite_ids.append(sub.char_id_value)
-        report.append('  $fac_sub%d  %-15s %-20s sprite %d button %d (cb_fac_sub%d) icon %d, '
-                      'button ends at (%.1f, %.1f) px in $fac' % (
-                          i, label, texture, sub.char_id_value, bt.id, i, icon.char_id_value,
-                          end[0] / 20, end[1] / 20))
+        report.append('  $%s_sub%d  %-15s %-20s sprite %d button %d (cb_%s_sub%d) icon %d, '
+                      'button ends at (%.1f, %.1f) px in $%s' % (
+                          node, i, label, texture, sub.char_id_value, bt.id, node, i, icon.char_id_value,
+                          end[0] / 20, end[1] / 20, node))
     m.tags[insert_at:insert_at] = new_tags
 
-    # ---- put the sub sprites into $fac ---------------------------------------------
-    for t in fac.tags:
+    # ---- put the sub sprites into the parent------------------------------------------
+    for t in par.tags:
         if t.code == 26:
             po = swf.PlaceObject2.parse(t.body)
             if po.depth != KEEP_DEPTH:
@@ -306,12 +324,12 @@ def build(data):
             if d != KEEP_DEPTH:
                 t.body = struct.pack('<H', d + DEPTH_SHIFT)
         elif t.code in (4, 5):
-            raise SystemExit('unexpected PlaceObject/RemoveObject v1 in $fac')
-    frames = frames_of(fac.tags)
+            raise SystemExit('unexpected PlaceObject/RemoveObject v1 in $' + node)
+    frames = frames_of(par.tags)
     places = []
     for i, cid in enumerate(sub_sprite_ids, start=1):
         po = swf.PlaceObject2()
-        po.depth, po.char, po.name = KEEP_DEPTH + i, cid, '$fac_sub%d' % i
+        po.depth, po.char, po.name = KEEP_DEPTH + i, cid, '$%s_sub%d' % (node, i)
         po.matrix = swf.Matrix(tx=round(P[0]), ty=round(P[1]))
         po.ratio = f_open - 1
         places.append(po.tag())
@@ -319,15 +337,29 @@ def build(data):
     # after the DoAction (like $ornaments), before the other placements
     pos = max((j + 1 for j, t in enumerate(fr) if t.code == 12), default=0)
     fr[pos:pos] = places
-    fac.tags = join_frames(frames)
+    par.tags = join_frames(frames)
 
-    out = m.write()
-    info = ['template $orna_sub1: button start (%.1f, %.1f) end (%.1f, %.1f) px, %.1f px' % (
-        S[0] / 20, S[1] / 20, E[0] / 20, E[1] / 20, vlen / 20),
-        'facbutton on $fac cb_open frame %d at (%.1f, %.1f) px, expanded (frame %d) at (%.1f, %.1f); '
-        'sub sprites placed at (%.1f, %.1f)' % (f_open, fb.tx / 20, fb.ty / 20, f_exp, fx.tx / 20, fx.ty / 20,
-                                               P[0] / 20, P[1] / 20)] + report
-    return out, info
+    return ['$%s: template $orna_sub1 button start (%.1f, %.1f) end (%.1f, %.1f) px, %.1f px' % (
+        node, S[0] / 20, S[1] / 20, E[0] / 20, E[1] / 20, vlen / 20),
+        '%s on its cb_open frame %d at (%.1f, %.1f) px, expanded (frame %d) at (%.1f, %.1f); '
+        'sub sprites placed at (%.1f, %.1f)' % (fan['button'], f_open, fb.tx / 20, fb.ty / 20, f_exp,
+                                               fx.tx / 20, fx.ty / 20, P[0] / 20, P[1] / 20)] + report
+
+
+def build(data):
+    m = swf.Movie(data)
+    chars = m.characters()
+    nid = m.max_id() + 1
+
+    def new_id():
+        nonlocal nid
+        nid += 1
+        return nid - 1
+
+    info = []
+    for fan in FANS:
+        info += add_fan(m, chars, new_id, fan)
+    return m.write(), info
 
 
 def main():

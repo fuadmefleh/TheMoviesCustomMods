@@ -60,6 +60,7 @@ const Timetable kBuildings[] = {
 
 int  g_anomalies = 0;
 bool g_ui = false;
+bool g_shares = false;   // --shares: the bot sells the studio down to 40% early on
 bool g_dump = false;
 
 void Anomaly(const char* what)
@@ -95,6 +96,13 @@ int ActiveShows()
 // What a reasonable player does, once a week.
 void Bot()
 {
+    static int sold = 0;
+    if (g_shares && Year() >= 1950.5f && sold < 6 && SharePrice() > 0) {
+        SellShares(0.10);
+        sold++;
+    }
+    if (g_shares && SharesWarned())
+        PayDividend();   // a careful player answers the board
     float year = Year();
     AutoPilots(true);   // the bot shoots its best scripts with a stand-in lead
     if (ActiveShows() < Capacity() + 1) {
@@ -330,6 +338,7 @@ int main(int argc, char** argv)
         else if (a == "--from") from = atoi(next());
         else if (a == "--to") to = atoi(next());
         else if (a == "--ui") g_ui = true;
+        else if (a == "--shares") g_shares = true;
         else if (a == "--echo") sim::g_echo = true;
         else if (a == "--dump") g_dump = true;
         else if (a == "--log") logPath = next();

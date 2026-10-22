@@ -787,6 +787,7 @@ void Simulate()
     int from = static_cast<int>(std::floor(g_lastDay)) + 1;
     int to = static_cast<int>(std::floor(today));
     for (int day = std::max(from, to - 13); day <= to; day++) {
+        SharesDaily(static_cast<float>(day));
         if (Unlocked()) {
             NetworkDaily(static_cast<float>(day));
             LibraryWeekly(static_cast<float>(day));
@@ -1015,6 +1016,7 @@ void Install()
     persist::Register("tv_events", &EventsSave, &EventsLoad, &EventsReset);
     persist::Register("tv_research", &ResearchSave, &ResearchLoad, &ResearchReset);
     persist::Register("tv_writers", &WritersSave, &WritersLoad, &WritersReset);
+    persist::Register("tv_shares", &SharesSave, &SharesLoad, &SharesReset);
     InstallNative();
     rooms::SetHandler(&OnRoomDrop);
     rooms::SetTvScriptTest(&IsTvScriptProject);

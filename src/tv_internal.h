@@ -308,6 +308,18 @@ std::vector<game::Project> AvailablePilots();   // released films not yet used a
 
 bool Unlocked();
 void InstallNative();   // tv_native.cpp: the Television screen in the game's own interface
+// Studio shares (tv_shares.cpp).
+void SharesDaily(float day);
+bool SharesOusted();
+bool SharesWarned();   // the board will vote at the next review
+double SharePrice();
+std::string SellShares(double fraction);     // "" on success, else why not
+std::string BuyBackShares(double fraction);
+std::string PayDividend();
+std::wstring SharesPage();
+void SharesSave(std::map<std::string, std::string>& out);
+void SharesLoad(const std::map<std::string, std::string>& in);
+void SharesReset();
 bool HasOffice();
 int  Capacity();
 bool InProduction(const Series& s);

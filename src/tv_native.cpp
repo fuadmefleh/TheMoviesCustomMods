@@ -352,6 +352,45 @@ void Prompts()
     }
 }
 
+// --- Studio shares ---------------------------------------------------------------
+
+void OpenShares();
+
+void Report(const std::string& error)
+{
+    if (!error.empty())
+        Notify("Studio shares", error, kYellow);
+    nativeui::Refresh();
+}
+
+void AskSell(double fraction)
+{
+    double cash = SharePrice() * 1000000.0 * fraction * 0.93;
+    nativeui::Confirm(L"Sell shares",
+                      W(Format("Sell %.0f%% of your studio for about %s? Below 50%% the board can vote you out; below "
+                               "25%% rivals can take the company over.",
+                               fraction * 100, Dollars(cash).c_str())),
+                      [fraction] { Report(SellShares(fraction)); });
+}
+
+void OpenShares()
+{
+    if (nativeui::IsOpen()) {
+        nativeui::Close();
+        return;
+    }
+    nativeui::Screen s;
+    s.title = L"Studio shares";
+    s.buttons = {
+        { "button_minus.",    L"Sell 5% of the studio",                -1, [] { AskSell(0.05); } },
+        { "button_minus.",    L"Sell 10% of the studio",               -1, [] { AskSell(0.10); } },
+        { "button_plus.",     L"Buy back 5% (market price + 5%)",      -1, [] { Report(BuyBackShares(0.05)); } },
+        { "button_hudmoney.", L"Pay a dividend to the shareholders",   -1, [] { Report(PayDividend()); } },
+    };
+    s.html = [](int) { return SharesPage(); };
+    nativeui::Open(s, 0);
+}
+
 bool OnToggleKey()
 {
     if (!nativeui::Ready())
@@ -365,6 +404,7 @@ bool OnToggleKey()
 void InstallNative()
 {
     nativeui::AddHudButton("button_video.", L"Television", &OpenNative);
+    nativeui::AddHudButton("button_finance.", L"Studio shares", &OpenShares);
     if (nativeui::Enabled())
         overlay::SetToggleHandler(&OnToggleKey);
     overlay::AddFrameCallback(&Prompts);

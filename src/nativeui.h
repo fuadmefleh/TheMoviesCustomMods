@@ -19,6 +19,10 @@ bool Enabled();
 void Confirm(const std::wstring& title, const std::wstring& body, std::function<void()> onYes,
              std::function<void()> onNo = nullptr);
 
+// The game's own "quit to the main menu without saving" (the pause menu's handler 0x006D7BA0)
+// behind both buttons of a dialog: for game over. The game quits in its own UI phase.
+void GameOverDialog(const std::wstring& title, const std::wstring& body);
+
 // A screen: a game dialog with a row of icon buttons (tabs and actions) over a rich-text
 // panel. html(tab) is asked for the page whenever a tab is chosen and every couple of
 // seconds while the screen is open.

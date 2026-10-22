@@ -294,6 +294,7 @@ namespace nativeui {
 
 bool Ready() { return true; }
 bool Enabled() { return true; }
+void GameOverDialog(const std::wstring&, const std::wstring&) { mod::Log("sim: game over dialog"); }
 void Confirm(const std::wstring&, const std::wstring&, std::function<void()> onYes, std::function<void()>)
 {
     if (onYes)

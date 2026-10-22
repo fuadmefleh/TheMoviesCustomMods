@@ -16,7 +16,7 @@ cl /nologo /Od /Zi /MTd /EHa /std:c++17 /W3 /utf-8 /D_CRT_SECURE_NO_WARNINGS ^
    /FI"%~dp0sim_shim.h" /I"%SRC%" /I"%IG%" /I"%~dp0." ^
    "%~dp0sim_main.cpp" "%~dp0sim_stubs.cpp" ^
    "%SRC%\tv.cpp" "%SRC%\tv_network.cpp" "%SRC%\tv_ui.cpp" "%SRC%\tv_story.cpp" "%SRC%\tv_paper.cpp" ^
-   "%SRC%\tv_library.cpp" "%SRC%\tv_streaming.cpp" "%SRC%\tv_events.cpp" "%SRC%\tv_research.cpp" "%SRC%\tv_writers.cpp" "%SRC%\tv_native.cpp" ^
+   "%SRC%\tv_library.cpp" "%SRC%\tv_streaming.cpp" "%SRC%\tv_events.cpp" "%SRC%\tv_research.cpp" "%SRC%\tv_writers.cpp" "%SRC%\tv_native.cpp" "%SRC%\tv_shares.cpp" ^
    "%IG%\imgui.cpp" "%IG%\imgui_draw.cpp" "%IG%\imgui_tables.cpp" "%IG%\imgui_widgets.cpp" ^
    /Fe:"%~dp0tvsim.exe" /link user32.lib dbghelp.lib
 set ERR=%ERRORLEVEL%

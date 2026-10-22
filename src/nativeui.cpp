@@ -419,6 +419,15 @@ void Confirm(const std::wstring& title, const std::wstring& body, std::function<
         mod::Log("nativeui: FAILED to show a yes/no dialog");
 }
 
+void GameOverDialog(const std::wstring& title, const std::wstring& body)
+{
+    if (!Ready())
+        return;
+    auto quit = reinterpret_cast<ConfirmCb>(0x006D7BA0);   // bool __stdcall(sender, dialog): ends the game
+    if (!CallConfirm(title.c_str(), body.c_str(), quit, quit))
+        mod::Log("nativeui: FAILED to show the game-over dialog");
+}
+
 void Open(const Screen& screen, int tab)
 {
     if (!Ready())
