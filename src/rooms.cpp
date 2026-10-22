@@ -8,6 +8,7 @@
 
 #include <windows.h>
 #include <cstring>
+#include <map>
 #include <set>
 #include <vector>
 
@@ -412,6 +413,162 @@ void HookFn(uintptr_t addr, void* detour, void** orig, const char* name)
         mod::Log("rooms: FAILED to hook %s", name);
 }
 
+// ---------------------------------------------------------------------------------
+// TV scripts on the lot
+//
+// A script on the lot is a CProjectObject (CProject+0x210 <-> object+0x210). Its 3D icon is
+// chosen by name in CProjectObject::UpdateMesh (0x005D35F0): p_icon_write while it's being
+// written, p_icon_done when finished, ... (+"_stunt" for stunt films). For TV scripts we
+// load our own p_icon_*_tv models (tools/tv_script_icons.py) into the object's render
+// Object (+0x11C, SetMesh = vtable +0x18).
+//
+// Dropping a carried object on a building goes through DropOnRoom (0x00938170), and every
+// room class answers "can I take this?" in vtable slot +0x58 (also used for the hover
+// prompt). A TV script is refused everywhere except the mod's TV zones (room_tv*), and falls
+// to the ground like any refused drop.
+
+constexpr uintptr_t kUpdateMesh  = 0x005D35F0;   // void __fastcall(CProjectObject*)
+constexpr uintptr_t kLoadMesh    = 0x009DE1D0;   // Mesh* __cdecl(const char* name, int)
+constexpr uintptr_t kReleaseMesh = 0x009DE3B0;   // void __thiscall(Mesh*)
+constexpr uintptr_t kDropOnRoom  = 0x00938170;   // bool __thiscall(RoomController*, TMMobile* who)
+constexpr uintptr_t kWStringAssign = 0x004036D0;   // WString::Assign(const wchar_t*, int)
+constexpr int kObjProject = 0x210, kObjShown = 0x64, kObjRender = 0x11C, kObjStage = 0x24C, kObjSubState = 0x254;
+constexpr int kCtrlRoom = 0x210, kRoomPrompt = 0x200, kSlotCanAccept = 0x58;
+// Room classes whose CanAccept takes scripts (main vtables), plus TMRoom (accepts anything).
+constexpr uintptr_t kScriptRoomVtables[] = { 0x00D6B51C, 0x00D6B604, 0x00D6B764, 0x00D6BDAC, 0x00D6C234, 0x00D6CA64,
+                                             0x00D6CD14, 0x00D6CEE4, 0x00D6CFA4, 0x00D6D194, 0x00D6D3F4, 0x00D6D4C4,
+                                             0x00D6D7C4, 0x00D6E184, 0x00D6E70C };
+
+ProjectTest g_isTvScript = nullptr;
+bool g_tvIcons = false;   // the _tv models are installed
+using UpdateMesh_t = void(__fastcall*)(uintptr_t obj);
+using DropOnRoom_t = bool(__fastcall*)(uintptr_t ctrl, void* edx, uintptr_t who);
+using CanAccept_t = bool(__thiscall*)(uintptr_t room, uintptr_t who);
+UpdateMesh_t g_origUpdateMesh = nullptr;
+DropOnRoom_t g_origDropOnRoom = nullptr;
+std::map<uintptr_t, CanAccept_t> g_origCanAccept;   // vtable -> original slot +0x58
+
+uintptr_t TvScriptOf(uintptr_t who)
+{
+    if (!who || !g_isTvScript || game::ClassName(who) != "CProjectObject")
+        return 0;
+    uintptr_t project = *reinterpret_cast<uintptr_t*>(who + kObjProject);
+    return project && g_isTvScript(project) ? project : 0;
+}
+
+bool IsTvZone(uintptr_t room) { return room && NarrowAt(room + kRoomName).rfind("room_tv", 0) == 0; }
+
+void ApplyTvIcon(uintptr_t obj)
+{
+    __try {
+        if (!*reinterpret_cast<uint8_t*>(obj + kObjShown))
+            return;
+        int stage = *reinterpret_cast<int*>(obj + kObjStage), sub = *reinterpret_cast<int*>(obj + kObjSubState);
+        if (stage != 2 && stage != 3)
+            return;   // only scripts: being written, or finished
+        const char* name = sub == 0 || sub == 4 ? "p_icon_done_tv.msh" : "p_icon_write_tv.msh";
+        uintptr_t mesh = reinterpret_cast<uintptr_t(__cdecl*)(const char*, int)>(kLoadMesh)(name, 1);
+        if (!mesh)
+            return;
+        uintptr_t render = *reinterpret_cast<uintptr_t*>(obj + kObjRender);
+        if (render)
+            (*reinterpret_cast<void(__thiscall**)(uintptr_t, uintptr_t)>(*reinterpret_cast<uintptr_t*>(render) + 0x18))(
+                render, mesh);
+        reinterpret_cast<void(__thiscall*)(uintptr_t)>(kReleaseMesh)(mesh);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+    }
+}
+
+void __fastcall HookUpdateMesh(uintptr_t obj)
+{
+    g_origUpdateMesh(obj);
+    if (g_tvIcons && g_isTvScript) {
+        uintptr_t project = *reinterpret_cast<uintptr_t*>(obj + kObjProject);
+        if (project && g_isTvScript(project))
+            ApplyTvIcon(obj);
+    }
+}
+
+bool __fastcall HookDropOnRoom(uintptr_t ctrl, void* edx, uintptr_t who)
+{
+    uintptr_t room = ctrl ? *reinterpret_cast<uintptr_t*>(ctrl + kCtrlRoom) : 0;
+    if (room && TvScriptOf(who) && !IsTvZone(room)) {
+        static int logged = 0;
+        if (logged++ < 5)
+            mod::Log("rooms: a TV script can't go to %s - only TV buildings take it", NarrowAt(room + kRoomName).c_str());
+        return false;   // refused: it falls where it was dropped
+    }
+    return g_origDropOnRoom(ctrl, edx, who);
+}
+
+bool __fastcall HookCanAccept(uintptr_t room, void*, uintptr_t who)
+{
+    auto it = g_origCanAccept.find(*reinterpret_cast<uintptr_t*>(room));
+    if (it == g_origCanAccept.end())
+        return false;
+    bool ok = it->second(room, who);
+    if (ok && TvScriptOf(who) && !IsTvZone(room)) {
+        // No "release here" prompt over film buildings.
+        reinterpret_cast<void(__thiscall*)(uintptr_t, const wchar_t*, int)>(kWStringAssign)(room + kRoomPrompt, L"", 0);
+        return false;
+    }
+    return ok;
+}
+
+void InstallTvScriptHooks()
+{
+    wchar_t path[MAX_PATH];
+    swprintf_s(path, L"%s\\Data\\meshes\\p_icon_write_tv.msh", mod::GameDir());
+    bool write = GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES;
+    swprintf_s(path, L"%s\\Data\\meshes\\p_icon_done_tv.msh", mod::GameDir());
+    g_tvIcons = write && GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES;
+    if (g_tvIcons)
+        HookFn(kUpdateMesh, reinterpret_cast<void*>(&HookUpdateMesh), reinterpret_cast<void**>(&g_origUpdateMesh),
+               "script icon");
+    else
+        mod::Log("rooms: TV script icons not installed (Data\\meshes\\p_icon_*_tv.msh) - TV scripts look like film scripts");
+    HookFn(kDropOnRoom, reinterpret_cast<void*>(&HookDropOnRoom), reinterpret_cast<void**>(&g_origDropOnRoom),
+           "drop on building");
+    int patched = 0;
+    for (uintptr_t vt : kScriptRoomVtables) {
+        auto slot = reinterpret_cast<uintptr_t*>(vt + kSlotCanAccept);
+        DWORD old;
+        if (!VirtualProtect(slot, sizeof(*slot), PAGE_READWRITE, &old))
+            continue;
+        g_origCanAccept[vt] = reinterpret_cast<CanAccept_t>(*slot);
+        *slot = reinterpret_cast<uintptr_t>(&HookCanAccept);
+        VirtualProtect(slot, sizeof(*slot), old, &old);
+        patched++;
+    }
+    mod::Log("rooms: TV scripts refused by film buildings (%d room types)", patched);
+}
+
+} // namespace
+
+void SetTvScriptTest(ProjectTest test) { g_isTvScript = test; }
+
+namespace {
+uintptr_t ProjectObjectOf(uintptr_t project)
+{
+    __try {
+        return *reinterpret_cast<uintptr_t*>(project + kObjProject);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return 0;
+    }
+}
+} // namespace
+
+void RefreshScriptLook(uintptr_t project)
+{
+    if (!project || !g_origUpdateMesh)
+        return;
+    uintptr_t obj = ProjectObjectOf(project);
+    if (obj && game::ClassName(obj) == "CProjectObject")
+        HookUpdateMesh(obj);
+}
+
+namespace {
+
 } // namespace
 
 void SetHandler(DropHandler handler) { g_handler = handler; }
@@ -457,6 +614,7 @@ void Install()
     mod::Log("rooms: plain-room drop handler hooked (original %08X)", reinterpret_cast<unsigned>(g_original));
     HookFn(kRoomFactory, reinterpret_cast<void*>(&HookFactory), reinterpret_cast<void**>(&g_origFactory), "room factory");
     HookFn(kRoomSerialize, reinterpret_cast<void*>(&HookSerialize), reinterpret_cast<void**>(&g_origSerialize), "room load/save");
+    InstallTvScriptHooks();
 
     wchar_t ini[MAX_PATH];
     swprintf_s(ini, L"%s\\MoviesMod.ini", mod::GameDir());

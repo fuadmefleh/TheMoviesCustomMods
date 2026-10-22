@@ -27,6 +27,12 @@ uintptr_t OfficeProject(uintptr_t office);
 
 using DropHandler = bool (*)(const Drop& drop);   // return true if handled
 
+// TV scripts: the mod tells this module which projects are TV scripts, so their 3D icon on
+// the lot looks different (purple pages with a TV set) and film buildings refuse them.
+using ProjectTest = bool (*)(uintptr_t project);
+void SetTvScriptTest(ProjectTest test);
+void RefreshScriptLook(uintptr_t project);   // re-pick the icon now (after tagging a project)
+
 // Replaces the plain room's drop handler. Call from the game thread after MH_Initialize.
 void Install();
 void SetHandler(DropHandler handler);

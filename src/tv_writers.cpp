@@ -159,10 +159,14 @@ void Relink()
                 found = p.address;
         return found;
     };
-    for (TvScript& s : g_shelf)
+    for (TvScript& s : g_shelf) {
         s.project = find(s.title);
-    for (Writing& w : g_writing)
+        rooms::RefreshScriptLook(s.project);
+    }
+    for (Writing& w : g_writing) {
         w.project = find(w.title);
+        rooms::RefreshScriptLook(w.project);
+    }
 }
 
 int DeskOf(const std::string& zone)
@@ -217,6 +221,7 @@ TvScript NewScript(const Desk& d, int deskIndex, const std::string& title)
 void Shelve(const TvScript& s)
 {
     g_shelf.push_back(s);
+    rooms::RefreshScriptLook(s.project);
     Notify(Format("New TV script: '%s'", s.title.c_str()),
            s.project ? Format("A %s script, quality %.0f%%, is waiting outside the TV Writers' Office. Drag it onto any "
                               "TV building to pitch it.", kFormats[s.format].name, s.quality * 100)
@@ -265,6 +270,7 @@ void StartWriting(int desk, uintptr_t project, uintptr_t room)
             w.title = UniqueTitle(kDesks[desk].format, static_cast<uint32_t>(project));
     bool renamed = game::SetProjectTitle(project, std::wstring(w.title.begin(), w.title.end()));
     g_writing.push_back(w);
+    rooms::RefreshScriptLook(project);
     g_desks[desk].title = w.title;
     mod::Log("tv: %s starts '%s' (project %08X, office %08X writing %08X, renamed %d)", kDesks[desk].name,
              w.title.c_str(), static_cast<unsigned>(project), static_cast<unsigned>(w.office),
@@ -432,6 +438,19 @@ void KeepTvBusy(float day)
 } // namespace
 
 bool IsWritersZone(const std::string& zone) { return DeskOf(zone) >= 0; }
+
+bool IsTvScriptProject(uintptr_t project)
+{
+    if (!project)
+        return false;
+    for (const TvScript& s : g_shelf)
+        if (s.project == project)
+            return true;
+    for (const Writing& w : g_writing)
+        if (w.project == project)
+            return true;
+    return false;
+}
 
 bool IsShelfScriptObject(uintptr_t project)
 {

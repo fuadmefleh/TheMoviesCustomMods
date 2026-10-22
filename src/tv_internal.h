@@ -434,7 +434,8 @@ void   ResearchReset();
 extern const char* const kWritersType;
 extern int g_writerOffices;
 bool   IsWritersZone(const std::string& zone);
-bool   IsShelfScriptObject(uintptr_t project);   // a script the Writers' Office put on the lot
+bool   IsShelfScriptObject(uintptr_t project);
+bool   IsTvScriptProject(uintptr_t project);    // a TV script: on the shelf or being written   // a script the Writers' Office put on the lot
 void   AssignWriterToDesk(const std::string& zone, const std::string& person, uintptr_t scriptRoom = 0);
 bool   AdoptIfWriting(uintptr_t project);   // a script still being written, dropped on a TV building
 void   WritersDaily(float day);

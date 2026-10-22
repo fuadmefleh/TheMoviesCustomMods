@@ -1017,6 +1017,7 @@ void Install()
     persist::Register("tv_writers", &WritersSave, &WritersLoad, &WritersReset);
     InstallNative();
     rooms::SetHandler(&OnRoomDrop);
+    rooms::SetTvScriptTest(&IsTvScriptProject);
 }
 
 } // namespace tv

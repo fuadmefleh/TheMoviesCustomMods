@@ -237,6 +237,8 @@ void SetHandler(DropHandler) {}
 uintptr_t ScriptRoomProject(uintptr_t) { return 0; }
 uintptr_t ScriptRoomOffice(uintptr_t) { return 0; }
 uintptr_t OfficeProject(uintptr_t) { return 0; }
+void SetTvScriptTest(ProjectTest) {}
+void RefreshScriptLook(uintptr_t) {}
 
 } // namespace rooms
 
