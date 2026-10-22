@@ -27,6 +27,7 @@
 #include "MinHook.h"
 #include "mod.h"
 #include "nativeui.h"
+#include "text.h"
 
 namespace buildmenu {
 namespace {
@@ -71,34 +72,48 @@ GetMenuType_t g_origGetMenuType = nullptr;
 OpenFacList_t g_origOpen = nullptr;
 int   g_category = All;
 int   g_pending = -1;        // category chosen in the Flash menu, applied when the list opens
-bool  g_listButtons = true;  // icon buttons beside the list (when our Flash movie isn't installed)
+bool  g_listButtons = true;
+bool  g_facOpensList = false;   // [BuildMenu] FacilitiesOpensList: the Facilities button itself opens the full list  // icon buttons beside the list (when our Flash movie isn't installed)
 void* g_list = nullptr;
 // The list window is a full-screen 1024x768 layer; the visible Facilities panel spans about
 // x 92..442, y 28..512 of it, so the buttons go in a column just right of the panel.
 float g_tabX = 450, g_tabY = 70, g_tabSize = 44;
 bool  g_vertical = true;
 
-bool IsTelevision(void* bp)
+// The blueprint's file stem ("facility_bar", "trailer_3"...), read from bp+0xAC.
+bool BlueprintName(void* bp, char* out, int size)
 {
     __try {
         const char* text = *reinterpret_cast<const char* const*>(static_cast<char*>(bp) + kBpName);
         int len = *reinterpret_cast<const int*>(static_cast<char*>(bp) + kBpName + 4);
-        return text && len > 11 && len < 128 && strstr(text, "facility_tv_") != nullptr;
+        if (!text || len <= 0 || len >= size)
+            return false;
+        memcpy(out, text, len);
+        out[len] = 0;
+        return true;
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         return false;
     }
 }
 
-int CategoryOf(void* bp, int menuType)
+// Which category a building belongs to, by its file name (the blueprint's menutype field
+// doesn't carry the ini's 1/2/3).
+int CategoryOf(void* bp)
 {
-    if (IsTelevision(bp))
+    char name[128];
+    if (!BlueprintName(bp, name, sizeof(name)))
+        return Production;
+    const char* n = strrchr(name, '/') ? strrchr(name, '/') + 1 : name;
+    auto has = [n](const char* part) { return strstr(n, part) != nullptr; };
+    if (has("facility_tv_"))
         return Television;
-    switch (menuType) {
-    case 1: return Production;
-    case 2: return Staff;
-    case 3: return Amenities;
-    default: return Production;
-    }
+    if (has("trailer") || has("stage") || has("stunt") || has("crew") || has("wardrobe") || has("cosmetic") ||
+        has("fightroom") || has("fullbodyburn") || has("spartan"))
+        return Staff;
+    if (has("bar") || has("catering") || has("toilet") || has("hospital") || has("detox") || has("restaurant") ||
+        has("snack") || has("cafe"))
+        return Amenities;
+    return Production;   // offices, script offices, research, publicity, sales...
 }
 
 int __fastcall HookGetMenuType(void* bp)
@@ -106,7 +121,14 @@ int __fastcall HookGetMenuType(void* bp)
     int menuType = g_origGetMenuType(bp);
     if (!menuType || g_category == All)
         return menuType;
-    return CategoryOf(bp, menuType) == g_category ? menuType : 0;
+    static int logged = 0;
+    if (logged < 60) {
+        char name[128] = "?";
+        BlueprintName(bp, name, sizeof(name));
+        logged++;
+        mod::Log("buildmenu: %s menutype %d -> category %d", name, menuType, CategoryOf(bp));
+    }
+    return CategoryOf(bp) == g_category ? menuType : 0;
 }
 
 void Choose(int category)
@@ -133,6 +155,12 @@ void __fastcall HookOpenFacList(void* button)
 {
     g_category = g_pending >= 0 ? g_pending : All;   // the Flash sub-button's choice, else everything
     g_pending = -1;
+    static const wchar_t* const kTitles[CategoryCount] = { L"", L"Production", L"Staff & Talent", L"Amenities",
+                                                           L"Television" };
+    if (g_category == All)
+        text::Unset("BB_FACILITIES");   // the game's own "Facilities"
+    else
+        text::Set("BB_FACILITIES", kTitles[g_category]);
     g_origOpen(button);
     g_list = ListOf(button);
     if (!g_list || !g_listButtons)
@@ -242,8 +270,11 @@ void __fastcall HookDispatch(void* button, void* edx, GameStr* node)
         }
         return;
     }
-    if (strcmp(name, "$fac") == 0)
+    if (strcmp(name, "$fac") == 0) {
         g_pending = All;
+        if (!g_facOpensList)
+            return;   // the sub-buttons open the list
+    }
     g_origDispatch(button, edx, node);
 }
 
@@ -270,6 +301,7 @@ void Install()
     swprintf_s(movie, L"%s\\Data\\ui\\flash\\buildmenu4.mfl", mod::GameDir());
     bool flash = GetFileAttributesW(movie) != INVALID_FILE_ATTRIBUTES;
     g_listButtons = GetPrivateProfileIntW(L"BuildMenu", L"ListButtons", flash ? 0 : 1, ini) != 0;
+    g_facOpensList = !flash || GetPrivateProfileIntW(L"BuildMenu", L"FacilitiesOpensList", 0, ini) != 0;
     bool ok = MH_CreateHook(reinterpret_cast<LPVOID>(kGetMenuType), reinterpret_cast<LPVOID>(&HookGetMenuType),
                             reinterpret_cast<LPVOID*>(&g_origGetMenuType)) == MH_OK &&
               MH_CreateHook(reinterpret_cast<LPVOID>(kOpenFacList), reinterpret_cast<LPVOID>(&HookOpenFacList),

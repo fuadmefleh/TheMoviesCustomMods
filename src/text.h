@@ -11,5 +11,6 @@ void Install();
 
 // Adds or replaces an entry at run time (e.g. a news story's headline). Main thread only.
 void Set(const std::string& key, const std::wstring& value);
+void Unset(const std::string& key);   // back to the game's own text
 
 } // namespace text

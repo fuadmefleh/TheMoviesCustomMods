@@ -52,8 +52,8 @@ ICON_LEFT_TOP = (-34.5, -34.5)   # facicon shape: texture pixel (0, 0) sits here
 # arc around the (expanded) Facilities button: degrees, 0 = right, -90 = up (y is down).
 # The build menu sits at the left edge of the screen, so nothing goes much further left
 # than the original buttons; the building list's joiner points up-right at about -60.
-ANGLES = [-104, -78, -52, -26, 0]   # clear of the shrunken Sets button (~+35 deg)
-RADIUS = 115.0         # px; sub-buttons are ~50 px across (props: 81-87 px, ~46 px apart)
+ANGLES = [-88, -66, -44, -22, 0]   # leftmost stays on screen; clear of the shrunken Sets button (~+35 deg)
+RADIUS = 125.0         # px; sub-buttons are ~50 px across (props: 81-87 px, ~46 px apart)
 STAGGER = 2            # extra frames of delay per sub-button (props: 2)
 DEPTH_SHIFT = 10       # move $fac's own content up so the subs (depths 2..6) are below it
 KEEP_DEPTH = 1         # ...except building_joiner (depth 1), which stays under the subs

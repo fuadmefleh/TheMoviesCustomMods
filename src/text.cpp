@@ -154,6 +154,7 @@ uint8_t* __cdecl HookTranslateKey(const GameString* key, int variant, const Game
 } // namespace
 
 void Set(const std::string& key, const std::wstring& value) { g_entries[Upper(key)] = value; }
+void Unset(const std::string& key) { g_entries.erase(Upper(key)); }
 
 void Install()
 {
