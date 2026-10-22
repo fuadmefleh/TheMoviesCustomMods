@@ -41,8 +41,18 @@ A code mod for **The Movies: Stunts & Effects v1.2** (Lionhead, 2006). It runs i
 
 The game folder is `C:\Program Files (x86)\Lionhead Studios Ltd\The Movies`.
 
+### From a release (no build tools needed)
+
+1. Download `MoviesMod-<version>.zip` from the [Releases page](https://github.com/fuadmefleh/TheMoviesCustomMods/releases).
+2. Close the game and extract the zip into the game folder, merging folders.
+3. Optional: for the Television screen's artwork, run `python MoviesMod	ools\extract_ui.py .` in the game folder (Python 3 with Pillow). It copies banners and rosettes out of your own copy of the game.
+
+Releases are built by GitHub Actions (`.github/workflows/release.yml`) whenever a `v*` tag is pushed: `git tag v0.2.0 && git push origin v0.2.0`.
+
+### From source
+
 1. **Optional: apply the 4 GB patch.** This sets the Large Address Aware flag on `MoviesSE.exe` and `StarMaker.exe`, fixing many Windows 10/11 crashes and black textures. It is already applied on this machine, and the originals are kept as `*.pre-laa.bak`.
-2. **Build and install the DLL** (needs Visual Studio 2022 with the C++ x86 tools):
+2. **Build and install the DLL** (needs Visual Studio 2019 or later, any edition, with the C++ tools; clone with `--recursive` for the submodules):
    ```
    cd %USERPROFILE%\source\MoviesMod
    build.bat install

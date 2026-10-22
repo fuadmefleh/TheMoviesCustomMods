@@ -1,0 +1,55 @@
+# Builds dinput8.dll on Windows and publishes a release zip whenever a version tag is pushed:
+#   git tag v0.2.0 && git push origin v0.2.0
+# Also runs on demand (Actions tab > release > Run workflow) to test a build without releasing.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build dinput8.dll
+        shell: cmd
+        run: call build.bat
+
+      - name: Build and run the TV simulator
+        shell: cmd
+        run: |
+          call tools\sim\build_sim.bat || exit /b 1
+          tools\sim\tvsim.exe --seed 1 --from 1950 --to 2000 --ui
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $version = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { "dev-$($env:GITHUB_SHA.Substring(0,7))" }
+          python tools/package_release.py $version
+          "VERSION=$version" >> $env:GITHUB_ENV
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MoviesMod-${{ env.VERSION }}
+          path: dist/*.zip
+
+      - name: Publish the release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          generate_release_notes: true
+          body: |
+            **MoviesMod ${{ env.VERSION }}** for The Movies: Stunts & Effects **v1.2**.
+
+            Download `MoviesMod-${{ env.VERSION }}.zip`, extract it into your game folder
+            (usually `C:\Program Files (x86)\Lionhead Studios Ltd\The Movies`) and start the game.
+            Full instructions are in `MoviesMod-README.txt` inside the zip.

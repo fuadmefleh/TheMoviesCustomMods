@@ -931,8 +931,9 @@ ImVec4 Rgb(unsigned rgb, float a = 1.0f)
 
 enum Tab { TabShows, TabWriters, TabPitch, TabSchedule, TabRatings, TabNetworks, TabLibrary, TabStreaming, TabResearch,
            TabEmpire, TabPress, TabBoxOffice, TabCount };
-const char* const kTabNames[TabCount] = { "My Shows", "Writers", "Pitch a Pilot", "Schedule", "Ratings", "Networks",
+const char* const kTabNames[] = { "My Shows", "Writers", "Pitch a Pilot", "Schedule", "Ratings", "Networks",
                                           "Library", "Streaming", "Research", "Empire", "Press", "Box Office" };
+static_assert(sizeof(kTabNames) / sizeof(kTabNames[0]) == TabCount, "one name per tab");
 int g_tab = TabShows;
 
 // The lot disappears behind a royal blue backdrop with the ranking screen's sunburst.
@@ -1036,11 +1037,12 @@ void RankBadge(int rank)
 
 namespace {
 
-const char* const kTabBanners[TabCount] = {
+const char* const kTabBanners[] = {
     "league_tables_actors_top", "league_tables_movies_top", "league_tables_movies_top", "league_tables_studios_top", "league_tables_actors_top",
     "league_tables_studios_top", "league_tables_movies_top", "league_tables_movies_top", "league_tables_actors_top",
-    "league_tables_studios_top", "league_tables_actors_top",
+    "league_tables_studios_top", "league_tables_actors_top", "league_tables_movies_top",
 };
+static_assert(sizeof(kTabBanners) / sizeof(kTabBanners[0]) == TabCount, "one banner per tab");
 
 } // namespace
 

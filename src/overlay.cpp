@@ -561,6 +561,12 @@ void RequestScreenshot(const char* name) { g_shotName = name; }
 
 void* Texture(const char* name, int* width, int* height)
 {
+    if (width)
+        *width = 0;
+    if (height)
+        *height = 0;
+    if (!name || !*name)
+        return nullptr;
     auto it = g_textures.find(name);
     if (it == g_textures.end()) {
         LoadedTexture t;

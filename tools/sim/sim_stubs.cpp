@@ -198,8 +198,10 @@ void Close() { sim::g_overlayOpen = false; }
 ImFont* TitleFont() { return nullptr; }
 ImFont* HeadingFont() { return nullptr; }
 
-void* Texture(const char*, int* width, int* height)
+void* Texture(const char* name, int* width, int* height)
 {
+    if (!name || !*name)
+        mod::Log("sim: FAILED overlay::Texture called without a name");
     if (width)
         *width = 0;
     if (height)

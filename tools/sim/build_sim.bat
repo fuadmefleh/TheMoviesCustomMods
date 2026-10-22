@@ -2,7 +2,10 @@
 rem Builds tools\sim\tvsim.exe: the TV code with stand-ins for the game (debug, asserts on).
 setlocal
 set "ROOT=%~dp0..\..\"
-call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars32.bat" >nul || exit /b 1
+set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+for /f "usebackq delims=" %%i in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VSDIR=%%i"
+if not defined VSDIR (echo Visual Studio with the C++ tools not found & exit /b 1)
+call "%VSDIR%\VC\Auxiliary\Build\vcvars32.bat" >nul || exit /b 1
 set "IG=%ROOT%third_party\imgui"
 set "SRC=%ROOT%src"
 if not exist "%~dp0obj" mkdir "%~dp0obj"

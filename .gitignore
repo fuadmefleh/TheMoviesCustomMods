@@ -24,3 +24,6 @@ ghidra_d/
 # Ghidra dumps and logs: decompiled game code, regenerated with ghidra_scripts/
 re/*.txt
 re/*.log
+
+# Release zips (tools/package_release.py)
+dist/

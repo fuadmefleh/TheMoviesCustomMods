@@ -3,8 +3,11 @@ rem Builds the 32-bit proxy dinput8.dll. Pass "install" to copy it into the game
 setlocal
 set "ROOT=%~dp0"
 set "GAME=C:\Program Files (x86)\Lionhead Studios Ltd\The Movies"
-set "PATH=%PATH%;%ProgramFiles(x86)%\Microsoft Visual Studio\Installer"
-call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars32.bat" >nul || exit /b 1
+rem Any Visual Studio 2019+ with the C++ tools (found with vswhere, so any edition works).
+set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+for /f "usebackq delims=" %%i in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VSDIR=%%i"
+if not defined VSDIR (echo Visual Studio with the C++ tools not found & exit /b 1)
+call "%VSDIR%\VC\Auxiliary\Build\vcvars32.bat" >nul || exit /b 1
 
 set "MH=%ROOT%third_party\minhook"
 set "IG=%ROOT%third_party\imgui"
