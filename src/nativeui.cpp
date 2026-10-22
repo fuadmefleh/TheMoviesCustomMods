@@ -147,14 +147,17 @@ bool __stdcall OnAddedButton(void*, void* ctx);
 void* NewImageButton(const char* texture, const wchar_t* tooltip, float w, float h)
 {
     __try {
-        // The texture name is passed BY VALUE (the game builds the String in the argument
-        // area, e.g. "button_quit." at 0x00669B80's caller); the constructor owns and frees it.
+        // 8 arguments (the constructor ends RET 0x20): the texture base and tooltip by pointer,
+        // the size, and the texture rectangle u0, v0, u1, v1 - the game passes 0, 0, 1, 1
+        // (e.g. its call at 0x006222C8).
         NStr base;
         WStr tip;
         MakeN(base, texture);
         MakeW(tip, tooltip);
         void* b = GameNew(kImgButtonSize);
-        reinterpret_cast<void*(__thiscall*)(void*, NStr, WStr*, float, float)>(kImgButtonCtor)(b, base, &tip, w, h);
+        reinterpret_cast<void*(__thiscall*)(void*, NStr*, WStr*, float, float, float, float, float, float)>(kImgButtonCtor)(
+            b, &base, &tip, w, h, 0.0f, 0.0f, 1.0f, 1.0f);
+        FreeN(base);
         FreeW(tip);
         return b;
     } __except (Fault(GetExceptionInformation(), "image button")) {

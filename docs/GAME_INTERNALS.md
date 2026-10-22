@@ -474,7 +474,7 @@ The UI is C++ widgets (W* classes) built in code; Flash `.mfl` movies only anima
 | Root window | `[0x0104DF40]` | full-screen layer `0x0071B2B0()` |
 | `WDialog` | 0x3A8 bytes, ctor `0x006889C0(this, char closeButton)` | content `+0x36C`, X button `+0x384`, title `+0x39C`; SetTitle `0x006888D0`, AddContent `0x006884E0(child, mode)` |
 | `WHTML` | 0x3FC bytes, ctor `0x00833290` | wrap width `+0x354`; supports `<table> <tr> <td width= bgcolor=#AARRGGBB> <font color=> <h1> <h2> <b> <br> <hr> <img> <translate>` |
-| `WImageButton` | 0x420 bytes, ctor `0x0069FB10(this, String base /* BY VALUE, 0x20 bytes; the ctor frees it */, WString* tip, float w, float h)` | base like `"button_star."` (`data/textures/ui/button_*`) |
+| `WImageButton` | 0x420 bytes, ctor `0x0069FB10(this, String* base, WString* tip, float w, float h, float u0, float v0, float u1, float v1)` (8 args, `RET 0x20`; the game passes the texture rectangle 0,0,1,1) | base like `"button_star."` (`data/textures/ui/button_*`) |
 | Yes/no | `ShowConfirm 0x00669B80(WString* title, cbOk, cbCancel, WString body by value)` | callbacks `void __stdcall(sender, dlg)`; singleton |
 | Close + release | `bool __stdcall 0x0071B530(sender, window)` | |
 | WWindow virtuals | `+0x0C` AddChild, `+0x10/+0x14` width/height, `+0x18` SetHandler(type, fn, ctx, name), `+0x50` Layout, `+0x54` SetText, `+0x5C/+0x60/+0x64/+0x68` anchors (mode, rel, offset), `+0x78/+0x7C` SetWidth/Height, `+0x8C` fit height, `+0xAC` AddPopup | handlers are `bool __stdcall(sender, ctx)`; type 0 = click, type 5 registered with `0x005F37F0` |
