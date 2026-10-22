@@ -8,10 +8,19 @@
 // we hook GetMenuType to hide everything outside the chosen category, and add icon buttons
 // to the list when it opens (0x00642150). A click sets the category and resets the list's
 // item count (+0x540), so its own update rebuilds it (0x0065D620 recounts and refills).
+//
+// The categories live in the game's own build menu (bottom left): our rewritten Flash movie
+// data/ui/flash/buildmenu4.mfl (tools/buildmenu_flash.py) gives the Facilities button five
+// sub-buttons, $fac_sub1..5, that pop out like the props ones and call cb_fac_sub1..5. We
+// register those callbacks with the movie (0x0087DE50, after WBuildButton's own registration
+// 0x00646950), and hook the click dispatcher (0x00643B60) so "$fac_subN" opens the building
+// list (0x00642150) filtered to that category. Without the movie, icon buttons beside the list
+// do the same job.
 // Settings: [BuildMenu] in MoviesMod.ini.
 
 #include <windows.h>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <string>
 
@@ -27,6 +36,21 @@ constexpr uintptr_t kOpenFacList  = 0x00642150;   // void __fastcall(WBuildButto
 constexpr int kBpMenuType = 0x120, kBpName = 0xAC;
 constexpr int kButtonList = 0x3C4;                 // WBuildButton -> WBuildButtonList
 constexpr int kListMode = 0x348, kListCount = 0x540;   // mode 0 = buildings
+constexpr uintptr_t kRegisterCallbacks = 0x00646950;   // void __fastcall(WBuildButton*)
+constexpr uintptr_t kAddFlashCallback  = 0x0087DE50;   // void __thiscall(registry, String* name, ctx, fn, 0)
+constexpr uintptr_t kDispatch          = 0x00643B60;   // void __thiscall(WBuildButton*, String* node)
+constexpr uintptr_t kClickNode         = 0x00645F60;   // void __thiscall(WBuildButton*, String* node)
+constexpr uintptr_t kFindElement       = 0x008828C0;   // void* __thiscall(player, const char* name)
+constexpr uintptr_t kSetTooltip        = 0x00872180;   // void __thiscall(elem, String* key, int, int)
+constexpr int kButtonMovie = 0x364, kMoviePlayer = 0x358, kPlayerRegistry = 0x178, kPropSub = 0x3DC;
+
+struct GameStr {   // the game's narrow String; cap 0x14 = inline, never freed by the callee
+    const char* text;
+    int         len;
+    int         cap;
+    char        inline_[20];
+};
+GameStr Str(const char* s) { return GameStr{ s, static_cast<int>(strlen(s)), 0x14, {} }; }
 
 enum Category { All, Production, Staff, Amenities, Television, CategoryCount };
 struct Tab {
@@ -46,6 +70,8 @@ using OpenFacList_t = void(__fastcall*)(void* button);
 GetMenuType_t g_origGetMenuType = nullptr;
 OpenFacList_t g_origOpen = nullptr;
 int   g_category = All;
+int   g_pending = -1;        // category chosen in the Flash menu, applied when the list opens
+bool  g_listButtons = true;  // icon buttons beside the list (when our Flash movie isn't installed)
 void* g_list = nullptr;
 // The list window is a full-screen 1024x768 layer; the visible Facilities panel spans about
 // x 92..442, y 28..512 of it, so the buttons go in a column just right of the panel.
@@ -105,10 +131,11 @@ void* ListOf(void* button)
 
 void __fastcall HookOpenFacList(void* button)
 {
-    g_category = All;   // each time the list opens it starts with everything
+    g_category = g_pending >= 0 ? g_pending : All;   // the Flash sub-button's choice, else everything
+    g_pending = -1;
     g_origOpen(button);
     g_list = ListOf(button);
-    if (!g_list)
+    if (!g_list || !g_listButtons)
         return;
     int added = 0;
     void* first = nullptr;
@@ -135,6 +162,91 @@ void __fastcall HookOpenFacList(void* button)
     }
 }
 
+// --- The Flash sub-buttons ------------------------------------------------------------
+
+using RegisterCallbacks_t = void(__fastcall*)(void* button);
+using Dispatch_t = void(__fastcall*)(void* button, void* edx, GameStr* node);
+RegisterCallbacks_t g_origRegister = nullptr;
+Dispatch_t g_origDispatch = nullptr;
+
+// cb_fac_subN: called by the movie with ECX = the WBuildButton (the ctx we registered).
+template <int N> bool __fastcall OnFacSub(void* button, void*)
+{
+    char node[16];
+    sprintf_s(node, "$fac_sub%d", N);
+    GameStr s = Str(node);
+    __try {
+        reinterpret_cast<void(__thiscall*)(void*, GameStr*)>(kClickNode)(button, &s);   // animate, then dispatch
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+    }
+    return true;
+}
+using FlashCallback_t = bool(__fastcall*)(void*, void*);
+const FlashCallback_t kSubCallbacks[CategoryCount] = { &OnFacSub<1>, &OnFacSub<2>, &OnFacSub<3>, &OnFacSub<4>, &OnFacSub<5> };
+
+void* Player(void* button)
+{
+    void* movie = *reinterpret_cast<void**>(static_cast<char*>(button) + kButtonMovie);
+    return movie ? *reinterpret_cast<void**>(static_cast<char*>(movie) + kMoviePlayer) : nullptr;
+}
+
+int RegisterSubs(void* button)
+{
+    __try {
+        void* player = Player(button);
+        void* registry = player ? *reinterpret_cast<void**>(static_cast<char*>(player) + kPlayerRegistry) : nullptr;
+        if (!registry)
+            return 0;
+        int n = 0;
+        for (int i = 0; i < CategoryCount; i++) {
+            char name[16], element[16];
+            sprintf_s(name, "cb_fac_sub%d", i + 1);
+            GameStr s = Str(name);
+            reinterpret_cast<void(__thiscall*)(void*, GameStr*, void*, FlashCallback_t, int)>(kAddFlashCallback)(
+                registry, &s, button, kSubCallbacks[i], 0);
+            n++;
+            // Tooltip: a key the string database lacks is shown as it is, so pass the text.
+            sprintf_s(element, "facbutt_sub%d", i + 1);
+            void* elem = reinterpret_cast<void*(__thiscall*)(void*, const char*)>(kFindElement)(player, element);
+            if (elem) {
+                static const char* const kTips[CategoryCount] = { "All buildings", "Production", "Staff and talent",
+                                                                  "Amenities", "Television" };
+                GameStr tip = Str(kTips[i]);
+                reinterpret_cast<void(__thiscall*)(void*, GameStr*, int, int)>(kSetTooltip)(elem, &tip, 1, 1);
+            }
+        }
+        return n;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return -1;
+    }
+}
+
+void __fastcall HookRegister(void* button)
+{
+    g_origRegister(button);
+    int n = RegisterSubs(button);
+    mod::Log("buildmenu: %d Facilities sub-buttons registered with the build menu movie%s", n < 0 ? 0 : n,
+             n < 0 ? " (FAILED)" : "");
+}
+
+void __fastcall HookDispatch(void* button, void* edx, GameStr* node)
+{
+    const char* name = node && node->text ? node->text : "";
+    if (strncmp(name, "$fac_sub", 8) == 0 && name[8] >= '1' && name[8] < '1' + CategoryCount) {
+        g_pending = name[8] - '1';
+        mod::Log("buildmenu: Facilities sub-button %d chosen", g_pending + 1);
+        __try {
+            *reinterpret_cast<int*>(static_cast<char*>(button) + kPropSub) = 0;
+            HookOpenFacList(button);   // opens the building list, filtered
+        } __except (EXCEPTION_EXECUTE_HANDLER) {
+        }
+        return;
+    }
+    if (strcmp(name, "$fac") == 0)
+        g_pending = All;
+    g_origDispatch(button, edx, node);
+}
+
 float IniFloat(const wchar_t* ini, const wchar_t* key, float def)
 {
     wchar_t buf[32];
@@ -154,12 +266,25 @@ void Install()
     g_tabY = IniFloat(ini, L"ButtonsY", g_tabY);
     g_tabSize = IniFloat(ini, L"ButtonSize", g_tabSize);
     g_vertical = GetPrivateProfileIntW(L"BuildMenu", L"Column", 1, ini) != 0;
+    wchar_t movie[MAX_PATH];
+    swprintf_s(movie, L"%s\\Data\\ui\\flash\\buildmenu4.mfl", mod::GameDir());
+    bool flash = GetFileAttributesW(movie) != INVALID_FILE_ATTRIBUTES;
+    g_listButtons = GetPrivateProfileIntW(L"BuildMenu", L"ListButtons", flash ? 0 : 1, ini) != 0;
     bool ok = MH_CreateHook(reinterpret_cast<LPVOID>(kGetMenuType), reinterpret_cast<LPVOID>(&HookGetMenuType),
                             reinterpret_cast<LPVOID*>(&g_origGetMenuType)) == MH_OK &&
               MH_CreateHook(reinterpret_cast<LPVOID>(kOpenFacList), reinterpret_cast<LPVOID>(&HookOpenFacList),
                             reinterpret_cast<LPVOID*>(&g_origOpen)) == MH_OK &&
               MH_EnableHook(reinterpret_cast<LPVOID>(kGetMenuType)) == MH_OK &&
               MH_EnableHook(reinterpret_cast<LPVOID>(kOpenFacList)) == MH_OK;
+    if (ok && flash)
+        ok = MH_CreateHook(reinterpret_cast<LPVOID>(kRegisterCallbacks), reinterpret_cast<LPVOID>(&HookRegister),
+                           reinterpret_cast<LPVOID*>(&g_origRegister)) == MH_OK &&
+             MH_CreateHook(reinterpret_cast<LPVOID>(kDispatch), reinterpret_cast<LPVOID>(&HookDispatch),
+                           reinterpret_cast<LPVOID*>(&g_origDispatch)) == MH_OK &&
+             MH_EnableHook(reinterpret_cast<LPVOID>(kRegisterCallbacks)) == MH_OK &&
+             MH_EnableHook(reinterpret_cast<LPVOID>(kDispatch)) == MH_OK;
+    mod::Log("buildmenu: Facilities sub-buttons in the build menu %s, buttons beside the list %s",
+             flash ? "on" : "off (buildmenu4.mfl not installed)", g_listButtons ? "on" : "off");
     mod::Log("buildmenu: category buttons %s", ok ? "on" : "FAILED");
 }
 
