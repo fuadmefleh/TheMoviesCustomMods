@@ -178,11 +178,7 @@ void DrawRepitch(Series& s)
         ImGui::SameLine();
         if (ImGui::Button(Format("Pitch to %s##%d", kNetworks[i].shortName, i).c_str())) {
             if (newPilot >= 0) {
-                const game::Project& p = pilots[newPilot];
-                s.pilotKey = PilotKey(p);
-                s.pilotTitle = Utf8(p.title);
-                s.pilotQuality = std::max(0.0f, p.quality);
-                s.pilotStars = std::max(0.0f, p.starRating);
+                ApplyPilot(s, pilots[newPilot]);
                 s.reworkMask = 0;   // a new film is a fresh look for everyone
                 newPilot = -1;
             }
@@ -386,18 +382,11 @@ void DrawSeriesDetail(Series& s)
                        "needed, the likelier they say yes. If they refuse, they may cut the order.");
             ImGui::SameLine();
         }
-        if (ImGui::Button("Renew")) {
-            int episodes = s.order;
-            OrderSeason(s, episodes, Today() + kSummerHiatus);
-            s.freshness = std::min(1.0f, s.freshness + 0.05f);
-            Notify(Format("'%s' renewed", s.title.c_str()), Format("Season %d returns after the summer.", s.season), kGreen);
-        }
+        if (ImGui::Button("Renew"))
+            RenewSeries(s);
         ImGui::SameLine();
-        if (ImGui::Button("End the series")) {
-            s.status = Ended;
-            ReleaseSlot(s);
-            Notify(Format("'%s' ends its run", s.title.c_str()), "You took a bow while the show was still wanted.", kGrey);
-        }
+        if (ImGui::Button("End the series"))
+            EndSeries(s);
         break;
     default:
         break;
@@ -593,10 +582,7 @@ void DrawPitch()
         s.format = g_form.format;
         s.budget = g_level >= StudioBoss ? g_form.budget : BudgetStandard;
         s.deal = g_level >= StudioBoss && !greenlight ? g_form.deal : DealLicense;
-        s.pilotKey = key;
-        s.pilotTitle = Utf8(pilot.title);
-        s.pilotQuality = std::max(0.0f, pilot.quality);
-        s.pilotStars = std::max(0.0f, pilot.starRating);
+        ApplyPilot(s, pilot);
         if (greenlight) {
             s.network = g_form.network;
             s.binge = streaming && binge;
@@ -1278,5 +1264,20 @@ void DrawToasts()
 // For the simulator (tools/sim), which draws every tab to catch UI mistakes.
 int  TabTotal() { return TabCount; }
 void SelectTab(int tab) { g_tab = std::clamp(tab, 0, TabCount - 1); }
+
+void RenewSeries(Series& s)
+{
+    int episodes = s.order;
+    OrderSeason(s, episodes, Today() + kSummerHiatus);
+    s.freshness = std::min(1.0f, s.freshness + 0.05f);
+    Notify(Format("'%s' renewed", s.title.c_str()), Format("Season %d returns after the summer.", s.season), kGreen);
+}
+
+void EndSeries(Series& s)
+{
+    s.status = Ended;
+    ReleaseSlot(s);
+    Notify(Format("'%s' ends its run", s.title.c_str()), "You took a bow while the show was still wanted.", kGrey);
+}
 
 } // namespace tv

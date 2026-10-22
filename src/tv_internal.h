@@ -333,6 +333,8 @@ float  FreshnessLoss(const Series& s);         // per episode
 void   SeasonFinale(Series& s, float avgShare, float needed);   // after the network's decision: contracts, newspaper
 void   ResolveDemand(Series& s, bool pay);
 void   AskForRaise(Series& s);                 // renewal talks with a rival network
+void   RenewSeries(Series& s);                 // accept a renewal offer (or order the next season)
+void   EndSeries(Series& s);                   // decline it: the show ends
 void   AfterAiring(Series& s, float quality, float rating);
 bool   CanSpinOff(const Series& s, std::string* why);
 std::string SpinoffTitle(const Series& parent, int format, int variant);
@@ -437,6 +439,14 @@ void   AssignWriterToDesk(const std::string& zone, const std::string& person, ui
 bool   AdoptIfWriting(uintptr_t project);   // a script still being written, dropped on a TV building
 void   WritersDaily(float day);
 void   AddShelfPilots(std::vector<game::Project>& out, std::vector<std::string>& seen);
+// Pilots (tv_writers.cpp): a TV script is shot as a pilot episode on a soundstage before
+// it can be pitched (unless [tv] FilmPilots = 1, which also allows films and bare scripts).
+extern bool g_filmPilots;
+void   ApplyPilot(Series& s, const game::Project& pilot);   // pilot fields (and the pilot's star as lead)
+bool   StartPilotForProject(uintptr_t project);   // a shelf script object dropped on a TV building
+bool   IsUnshotScript(uintptr_t project);
+bool   CastPilot(const std::string& name, float stars, bool director);   // a person dropped on a soundstage
+void   AutoPilots(bool castStandIns);             // shoot the best scripts on free soundstages
 int    ShelfScriptFormat(const game::Project& p);   // -1 unless it's a TV script from the shelf
 void   DrawWriters();
 void   WritersSave(std::map<std::string, std::string>& out);

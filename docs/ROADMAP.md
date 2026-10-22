@@ -162,6 +162,9 @@ The full design covers:
 - [x] **Studio manager** (`src/manager.cpp`, `[Manager]`): rest breaks for idle stars, handymen sent to the most run-down building, plus chore-reducing tuning
 - [x] **Native interface** (`src/nativeui.cpp`, `src/tv_native.cpp`): a HUD button opens the Television screen as a game dialog with icon tabs and rich-text pages; the game's yes/no dialog is available to the mod
 - [x] **Movie Maker** (`src/moviemaker.cpp`, `[MovieMaker]`): 1280x720 Best export (exe width patch + generated WMV profiles), 30 fps exports, every preset renders at screen size, 12 more title colours, optional instant shooting; `CharacterTextureSize` ready for a high-resolution costume/face texture pack (`tools/upscale_textures.py`)
+- [x] **Pilots**: a TV script is shot as a pilot episode on a Multi-Camera Soundstage (drop the script on a TV building, cast a star by dropping them on the soundstage, a director in its control room); only finished pilots are pitched and the pilot's star becomes the lead. Films are no longer pilots unless `[tv] FilmPilots = 1`
+- [x] **TV decisions as native yes/no dialogs**: scandals, pay demands and renewals
+- [x] **High-resolution people**: 4,956 costume, face, hair, makeup and accessory textures upscaled 2x (`tools/make_hires_pack.py`, installed as links by `tools/hires_pack_install.py`) with `CharacterTextureSize = 1024`
 - [ ] **In-game test** of all of the above
 
 ## Not feasible as a mod (or deferred)

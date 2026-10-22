@@ -96,6 +96,7 @@ int ActiveShows()
 void Bot()
 {
     float year = Year();
+    AutoPilots(true);   // the bot shoots its best scripts with a stand-in lead
     if (ActiveShows() < Capacity() + 1) {
         std::vector<game::Project> pilots = AvailablePilots();
         std::sort(pilots.begin(), pilots.end(), [](const game::Project& a, const game::Project& b) { return a.quality > b.quality; });
@@ -113,10 +114,7 @@ void Bot()
                 fmt = ok[g_rng() % ok.size()];
             }
             s.format = fmt;
-            s.pilotKey = PilotKey(p);
-            s.pilotTitle = Utf8(p.title);
-            s.pilotQuality = std::max(0.0f, p.quality);
-            s.pilotStars = std::max(0.0f, p.starRating);
+            ApplyPilot(s, p);
             int net = BestNetwork(s);
             if (net >= 0) {
                 StartPitch(s, net);

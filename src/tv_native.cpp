@@ -5,6 +5,7 @@
 
 #include <windows.h>
 #include <algorithm>
+#include <set>
 
 #include "game.h"
 #include "mod.h"
@@ -224,11 +225,87 @@ void OpenNative()
     nativeui::Open(s, NShows);
 }
 
+// ---------------------------------------------------------------------------------
+// Decisions as the game's own yes/no dialog: scandals, stars' pay demands and renewals,
+// one at a time, each asked once (the overlay keeps every option, e.g. ending a series).
+
+std::set<std::string> g_asked;
+bool  g_promptOpen = false;
+DWORD g_promptSince = 0;
+DWORD g_lastPromptCheck = 0;
+
+void Answered() { g_promptOpen = false; }
+
+void Ask(const std::string& key, const std::wstring& title, const std::wstring& body, std::function<void()> yes,
+         std::function<void()> no)
+{
+    g_asked.insert(key);
+    g_promptOpen = true;
+    g_promptSince = GetTickCount();
+    nativeui::Confirm(title, body,
+                      [yes] { Answered(); if (yes) yes(); },
+                      [no] { Answered(); if (no) no(); });
+}
+
+std::wstring Small(const std::string& text)
+{
+    return std::wstring(L"<br><br><font color=") + kDim + L">" + W(text) + L"</font>";
+}
+
+void Prompts()
+{
+    if (GetTickCount() - g_lastPromptCheck < 1000)
+        return;
+    g_lastPromptCheck = GetTickCount();
+    if (g_promptOpen && GetTickCount() - g_promptSince > 120000)
+        g_promptOpen = false;   // the dialog was replaced by another one: move on
+    if (g_promptOpen || overlay::IsOpen() || !nativeui::Ready() || !Unlocked())
+        return;
+
+    for (Series& s : g_series) {
+        int id = s.id;
+        std::string base = std::to_string(id) + ":" + std::to_string(s.season) + ":";
+        if (s.scandal && !s.lead.empty() && !g_asked.count(base + "scandal")) {
+            Ask(base + "scandal", L"Scandal!",
+                L"<b>" + W(s.lead) + L"</b>, the star of <b>" + W(s.title) + L"</b>, is caught up in a scandal." +
+                    Small("Tick: stand by them. Cross: let them go."),
+                [id] { if (Series* x = FindSeries(id); x && x->scandal) ResolveScandal(*x, false); },
+                [id] { if (Series* x = FindSeries(id); x && x->scandal) ResolveScandal(*x, true); });
+            return;
+        }
+        if (s.demand && !s.lead.empty() && !g_asked.count(base + "demand")) {
+            double now = LeadPay1950(s) * EraFactor(Year()) * g_costScale;
+            Ask(base + "demand", L"A pay demand",
+                L"<b>" + W(s.lead) + L"</b> wants a " + std::to_wstring(s.demand) + L"% raise to keep starring in <b>" +
+                    W(s.title) + L"</b>: " + W(Dollars(now * s.demand / 100.0)) + L" more per episode." +
+                    Small("Tick: pay it. Cross: refuse - the star may walk out until you recast the role."),
+                [id] { if (Series* x = FindSeries(id); x && x->demand) ResolveDemand(*x, true); },
+                [id] { if (Series* x = FindSeries(id); x && x->demand) ResolveDemand(*x, false); });
+            return;
+        }
+        if (s.status == RenewalOffered && !g_asked.count(base + "renew")) {
+            std::wstring offer = OwnOutlet(s.network)
+                                     ? L"Order season " + std::to_wstring(s.season + 1) + L" of <b>" + W(s.title) +
+                                           L"</b> (" + std::to_wstring(s.order) + L" episodes)?"
+                                     : W(NetworkName(s.network)) + L" offers <b>" + W(s.title) + L"</b> a season " +
+                                           std::to_wstring(s.season + 1) + L": " + std::to_wstring(s.order) + L" episodes.";
+            Ask(base + "renew", L"Renewal", offer +
+                    Small(Format("Last season averaged a %.1f rating; the show is %.0f%% fresh. Tick: renew. Cross: not "
+                                 "now (end it or ask for more money in Full controls).",
+                                 s.aired ? s.ratingSum / s.aired : s.lastRating, s.freshness * 100)),
+                [id] { if (Series* x = FindSeries(id); x && x->status == RenewalOffered) RenewSeries(*x); },
+                nullptr);
+            return;
+        }
+    }
+}
+
 } // namespace
 
 void InstallNative()
 {
     nativeui::AddHudButton("button_video.", L"Television", &OpenNative);
+    overlay::AddFrameCallback(&Prompts);
 }
 
 } // namespace tv

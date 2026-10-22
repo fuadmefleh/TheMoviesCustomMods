@@ -25,6 +25,7 @@ namespace tv {
 
 const char* const kOfficeType      = "facility_tv_production_office";
 const char* const kStageType       = "facility_tv_soundstage";
+bool g_filmPilots = false;   // [tv] FilmPilots: films and bare scripts may be pitched
 const char* const kHqType          = "facility_tv_network_hq";
 const char* const kControlRoomType = "facility_tv_control_room";
 const char* const kArchiveType     = "facility_tv_archive";
@@ -268,11 +269,15 @@ std::vector<game::Project> AvailablePilots()
                 return;
         out.push_back(p);
     };
-    for (const game::Project& p : game::PlayerBackCatalogue())
-        consider(p);
-    for (const game::Project& p : game::PlayerProductions())
-        consider(p);
+    if (g_filmPilots) {
+        for (const game::Project& p : game::PlayerBackCatalogue())
+            consider(p);
+        for (const game::Project& p : game::PlayerProductions())
+            consider(p);
+    }
     AddShelfPilots(out, seen);
+    if (!g_filmPilots)
+        return out;
     // Scripts and films dropped on a TV building, released or not.
     for (uintptr_t addr : g_droppedProjects) {
         game::Project p = game::ReadProjectAt(addr);
@@ -504,8 +509,32 @@ void DevelopFromObject(uintptr_t project)
     overlay::Open();
 }
 
+// A dropped person's star rating (CStar+0xCD0), or a middling 0.4 for anyone else.
+float StarRatingOf(const rooms::Drop& d)
+{
+    if (d.personClass != "CStar" || !d.person)
+        return 0.4f;
+    __try {
+        float r = *reinterpret_cast<const float*>(d.person + 0xCD0);
+        return r == r && r >= 0 && r <= 1 ? r : 0.4f;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return 0.4f;
+    }
+}
+
 bool OnRoomDrop(const rooms::Drop& d)
 {
+    // A TV script dropped on any TV building: shoot its pilot (on a soundstage).
+    if (d.room.rfind("room_tv", 0) == 0 && d.project && !g_filmPilots && IsUnshotScript(d.project)) {
+        StartPilotForProject(d.project);
+        return true;
+    }
+    // People dropped on a soundstage: the lead of the pilot being shot, or its director.
+    if (d.room.rfind("room_tvs_", 0) == 0 && !d.project && d.person) {
+        std::string name = d.personName.empty() ? Format("%s #%04X", d.personClass.c_str(), d.person & 0xFFFF) : d.personName;
+        if (CastPilot(name, StarRatingOf(d), d.room == "room_tvs_control"))
+            return true;
+    }
     if (d.room.rfind("room_tv", 0) == 0 && d.project) {
         DevelopFromObject(d.project);
         return true;
@@ -965,6 +994,7 @@ void LoadSettings()
     GetPrivateProfileStringW(L"tv", L"CostScale", L"1", buf, 64, path);
     g_costScale = std::clamp(static_cast<float>(_wtof(buf)), 0.0f, 100.0f);
     g_devTools = GetPrivateProfileIntW(L"MoviesMod", L"DevTools", 0, path) != 0;
+    g_filmPilots = GetPrivateProfileIntW(L"tv", L"FilmPilots", 0, path) != 0;
     mod::Log("tv: income x%.2f, costs x%.2f", g_incomeScale, g_costScale);
 }
 
