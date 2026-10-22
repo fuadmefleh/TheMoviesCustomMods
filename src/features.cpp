@@ -59,6 +59,16 @@ bool                            g_dumpCatalog = true;
 
 using GetFloat_t = float(__fastcall*)(void* self, void* edx, const GameString* key, float def, int flag);
 GetFloat_t g_origGetFloat = nullptr;
+// Text values (lot.ini's "300,224" sizes...) come from the getter both of the others use:
+//   String* __thiscall TuningFile::GetString(String* out, const String* key, int flag)  @ 0x005584E0
+// A quoted value in MoviesMod.ini ([lot] 2 = "360,260") replaces the text; unquoted
+// values stay number overrides, so the number getters' own lookups are never changed.
+constexpr DWORD kTuningGetString = 0x005584E0;
+constexpr DWORD kStringAssign    = 0x004015D0;   // String::Assign(const char*, int)
+using GetString_t = GameString*(__fastcall*)(void* self, void* edx, GameString* out, const GameString* key, int flag);
+GetString_t g_origGetString = nullptr;
+std::map<std::string, std::string> g_textOverrides;   // "file:key" -> text
+
 // Whole-number values (maxlitterobjects, revenue_base...) come through a twin getter.
 constexpr DWORD kTuningGetInt = 0x00558750;
 using GetInt_t = int(__fastcall*)(void* self, void* edx, const GameString* key, int def, int flag);
@@ -144,6 +154,33 @@ int __fastcall HookGetInt(void* self, void* edx, const GameString* key, int def,
     return result;
 }
 
+GameString* __fastcall HookGetString(void* self, void* edx, GameString* out, const GameString* key, int flag)
+{
+    GameString* result = g_origGetString(self, edx, out, key, flag);
+    if (!out || !key || !key->text || key->len <= 0 || key->len > 64)
+        return result;
+    std::string id = TuningFileName(self) + ":" + Lower(std::string(key->text, key->len));
+    auto it = g_textOverrides.find(id);
+    if (it == g_textOverrides.end())
+        return result;
+    std::string text = it->second;
+    // Lot sizes ("width,depth"): never smaller than what the game's data (or another lot
+    // mod's lot.ini) already says.
+    if (id.rfind("lot:", 0) == 0 && out->text && out->len > 0 && out->len < 64) {
+        float ow = 0, od = 0, nw = 0, nd = 0;
+        std::string orig(out->text, out->len);
+        if (sscanf_s(orig.c_str(), "%f,%f", &ow, &od) == 2 && sscanf_s(text.c_str(), "%f,%f", &nw, &nd) == 2)
+            text = std::to_string(static_cast<int>(nw > ow ? nw : ow)) + "," + std::to_string(static_cast<int>(nd > od ? nd : od));
+    }
+    using Assign_t = void(__thiscall*)(GameString*, const char*, int);
+    reinterpret_cast<Assign_t>(kStringAssign)(out, text.c_str(), static_cast<int>(text.size()));
+    EnterCriticalSection(&g_tuningLock);
+    if (g_seen.insert(id + "#text").second)
+        mod::Log("override %s: \"%s\"", id.c_str(), text.c_str());
+    LeaveCriticalSection(&g_tuningLock);
+    return result;
+}
+
 void LoadTuningOverrides()
 {
     std::vector<wchar_t> sections(32768);
@@ -171,12 +208,17 @@ void LoadTuningOverrides()
             std::wstring v = trim(entry.substr(eq + 1));
             if (auto semi = v.find(L';'); semi != std::wstring::npos)
                 v = trim(v.substr(0, semi));
+            if (v.size() >= 2 && v.front() == L'"' && v.back() == L'"') {   // a text value
+                g_textOverrides[Lower(Narrow(sec)) + ":" + Lower(Narrow(k.c_str()))] = Narrow(v.substr(1, v.size() - 2).c_str());
+                continue;
+            }
             Override o{ !v.empty() && v[0] == L'*', 0.0f };
             o.value = static_cast<float>(_wtof(v.c_str() + (o.multiply ? 1 : 0)));
             g_overrides[Lower(Narrow(sec)) + ":" + Lower(Narrow(k.c_str()))] = o;
         }
     }
-    mod::Log("tuning overrides loaded: %u", static_cast<unsigned>(g_overrides.size()));
+    mod::Log("tuning overrides loaded: %u numbers, %u texts", static_cast<unsigned>(g_overrides.size()),
+             static_cast<unsigned>(g_textOverrides.size()));
 }
 
 bool InstallTuningHook()
@@ -196,6 +238,13 @@ bool InstallTuningHook()
         return false;
     }
     mod::Log("tuning hook installed at 0x%08X", kTuningGetFloat);
+    if (!g_textOverrides.empty()) {
+        target = reinterpret_cast<LPVOID>(kTuningGetString);
+        if (MH_CreateHook(target, reinterpret_cast<LPVOID>(&HookGetString), reinterpret_cast<LPVOID*>(&g_origGetString)) !=
+                MH_OK ||
+            MH_EnableHook(target) != MH_OK)
+            mod::Log("tuning hook (text) FAILED");
+    }
     target = reinterpret_cast<LPVOID>(kTuningGetInt);
     if (MH_CreateHook(target, reinterpret_cast<LPVOID>(&HookGetInt), reinterpret_cast<LPVOID*>(&g_origGetInt)) != MH_OK ||
         MH_EnableHook(target) != MH_OK)
