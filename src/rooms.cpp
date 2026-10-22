@@ -515,8 +515,47 @@ bool __fastcall HookCanAccept(uintptr_t room, void*, uintptr_t who)
     return ok;
 }
 
+// A floor plan attaches to its building's model when a game loads (TMFloorPlan vtable
+// slot +0x18, 0x00938250): child 0 of the building's render object (0x0097E350), then it
+// waits for that mesh to load (0x009DC300) - with no null check. A building whose model has
+// no child node crashed the game there; skip the attach instead and say which building.
+constexpr uintptr_t kFloorPlanAttach = 0x00938250;   // bool __fastcall(TMFloorPlan*)
+constexpr uintptr_t kRenderChild = 0x0097E350;       // Object* __thiscall(Object*, int index)
+constexpr int kPlanOwner = 0x1D4;
+using FloorPlanAttach_t = bool(__fastcall*)(uintptr_t plan);
+FloorPlanAttach_t g_origFloorPlanAttach = nullptr;
+
+uintptr_t FloorPlanModel(uintptr_t plan, uintptr_t* owner)
+{
+    __try {
+        *owner = *reinterpret_cast<uintptr_t*>(plan + kPlanOwner);
+        uintptr_t render = *owner ? *reinterpret_cast<uintptr_t*>(*owner + kObjRender) : 0;
+        return render ? reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, int)>(kRenderChild)(render, 0) : 0;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return 0;
+    }
+}
+
+bool __fastcall HookFloorPlanAttach(uintptr_t plan)
+{
+    uintptr_t owner = 0;
+    if (FloorPlanModel(plan, &owner) || !owner)
+        return g_origFloorPlanAttach(plan);
+    std::string what = game::ClassName(owner);
+    for (const game::Facility& f : game::Facilities())
+        if (f.address == owner)
+            what = f.type;
+    static int logged = 0;
+    if (logged++ < 10)
+        mod::Log("rooms: a floor plan's building has no model loaded (%s @%08X) - not attached, game kept running",
+                 what.c_str(), static_cast<unsigned>(owner));
+    return false;
+}
+
 void InstallTvScriptHooks()
 {
+    HookFn(kFloorPlanAttach, reinterpret_cast<void*>(&HookFloorPlanAttach),
+           reinterpret_cast<void**>(&g_origFloorPlanAttach), "floor plan attach (null model guard)");
     wchar_t path[MAX_PATH];
     swprintf_s(path, L"%s\\Data\\meshes\\p_icon_write_tv.msh", mod::GameDir());
     bool write = GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES;
