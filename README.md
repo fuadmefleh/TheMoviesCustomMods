@@ -45,7 +45,7 @@ The game folder is `C:\Program Files (x86)\Lionhead Studios Ltd\The Movies`.
 
 1. Download `MoviesMod-<version>.zip` from the [Releases page](https://github.com/fuadmefleh/TheMoviesCustomMods/releases).
 2. Close the game and extract the zip into the game folder, merging folders.
-3. Optional: for the Television screen's artwork, run `python MoviesMod	ools\extract_ui.py .` in the game folder (Python 3 with Pillow). It copies banners and rosettes out of your own copy of the game.
+3. Optional: for the Television screen's artwork, run `python MoviesMod\tools\extract_ui.py .` in the game folder (Python 3 with Pillow). It copies banners and rosettes out of your own copy of the game.
 
 Releases are built by GitHub Actions (`.github/workflows/release.yml`) whenever a `v*` tag is pushed: `git tag v0.2.0 && git push origin v0.2.0`.
 
