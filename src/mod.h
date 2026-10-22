@@ -15,6 +15,10 @@ void ShowInspector(bool show);   // hidden by default; toggled from the Televisi
 
 } // namespace mod
 
+namespace lists {
+void MergeAll();   // lists.cpp: merge our entries into shared list files in Data (before the game reads them)
+}
+
 namespace moviemaker {
 void Install();   // moviemaker.cpp: HD/30 fps export, sharper presets, character texture size, instant shoot
 }

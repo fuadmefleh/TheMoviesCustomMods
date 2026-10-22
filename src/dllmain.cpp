@@ -81,6 +81,7 @@ void OnAttach()
         return;
     }
     mod::LoadConfig();
+    lists::MergeAll();
     mod::InstallHooks();
     text::Install();
     diag::Install();

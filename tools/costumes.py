@@ -841,7 +841,9 @@ def build_categories(new_by_cat, out_files, warn):
         for n in sorted(names):
             if n not in have:
                 text += f'\t{n}\r\n'
-        out_files[f'data/costume/{cat}.ini'] = text.encode('latin1')
+        # Shared list files go to MoviesMod/lists: the DLL merges them into Data at startup,
+        # so other mods' additions to the same list survive (src/lists.cpp).
+        out_files[f'lists/data/costume/{cat}.ini'] = text.encode('latin1')
         if cat.lower() not in known:
             added_cats.append(cat)
     if added_cats:
@@ -849,7 +851,7 @@ def build_categories(new_by_cat, out_files, warn):
         text = cat_ini.rstrip('\r\n') + '\r\n'
         for cat in added_cats:
             text += f'\r\n[{cat}]\r\n\tcat = {cat}\r\n'
-        out_files['data/costume/category.ini'] = text.encode('latin1')
+        out_files['lists/data/costume/category.ini'] = text.encode('latin1')
         warn(f'new wardrobe tab(s) {added_cats}: experimental; name them with '
              f'{[c.upper() for c in added_cats]} in [text]')
 
@@ -903,7 +905,9 @@ def install(manifest):
         return False
     for rel in manifest['files']:
         src = os.path.join(CONTENT, *rel.split('/'))
-        dst = os.path.join(GAME, 'Data', *rel.split('/')[1:])
+        parts = rel.split('/')
+        dst = (os.path.join(GAME, 'MoviesMod', *parts) if parts[0] == 'lists'
+               else os.path.join(GAME, 'Data', *parts[1:]))
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         shutil.copyfile(src, dst)
     shutil.copyfile(MOD_INI, os.path.join(GAME, 'MoviesMod.ini'))
@@ -1046,8 +1050,19 @@ def main():
         if game_running():
             sys.exit('MoviesSE.exe is running: close it first')
         m = json.load(open(MANIFEST))
+        ours = {n.lower() for n in m.get('costumes', [])}
         for rel in m['files']:
-            p = os.path.join(GAME, 'Data', *rel.split('/')[1:])
+            parts = rel.split('/')
+            if parts[0] == 'lists':
+                # A shared list: take only our names out of the game's copy, keep the rest.
+                live = os.path.join(GAME, 'Data', *parts[2:])
+                if os.path.exists(live):
+                    raw = open(live, 'rb').read().decode('latin1')
+                    kept = [l for l in raw.splitlines(True) if l.strip().lower() not in ours]
+                    open(live, 'wb').write(''.join(kept).encode('latin1'))
+                p = os.path.join(GAME, 'MoviesMod', *parts)
+            else:
+                p = os.path.join(GAME, 'Data', *parts[1:])
             if os.path.exists(p):
                 os.remove(p)
         print(f'removed {len(m["files"])} files (the [text] names stay in MoviesMod.ini)')

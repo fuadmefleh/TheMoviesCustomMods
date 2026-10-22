@@ -1,10 +1,5 @@
 {
  "files": [
-  "data/costume/category_casual.ini",
-  "data/costume/category_futuristic.ini",
-  "data/costume/category_monster.ini",
-  "data/costume/category_smart.ini",
-  "data/costume/category_western.ini",
   "data/costume/datas/f_mm_20s_jade.cos",
   "data/costume/datas/f_mm_20s_ruby.cos",
   "data/costume/datas/f_mm_30s_teal.cos",
@@ -124,7 +119,12 @@
   "data/textures/thumbs/costumes/m_mm_fut_violet.dds",
   "data/textures/thumbs/costumes/m_mm_hor_greywolf.dds",
   "data/textures/thumbs/costumes/m_mm_wes_outlaw.dds",
-  "data/textures/thumbs/costumes/m_mm_wes_ranger.dds"
+  "data/textures/thumbs/costumes/m_mm_wes_ranger.dds",
+  "lists/data/costume/category_casual.ini",
+  "lists/data/costume/category_futuristic.ini",
+  "lists/data/costume/category_monster.ini",
+  "lists/data/costume/category_smart.ini",
+  "lists/data/costume/category_western.ini"
  ],
  "costumes": [
   "m_mm_wes_outlaw",

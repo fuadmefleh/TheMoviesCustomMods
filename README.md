@@ -15,6 +15,7 @@ A code mod for **The Movies: Stunts & Effects v1.2** (Lionhead, 2006). It runs i
 - [Playing](#playing)
 - [Configuration](#configuration)
 - [Files the mod creates](#files-the-mod-creates)
+- [Works with other mods](#works-with-other-mods)
 - [Troubleshooting](#troubleshooting)
 - [Uninstalling](#uninstalling)
 - [Project layout](#project-layout)
@@ -220,6 +221,24 @@ A building's display name uses its file name in capitals, so `facility_tv_sounds
 | `<save name>.tvs` | `Documents\The Movies\Saved Games\` | The mod's data for that save. It is plain text, written whenever the game writes the `.jad`, and deleted when the save is deleted. |
 
 **A `.tvs` file belongs with its `.jad` save.** If you copy a save to another PC, copy both files. Without the `.tvs` file, the save loads fine but the mod starts fresh: no TV shows.
+
+## Works with other mods
+
+The Movies still has a small modding community. MoviesMod is meant to sit alongside it.
+
+**Fixes we recommend instead of duplicating them** (back up the game folder first; these are third-party downloads):
+
+| Mod | What it does | Notes with MoviesMod |
+|---|---|---|
+| [Widescreen & FOV Fix](https://community.pcgamingwiki.com/files/file/3506-the-movies-fov-fix/) (AlphaYellow) | Stops the picture being cropped on widescreen monitors | Loads through ThirteenAG's Ultimate ASI Loader as `winmm.dll`, so it doesn't clash with our `dinput8.dll`. Not yet tested together |
+| [The Movies Fixer](https://community.pcgamingwiki.com/files/file/4020-the-movies-fixer/) | FOV fix, intro skip, resolution picker, dgVoodoo | dgVoodoo replaces `d3d9.dll`; our overlay hooks Direct3D 9, so test the mod's windows after installing it |
+| [Windows 10/11 Patch with 4GB fix](https://www.nexusmods.com/themovies/mods/253) | Compatibility and the Large Address Aware flag | The 4 GB patch is the same one this README recommends; apply it once |
+
+**Community content** - costumes, sets, props and makeup from [TheMovies3D.com](https://www.themovies3d.com/en/), [Nexus Mods](https://www.nexusmods.com/games/themovies/mods) and [ModDB](https://www.moddb.com/games/the-movies/downloads) - installs as loose files under `Data`, like ours.
+
+- **Shared lists are merged, not replaced.** Files that many mods add to, such as a wardrobe tab's costume list (`Data\costume\category_*.ini`), are not in our zip's `Data` folder. Our entries live in `MoviesMod\lists\` and the DLL merges them into the game's copies at every start, keeping everyone else's entries. Install order doesn't matter: if a later costume pack replaces a list, our costumes come back on the next start. `MoviesMod.log` reports it as `lists: ...`.
+- **Names:** our costumes are called `m_mm_*` / `f_mm_*` and our buildings `facility_tv_*`, `facility_script_5star` and `trailer_6`..`trailer_9`. If another mod uses the same names, the one installed last wins.
+- **Tools:** [The Movies Editor](https://www.themovies3d.com/en/downloads/category/22-tools-a-utilities) (sets, costumes, props), FlmReaderZero (scenes), PakPoker (paks) and CastingCouch (StarMaker) all work on the game's files and are independent of this mod.
 
 ## Troubleshooting
 

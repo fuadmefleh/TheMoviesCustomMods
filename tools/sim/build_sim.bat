@@ -5,6 +5,8 @@ set "ROOT=%~dp0..\..\"
 set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
 for /f "usebackq delims=" %%i in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VSDIR=%%i"
 if not defined VSDIR (echo Visual Studio with the C++ tools not found & exit /b 1)
+rem vcvars32.bat runs vswhere itself, without a path.
+set "PATH=%PATH%;%ProgramFiles(x86)%\Microsoft Visual Studio\Installer"
 call "%VSDIR%\VC\Auxiliary\Build\vcvars32.bat" >nul || exit /b 1
 set "IG=%ROOT%third_party\imgui"
 set "SRC=%ROOT%src"

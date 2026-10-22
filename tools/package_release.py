@@ -5,6 +5,7 @@ installing is "extract into <game folder>".
   MoviesMod.ini                    settings
   Data/...                         buildings, models, costumes, research packs, title colours
   MoviesMod/video_templates/       export profiles the DLL rewrites for HD export
+  MoviesMod/lists/                 our entries for shared list files, merged into Data at startup
   MoviesMod/tools/                 extract_ui.py + pak.py (optional: the TV screen's artwork)
   MoviesMod-README.txt             install instructions
 
@@ -62,7 +63,8 @@ def main():
     out = os.path.join(ROOT, 'dist', 'MoviesMod-%s.zip' % version)
     files = [(dll, 'dinput8.dll')]
     for folder, prefix in ((os.path.join(ROOT, 'content', 'data'), 'Data'),
-                           (os.path.join(ROOT, 'content', 'video_templates'), 'MoviesMod/video_templates')):
+                           (os.path.join(ROOT, 'content', 'video_templates'), 'MoviesMod/video_templates'),
+                           (os.path.join(ROOT, 'content', 'lists'), 'MoviesMod/lists')):
         for dirpath, _, names in os.walk(folder):
             for n in sorted(names):
                 if 'tv_test' in n:
