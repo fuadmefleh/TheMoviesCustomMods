@@ -1,5 +1,6 @@
-"""Builds all the TV buildings' models: each starts from a game building, gets its zones
-renamed (so they are TV zones, not the donor's working rooms) and is dressed in Blender
+"""Builds all the TV buildings' models. Each takes its working parts (drop zones, walk points,
+doors) from a game building, with the zones renamed as TV zones; the TV buildings get a
+new body of CC0 kit models ('kit', tools/blender_kit.py) and are dressed in Blender
 with new parts (tools/blender_props.py): ON AIR signs, transmitter towers, satellite
 dishes, rooftop units. The sign textures are drawn here.
 
@@ -19,11 +20,16 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import building  # noqa: E402
 
 TOOLS = os.path.dirname(os.path.abspath(__file__))
+# New bodies for the TV buildings: CC0 kit models (third_party/kenney, see tools/blender_kit.py).
+KIT_ROOT = os.path.join(os.path.dirname(TOOLS), 'third_party', 'kenney')
 FONT = os.path.join(os.environ.get('WINDIR', r'C:\Windows'), 'Fonts', 'ARLRDBD.TTF')
 
 BUILDINGS = [
     {
-        'name': 'tv_script_office', 'donor': 'scriptoffice_3',
+        'name': 'tv_script_office', 
+        'kit': [{'kit': 'city-kit-commercial', 'model': 'building-j', 'x': 9.5, 'y': -1.5, 'w': 24.0, 'd': 14.0, 'h': 16.0},
+                {'kit': 'city-kit-commercial', 'model': 'building-c', 'x': 1.0, 'y': -12.5, 'w': 9.0, 'd': 9.0, 'h': 9.0}],
+        'donor': 'scriptoffice_3',
         'rooms': {'room_so_comedy': 'room_tvw_sitcom', 'room_so_action': 'room_tvw_crime',
                   'room_so_romdrama': 'room_tvw_drama', 'room_so_horror': 'room_tvw_soap',
                   'room_so_scifi': 'room_tvw_scifi', 'room_so_fire': 'room_tvw_variety',
@@ -39,7 +45,9 @@ BUILDINGS = [
         ],
     },
     {
-        'name': 'tv_office', 'donor': 'customscriptoffice',
+        'name': 'tv_office', 
+        'kit': [{'kit': 'city-kit-commercial', 'model': 'building-k', 'x': 0.0, 'y': 0.0, 'w': 26.0, 'd': 12.0, 'h': 15.0}],
+        'donor': 'customscriptoffice',
         'rooms': {'room_cso_create': 'room_tv_writers', 'room_cso_canit': 'room_tv_cast',
                   'room_cso_blank': 'room_tv_showrun', 'room_cso_hall': 'room_tv_lobby'},
         'props': [
@@ -48,7 +56,9 @@ BUILDINGS = [
         ],
     },
     {
-        'name': 'tv_soundstage', 'donor': 'stageschool',
+        'name': 'tv_soundstage', 
+        'kit': [{'kit': 'space-kit', 'model': 'hangar_largeB', 'x': 0.0, 'y': -0.3, 'w': 26.0, 'd': 13.0, 'h': 11.0, 'rot': 90}],
+        'donor': 'stageschool',
         'rooms': {'room_ss_extras': 'room_tvs_audience', 'room_ss_actors': 'room_tvs_stage',
                   'room_ss_directors': 'room_tvs_control', 'room_ss_fire': 'room_tvs_green',
                   'room_ss_starmaker': 'room_tvs_makeup'},
@@ -61,28 +71,38 @@ BUILDINGS = [
         ],
     },
     {
-        'name': 'tv_network_hq', 'donor': 'publicity_office',
+        'name': 'tv_network_hq', 
+        'kit': [{'kit': 'city-kit-commercial', 'model': 'building-skyscraper-a', 'x': 2.2, 'y': 3.0, 'w': 13.0, 'd': 11.0, 'h': 30.0},
+                {'kit': 'city-kit-commercial', 'model': 'building-e', 'x': 2.2, 'y': -5.0, 'w': 18.0, 'd': 7.5, 'h': 7.0},
+                {'kit': 'space-kit', 'model': 'satelliteDish_large', 'x': 0.0, 'y': 5.0, 'scale': 3.0, 'z': 'roof', 'solid': False},
+                {'kit': 'space-kit', 'model': 'machine_wireless', 'x': 5.0, 'y': 1.0, 'scale': 3.0, 'z': 'roof', 'solid': False}],
+        'donor': 'publicity_office',
         'rooms': {'room_publicity_pr': 'room_tvn_programming', 'room_publicity_hall': 'room_tvn_lobby'},
         'props': [
-            {'type': 'tower', 'x': 0.4, 'y': 6.2, 'height': 20.0, 'base': 3.0},
-            {'type': 'sign', 'x': -3.6, 'y': 2.6, 'w': 5.0, 'h': 2.2, 'legs': 0.8, 'texture': 'tvp_network.png'},
+            {'type': 'tower', 'x': 5.5, 'y': 6.0, 'height': 9.0, 'base': 2.0},
+            {'type': 'sign', 'x': 2.2, 'y': -6.5, 'w': 6.0, 'h': 2.2, 'legs': 0.6, 'texture': 'tvp_network.png'},
         ],
     },
     {
-        'name': 'tv_control_room', 'donor': 'research',
+        'name': 'tv_control_room', 
+        'kit': [{'kit': 'city-kit-commercial', 'model': 'building-k', 'x': -1.0, 'y': -1.5, 'w': 22.0, 'd': 12.0, 'h': 13.0},
+                {'kit': 'space-kit', 'model': 'satelliteDish_large', 'x': 15.0, 'y': -4.5, 'scale': 7.0},
+                {'kit': 'space-kit', 'model': 'satelliteDish_detailed', 'x': 15.5, 'y': 4.0, 'scale': 6.0},
+                {'kit': 'space-kit', 'model': 'structure_closed', 'x': -9.0, 'y': 6.5, 'scale': 3.5},
+                {'kit': 'space-kit', 'model': 'machine_wireless', 'x': -6.0, 'y': -1.0, 'scale': 3.0, 'z': 'roof', 'solid': False}],
+        'donor': 'research',
         'rooms': {'room_res_fac': 'room_tvc_transmit', 'room_res_fire': 'room_tvc_engineers',
                   'room_res_set': 'room_tvc_monitors', 'room_res_cos': 'room_tvc_tapes',
                   'room_res_mov': 'room_tvc_uplink', 'room_res_hall': 'room_tvc_hall'},
         'props': [
-            {'type': 'dish', 'x': -10.0, 'y': 7.0, 'radius': 2.0, 'tilt': 40, 'face': 160},
-            {'type': 'dish', 'x': -4.6, 'y': 7.4, 'radius': 1.4, 'tilt': 55, 'face': 200},
-            {'type': 'dish', 'x': 18.0, 'y': 4.6, 'radius': 1.8, 'tilt': 35, 'face': 180},
-            {'type': 'mast', 'x': 7.0, 'y': -4.6, 'height': 9.0},
+            {'type': 'mast', 'x': 6.0, 'y': 1.0, 'height': 9.0},
             {'type': 'sign', 'x': -3.0, 'y': -6.6, 'w': 5.0, 'h': 1.2, 'legs': 0.4, 'texture': 'tvp_control.png'},
         ],
     },
     {
-        'name': 'tv_archive', 'donor': 'postproduction',
+        'name': 'tv_archive', 
+        'kit': [{'kit': 'city-kit-commercial', 'model': 'building-e', 'x': -1.8, 'y': 1.0, 'w': 20.0, 'd': 14.0, 'h': 9.0}],
+        'donor': 'postproduction',
         'rooms': {'room_postprod_postprod': 'room_tva_vault', 'room_postprod_hall': 'room_tva_hall'},
         'props': [
             {'type': 'sign', 'x': -1.4, 'y': -8.6, 'w': 5.2, 'h': 1.4, 'legs': 0.4, 'texture': 'tvp_archive.png'},
@@ -90,12 +110,20 @@ BUILDINGS = [
         ],
     },
     {
-        'name': 'tv_datacenter', 'donor': 'sell',
+        'name': 'tv_datacenter', 
+        'kit': [{'kit': 'space-kit', 'model': 'hangar_smallA', 'x': 0.0, 'y': -1.0, 'w': 20.0, 'd': 12.0, 'h': 8.0},
+                {'kit': 'space-kit', 'model': 'machine_generatorLarge', 'x': 9.0, 'y': 4.5, 'scale': 3.0},
+                {'kit': 'space-kit', 'model': 'machine_generator', 'x': -5.0, 'y': -4.0, 'scale': 3.0, 'z': 'roof', 'solid': False},
+                {'kit': 'space-kit', 'model': 'machine_generator', 'x': 0.0, 'y': -4.0, 'scale': 3.0, 'z': 'roof', 'solid': False},
+                {'kit': 'space-kit', 'model': 'machine_generator', 'x': 5.0, 'y': -4.0, 'scale': 3.0, 'z': 'roof', 'solid': False},
+                {'kit': 'space-kit', 'model': 'machine_generator', 'x': -5.0, 'y': 2.0, 'scale': 3.0, 'z': 'roof', 'solid': False},
+                {'kit': 'space-kit', 'model': 'machine_generator', 'x': 0.0, 'y': 2.0, 'scale': 3.0, 'z': 'roof', 'solid': False},
+                {'kit': 'space-kit', 'model': 'machine_generator', 'x': 5.0, 'y': 2.0, 'scale': 3.0, 'z': 'roof', 'solid': False}],
+        'donor': 'sell',
         'rooms': {'room_sell_sell': 'room_tvd_servers', 'room_sell_window': 'room_tvd_noc', 'room_hall': 'room_tvd_hall'},
-        'props': [{'type': 'box', 'x': x, 'y': y, 'w': 1.6, 'd': 1.6, 'h': 1.0, 'texture': 'tvp_ac.png'}
-                  for y in (-3.6, 2.8) for x in (-4.5, -2.0, 2.0, 4.5)] + [
-            {'type': 'dish', 'x': -12.0, 'y': 7.0, 'radius': 1.4, 'tilt': 45, 'face': 180},
-            {'type': 'sign', 'x': 0.0, 'y': -6.2, 'w': 4.2, 'h': 1.0, 'legs': 0.4, 'texture': 'tvp_datacenter.png'},
+        'props': [
+            {'type': 'dish', 'x': -9.0, 'y': 5.0, 'radius': 1.4, 'tilt': 45, 'face': 180},
+            {'type': 'sign', 'x': 0.0, 'y': -6.0, 'w': 4.2, 'h': 1.0, 'legs': 0.4, 'texture': 'tvp_datacenter.png'},
         ],
     },
 ]
@@ -341,6 +369,18 @@ def find_blender():
     sys.exit('Blender not found: pass --blender <path to blender.exe> or set BLENDER')
 
 
+def run_blender(blender, script, work, spec_data, name):
+    spec = os.path.join(work, 'kit.json')
+    json.dump(spec_data, open(spec, 'w'), indent=1)
+    r = subprocess.run([blender, '-b', '--factory-startup', '-P', os.path.join(TOOLS, script), '--', work, spec],
+                       capture_output=True, text=True)
+    lines = [l for l in r.stdout.splitlines() if 'blender_kit' in l or 'Error' in l or 'Traceback' in l]
+    print('\n'.join(lines) or r.stdout[-2000:])
+    if r.returncode != 0 or not any('blender_kit: removed' in l for l in lines):
+        print(r.stderr[-3000:])
+        sys.exit('Blender failed for ' + name)
+
+
 def main():
     blender = find_blender()
     install = '--install' in sys.argv
@@ -354,6 +394,8 @@ def main():
         make_textures(os.path.join(work, 'textures'))
         if b.get('badge'):
             badge_thumbnail(b['donor'], b['badge'], os.path.join(work, 'thumbnail.png'))
+        if b.get('kit'):
+            run_blender(blender, 'blender_kit.py', work, {'rooms': b['rooms'], 'kit_root': KIT_ROOT, 'parts': b['kit']}, b['name'])
         spec = os.path.join(work, 'spec.json')
         json.dump({'rooms': b['rooms'], 'props': b['props']}, open(spec, 'w'), indent=1)
         r = subprocess.run([blender, '-b', '--factory-startup', '-P', os.path.join(TOOLS, 'blender_props.py'), '--', work, spec],
@@ -363,6 +405,13 @@ def main():
         if r.returncode != 0 or not any('blender_props:' in l for l in lines):
             print(r.stderr[-3000:])
             sys.exit('Blender failed for ' + b['name'])
+        if b.get('kit'):
+            # The menu picture of the new building (replaces the donor's).
+            r = subprocess.run([blender, '-b', '--factory-startup', '-P', os.path.join(TOOLS, 'blender_kit.py'), '--', work,
+                                '--thumb', os.path.join(work, 'thumbnail.png')], capture_output=True, text=True)
+            if r.returncode != 0 or not os.path.exists(os.path.join(work, 'thumbnail.png')):
+                print(r.stdout[-2000:], r.stderr[-2000:])
+                sys.exit('thumbnail failed for ' + b['name'])
         building.build(work, b['name'], install=install)
         copy_scenes(b.get('scenes', {}), install)
         copy_scenes(b.get('extra_scenes', {}), install)

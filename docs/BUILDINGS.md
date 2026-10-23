@@ -88,6 +88,20 @@ it exports the donor, renames its zones, draws sign textures with Pillow, and ru
 python tools/make_tv_models.py --blender "C:/path/to/blender.exe" --install [tv_network_hq ...]
 ```
 
+Buildings with a `kit` list get a whole new body first: `tools/blender_kit.py` deletes
+everything the player sees of the donor (outside model, construction ghost, volumes and
+outlines; `building.py` regenerates them) and keeps its working parts (ground pad, drop
+zones, walk points, door and pavement anchors, lot boundary). It then places CC0 models
+from `third_party/kenney` in game metres, gives each solid part a walk-around volume, copies
+the city kit's colour atlas and turns the flat-colour kits' materials into small textures.
+A part is `{'kit': 'city-kit-commercial', 'model': 'building-k', 'x': 0, 'y': 0, 'w': 26,
+'d': 12, 'h': 15}` (or `'scale'` in metres per kit unit; `'rot'` in degrees, 0 = the model's
+front faces the street at -Y; `'z': 'roof'` stands it on the part below; `'solid': False`
+for small parts). It also renders the menu picture (`--thumb`), in the game's style.
+
+The floor plan shown while you carry a person (`fld`) is still the donor's: the zone scenes
+put people at the donor's desks and chairs, so a new interior has to keep those spots.
+
 `tools/blender_preview.py` renders a building's OBJ to a PNG to check the result:
 
 ```

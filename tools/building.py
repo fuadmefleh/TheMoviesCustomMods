@@ -874,7 +874,7 @@ def build(work, name, install=False):
             shutil.copyfile(os.path.join(work, own[0]), dst)
         else:
             from PIL import Image
-            write_dds(Image.open(os.path.join(work, own[0])).resize((64, 64)), dst)
+            write_dds(Image.open(os.path.join(work, own[0])).resize((128, 128), Image.LANCZOS), dst)
     else:
         data = game_file('data/textures/thumbs/sets/fac_%s.dds' % donor_name)
         if data:
