@@ -76,8 +76,8 @@ def render_thumb(out):
     cam = bpy.data.objects.new('cam', bpy.data.cameras.new('cam'))
     bpy.context.collection.objects.link(cam)
     view = os.environ.get('KIT_VIEW')
-    direction = Vector(tuple(map(float, view.split(','))) if view else (-0.55, -1.0, 0.62)).normalized()
-    cam.location = centre + Vector((0, 0, hi.z * 0.35)) + direction * size * 1.45
+    direction = Vector(tuple(map(float, view.split(','))) if view else (-0.55, -1.0, 0.36)).normalized()
+    cam.location = centre + Vector((0, 0, hi.z * 0.35)) + direction * size * 1.6
     look = (centre + Vector((0, 0, hi.z * 0.3)) - cam.location).normalized()
     cam.rotation_euler = look.to_track_quat('-Z', 'Y').to_euler()
     cam.data.lens = 35
@@ -166,6 +166,99 @@ def kit_material(kit, m):
 
 
 # ---------------------------------------------------------------------------------
+# The game's look. The kits are flat cartoon colours; the game's buildings are photo
+# textures (plaster, brick, steel, tiles) at real size. Each face gets the game texture for
+# its role, mapped by world position like the game's own buildings:
+#   city kit, by its colour-atlas cell (16 x 16 cells of 32 px): column 7 white = walls,
+#   column 1 slate = frames, ledges and bands, column 3 rows 8-11 dark grey = plinths and
+#   roof decks, column 11 blue = glass; anything flat on top of those is roof. Other cells
+#   (awning colours, plants) keep the kit's colour.
+#   flat-colour kits, by material name.
+# The textures are game files (data/textures/<name>.dds) the build puts in <work>/textures.
+
+STYLE = {'wall': 'wall_ph54', 'trim': 'wall_ph55c', 'roof': 'wall_ph55', 'dark': 'plas_ph01',
+         'glass': 'glas_ph08', 'panel': 'steel_ph09', 'frame': 'steel_ph17', 'accent': 'wall_ph47b'}
+STYLE.update(SPEC.get('style', {}))
+TILE = {'wall': 3.0, 'trim': 2.0, 'roof': 4.0, 'dark': 2.0, 'panel': 3.0, 'frame': 2.0, 'accent': 2.5}
+TILE.update(SPEC.get('tile', {}))
+FLAT_KIT_ROLES = {'metal': 'panel', 'metalDark': 'frame', 'dark': 'dark', 'metalRed': 'accent',
+                  '_defaultMat': 'wall'}
+GAME_MATERIALS = {}
+
+
+def game_material(texture):
+    if texture in GAME_MATERIALS:
+        return GAME_MATERIALS[texture]
+    m = bpy.data.materials.get(texture)   # the donor's own, or a new one under the game's name
+    if m is not None:
+        GAME_MATERIALS[texture] = m
+        return m
+    m = bpy.data.materials.new(texture)   # a game material name keeps the game's settings
+    m.use_nodes = True
+    node = m.node_tree.nodes.new('ShaderNodeTexImage')
+    node.image = bpy.data.images.load(os.path.join(TEX, texture + '.dds'))
+    m.node_tree.links.new(node.outputs['Color'], m.node_tree.nodes['Principled BSDF'].inputs['Base Color'])
+    GAME_MATERIALS[texture] = m
+    return m
+
+
+def city_role(u, v, up):
+    col, row = int(u * 16) % 16, int((1 - v) * 16) % 16
+    if col == 11:
+        return 'glass'
+    if col == 7:
+        return 'roof' if up else 'wall'
+    if col == 1 and row >= 8:
+        return 'roof' if up else 'trim'
+    if col == 3 and 8 <= row <= 11:
+        return 'roof' if up else 'dark'
+    return None
+
+
+def retexture(obj, kit):
+    me = obj.data
+    uv = me.uv_layers.active.data
+    slots = {}
+    corner = me.corner_normals   # the kit's own normals: its face winding isn't reliable
+    for poly in me.polygons:
+        mat = obj.material_slots[poly.material_index].material if obj.material_slots else None
+        n = sum((corner[i].vector for i in poly.loop_indices), Vector()) / poly.loop_total
+        up = n.z > 0.7
+        if kit == 'city-kit-commercial':
+            u = sum(uv[i].uv.x for i in poly.loop_indices) / poly.loop_total
+            v = sum(uv[i].uv.y for i in poly.loop_indices) / poly.loop_total
+            role = city_role(u, v, up)
+        else:
+            role = FLAT_KIT_ROLES.get(mat.name.split('.')[0] if mat else '_defaultMat')
+        if role is None:
+            continue
+        tex = STYLE[role]
+        if tex not in slots:
+            me.materials.append(game_material(tex))
+            slots[tex] = len(me.materials) - 1
+        poly.material_index = slots[tex]
+        pts = [me.vertices[me.loops[i].vertex_index].co for i in poly.loop_indices]
+        if role == 'glass':   # one pane of the glass texture per face
+            ax = (0, 2) if abs(n.y) >= abs(n.x) else (1, 2)
+            if abs(n.z) > 0.7:
+                ax = (0, 1)
+            lo = [min(p[a] for p in pts) for a in ax]
+            span = [max(1e-3, max(p[a] for p in pts) - lo[k]) for k, a in enumerate(ax)]
+            for i, p in zip(poly.loop_indices, pts):
+                uv[i].uv = ((p[ax[0]] - lo[0]) / span[0], (p[ax[1]] - lo[1]) / span[1])
+            continue
+        t = TILE[role]
+        for i, p in zip(poly.loop_indices, pts):
+            if abs(n.z) >= max(abs(n.x), abs(n.y)):
+                uv[i].uv = (p.x / t, p.y / t)
+            elif abs(n.x) >= abs(n.y):
+                uv[i].uv = (p.y / t, p.z / t)
+            else:
+                uv[i].uv = (p.x / t, p.z / t)
+    return len(slots)
+
+
+# ---------------------------------------------------------------------------------
 # Parts
 
 depsgraph = None
@@ -215,8 +308,10 @@ for i, p in enumerate(SPEC['parts']):
     obj.data.transform(Matrix.Translation(Vector((p['x'], p['y'], z))))
     if not obj.data.uv_layers:
         obj.data.uv_layers.new()
+    if SPEC.get('game_look', True):
+        retexture(obj, p['kit'])
     for slot in obj.material_slots:
-        if slot.material:
+        if slot.material and slot.material not in GAME_MATERIALS.values():
             slot.material = kit_material(p['kit'], slot.material)
     obj.name = 'fac.kit.%02d' % i
     placed.append(obj)

@@ -215,6 +215,93 @@ def transform_sub(tmpl_tags, S, L, delay, rename, char_map):
     return frames
 
 
+DISC_CHAR = 5          # the round button background (centred on its origin)
+STRING_X = -50         # the string shapes (22, 33) run along local y at x = -2.5 px, y = +-64 px
+STRING_HALF = 1280
+
+
+def string_matrix(parent, child, width):
+    """A string from the parent's disc centre to the child's (template orientation: local
+    +y at the parent end), drawn at the template's width."""
+    dx, dy = parent[0] - child[0], parent[1] - child[1]
+    length = math.hypot(dx, dy) or 1.0
+    c, d = dx / (2 * STRING_HALF), dy / (2 * STRING_HALF)
+    a, b = width * -dy / length, width * dx / length
+    mx, my = (parent[0] + child[0]) / 2, (parent[1] + child[1]) / 2
+    return swf.Matrix(round(a * 65536), round(d * 65536), round(b * 65536), round(c * 65536),
+                      round(mx - a * STRING_X), round(my - b * STRING_X), has_scale=True, has_rot=True)
+
+
+def aim_strings(frames, anchor, width_div):
+    """Re-aims the sub sprite's strings every frame at its own disc, from the parent's disc
+    (anchor, in the sub sprite's coordinates). Rotating the template's strings with the
+    button left them short of (grey) or past (yellow) the new button positions."""
+    chars, mats, disc = {}, {}, None
+    for fr in frames:
+        touched = False
+        for t in fr:
+            if t.code == 28:
+                d = struct.unpack_from('<H', t.body, 0)[0]
+                chars.pop(d, None)
+                mats.pop(d, None)
+            elif t.code == 26:
+                po = swf.PlaceObject2.parse(t.body)
+                if po.char is not None:
+                    chars[po.depth] = po.char
+                if po.matrix is not None:
+                    mats[po.depth] = po.matrix
+                    if chars.get(po.depth) == DISC_CHAR:
+                        disc = (po.matrix.tx, po.matrix.ty)
+                    touched = True
+        if disc is None or not touched:
+            continue
+        for depth, cid in chars.items():
+            if cid not in JOINER_CHARS or depth not in mats:
+                continue
+            m = mats[depth]
+            width = math.hypot(m.a / 65536, m.b / 65536) / width_div
+            new = string_matrix(anchor, disc, width)
+            mats[depth] = new
+            for i, t in enumerate(fr):
+                if t.code == 26:
+                    po = swf.PlaceObject2.parse(t.body)
+                    if po.depth == depth:
+                        po.matrix = new
+                        fr[i] = po.tag()
+                        break
+            else:
+                po = swf.PlaceObject2()
+                po.depth, po.move, po.matrix = depth, True, new
+                fr.append(po.tag())
+
+
+def drop_list_string(frames):
+    """Removes the string a node lights on 'expand' towards its list window: the node now
+    only fans out its sub-buttons, so that string pointed at nothing and stayed lit."""
+    section, gone, dropped = None, set(), 0
+    for fr in frames:
+        keep = []
+        for t in fr:
+            if t.code == 43:
+                section = t.body[:-1].decode('latin1')
+            if t.code == 26:
+                po = swf.PlaceObject2.parse(t.body)
+                if po.char is not None:
+                    gone.discard(po.depth)
+                    if section == 'expand' and po.char in JOINER_CHARS:
+                        gone.add(po.depth)
+                        dropped += 1
+                        continue
+                if po.depth in gone:
+                    continue
+            if t.code == 28 and struct.unpack_from('<H', t.body, 0)[0] in gone:
+                gone.discard(struct.unpack_from('<H', t.body, 0)[0])
+                continue
+            keep.append(t)
+        fr[:] = keep
+    return dropped
+
+
 def add_fan(m, chars, new_id, fan):
     """Gives the build menu node sprite fan['sprite'] ($fac, $sets) sub-buttons
     $<node>_subN that pop out on an arc like the props ones, each holding a button
@@ -247,6 +334,9 @@ def add_fan(m, chars, new_id, fan):
     f_exp = next(i + 1 for i, fr in enumerate(frames_of(par.tags))
                  for t in fr if t.code == 12 and b'cb_expand' in t.body)
     fx = depth_track(par.tags, fb_depth, f_exp)          # button when fully expanded
+    disc_depth = next(swf.PlaceObject2.parse(t.body).depth for t in par.tags
+                      if t.code == 26 and swf.PlaceObject2.parse(t.body).char == DISC_CHAR)
+    pdisc = depth_track(par.tags, disc_depth, f_exp)     # the parent's disc, expanded
     P = (fb.tx + start_off[0] - S[0], fb.ty + start_off[1] - S[1])          # sub sprite placement
     v = (E[0] - S[0], E[1] - S[1])
     vlen = math.hypot(*v)
@@ -299,6 +389,7 @@ def add_fan(m, chars, new_id, fan):
             tmpl.tags, S, L, STAGGER * (i - 1),
             {'ornabutt_sub1': '%s_sub%d' % (butt, i), 'orna_sub1icon': '%s_sub%dicon' % (node, i)},
             {TEMPLATE_BUTTON: bt.id, TEMPLATE_ICON: icon.char_id_value})
+        aim_strings(frames, (pdisc.tx - P[0], pdisc.ty - P[1]), k)
         sub = swf.Tag(39)
         sub.char_id_value, sub.sprite_frames = new_id(), len(frames)
         sub.tags = join_frames(frames)
@@ -337,7 +428,9 @@ def add_fan(m, chars, new_id, fan):
     # after the DoAction (like $ornaments), before the other placements
     pos = max((j + 1 for j, t in enumerate(fr) if t.code == 12), default=0)
     fr[pos:pos] = places
+    dropped = drop_list_string(frames)
     par.tags = join_frames(frames)
+    report.append('  $%s: %d string(s) to the list window removed' % (node, dropped))
 
     return ['$%s: template $orna_sub1 button start (%.1f, %.1f) end (%.1f, %.1f) px, %.1f px' % (
         node, S[0] / 20, S[1] / 20, E[0] / 20, E[1] / 20, vlen / 20),

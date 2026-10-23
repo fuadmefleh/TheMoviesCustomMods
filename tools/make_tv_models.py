@@ -22,11 +22,16 @@ import building  # noqa: E402
 TOOLS = os.path.dirname(os.path.abspath(__file__))
 # New bodies for the TV buildings: CC0 kit models (third_party/kenney, see tools/blender_kit.py).
 KIT_ROOT = os.path.join(os.path.dirname(TOOLS), 'third_party', 'kenney')
+# The game textures each role of a kit body gets (tools/blender_kit.py); 'style' per building
+# overrides them.
+KIT_STYLE = {'wall': 'wall_ph54', 'trim': 'wall_ph55c', 'roof': 'wall_ph55', 'dark': 'plas_ph01',
+             'glass': 'glas_ph08', 'panel': 'steel_ph09', 'frame': 'steel_ph17', 'accent': 'wall_ph47b'}
 FONT = os.path.join(os.environ.get('WINDIR', r'C:\Windows'), 'Fonts', 'ARLRDBD.TTF')
 
 BUILDINGS = [
     {
-        'name': 'tv_script_office', 
+        'name': 'tv_script_office', 'style': {'wall': 'wall_ph05', 'trim': 'wall_ph47b'},
+        
         'kit': [{'kit': 'city-kit-commercial', 'model': 'building-j', 'x': 9.5, 'y': -1.5, 'w': 24.0, 'd': 14.0, 'h': 16.0},
                 {'kit': 'city-kit-commercial', 'model': 'building-c', 'x': 1.0, 'y': -12.5, 'w': 9.0, 'd': 9.0, 'h': 9.0}],
         'donor': 'scriptoffice_3',
@@ -45,7 +50,8 @@ BUILDINGS = [
         ],
     },
     {
-        'name': 'tv_office', 
+        'name': 'tv_office', 'style': {'wall': 'brick_ph01', 'trim': 'wall_ph40'},
+        
         'kit': [{'kit': 'city-kit-commercial', 'model': 'building-k', 'x': 0.0, 'y': 0.0, 'w': 26.0, 'd': 12.0, 'h': 15.0}],
         'donor': 'customscriptoffice',
         'rooms': {'room_cso_create': 'room_tv_writers', 'room_cso_canit': 'room_tv_cast',
@@ -56,7 +62,8 @@ BUILDINGS = [
         ],
     },
     {
-        'name': 'tv_soundstage', 
+        'name': 'tv_soundstage', 'style': {'panel': 'steel_ph09', 'frame': 'wall_ph55c'},
+        
         'kit': [{'kit': 'space-kit', 'model': 'hangar_largeB', 'x': 0.0, 'y': -0.3, 'w': 26.0, 'd': 13.0, 'h': 11.0, 'rot': 90}],
         'donor': 'stageschool',
         'rooms': {'room_ss_extras': 'room_tvs_audience', 'room_ss_actors': 'room_tvs_stage',
@@ -71,7 +78,8 @@ BUILDINGS = [
         ],
     },
     {
-        'name': 'tv_network_hq', 
+        'name': 'tv_network_hq', 'style': {'wall': 'wall_ph40', 'trim': 'wall_ph55'},
+        
         'kit': [{'kit': 'city-kit-commercial', 'model': 'building-skyscraper-a', 'x': 2.2, 'y': 3.0, 'w': 13.0, 'd': 11.0, 'h': 30.0},
                 {'kit': 'city-kit-commercial', 'model': 'building-e', 'x': 2.2, 'y': -5.0, 'w': 18.0, 'd': 7.5, 'h': 7.0},
                 {'kit': 'space-kit', 'model': 'satelliteDish_large', 'x': 0.0, 'y': 5.0, 'scale': 3.0, 'z': 'roof', 'solid': False},
@@ -84,7 +92,8 @@ BUILDINGS = [
         ],
     },
     {
-        'name': 'tv_control_room', 
+        'name': 'tv_control_room', 'style': {'wall': 'brick_ph02', 'trim': 'wall_ph55c'},
+        
         'kit': [{'kit': 'city-kit-commercial', 'model': 'building-k', 'x': -1.0, 'y': -1.5, 'w': 22.0, 'd': 12.0, 'h': 13.0},
                 {'kit': 'space-kit', 'model': 'satelliteDish_large', 'x': 15.0, 'y': -4.5, 'scale': 7.0},
                 {'kit': 'space-kit', 'model': 'satelliteDish_detailed', 'x': 15.5, 'y': 4.0, 'scale': 6.0},
@@ -100,7 +109,8 @@ BUILDINGS = [
         ],
     },
     {
-        'name': 'tv_archive', 
+        'name': 'tv_archive', 'style': {'wall': 'wall_ph48', 'trim': 'brick_ph03'},
+        
         'kit': [{'kit': 'city-kit-commercial', 'model': 'building-e', 'x': -1.8, 'y': 1.0, 'w': 20.0, 'd': 14.0, 'h': 9.0}],
         'donor': 'postproduction',
         'rooms': {'room_postprod_postprod': 'room_tva_vault', 'room_postprod_hall': 'room_tva_hall'},
@@ -110,7 +120,8 @@ BUILDINGS = [
         ],
     },
     {
-        'name': 'tv_datacenter', 
+        'name': 'tv_datacenter', 'style': {'panel': 'steel_ph24b', 'frame': 'steel_ph17'},
+        
         'kit': [{'kit': 'space-kit', 'model': 'hangar_smallA', 'x': 0.0, 'y': -1.0, 'w': 20.0, 'd': 12.0, 'h': 8.0},
                 {'kit': 'space-kit', 'model': 'machine_generatorLarge', 'x': 9.0, 'y': 4.5, 'scale': 3.0},
                 {'kit': 'space-kit', 'model': 'machine_generator', 'x': -5.0, 'y': -4.0, 'scale': 3.0, 'z': 'roof', 'solid': False},
@@ -395,7 +406,16 @@ def main():
         if b.get('badge'):
             badge_thumbnail(b['donor'], b['badge'], os.path.join(work, 'thumbnail.png'))
         if b.get('kit'):
-            run_blender(blender, 'blender_kit.py', work, {'rooms': b['rooms'], 'kit_root': KIT_ROOT, 'parts': b['kit']}, b['name'])
+            style = dict(KIT_STYLE, **b.get('style', {}))
+            for tex in style.values():   # the game textures the new body is dressed in
+                dst = os.path.join(work, 'textures', tex + '.dds')
+                if not os.path.exists(dst):
+                    data = building.game_file('data/textures/%s.dds' % tex)
+                    if data is None:
+                        sys.exit('no game texture ' + tex)
+                    open(dst, 'wb').write(data)
+            run_blender(blender, 'blender_kit.py', work, {'rooms': b['rooms'], 'kit_root': KIT_ROOT, 'parts': b['kit'],
+                                                          'style': style}, b['name'])
         spec = os.path.join(work, 'spec.json')
         json.dump({'rooms': b['rooms'], 'props': b['props']}, open(spec, 'w'), indent=1)
         r = subprocess.run([blender, '-b', '--factory-startup', '-P', os.path.join(TOOLS, 'blender_props.py'), '--', work, spec],
