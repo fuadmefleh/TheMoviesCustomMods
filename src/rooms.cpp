@@ -7,6 +7,7 @@
 #include "rooms.h"
 
 #include <windows.h>
+#include <intrin.h>
 #include <cstring>
 #include <map>
 #include <set>
@@ -552,8 +553,30 @@ bool __fastcall HookFloorPlanAttach(uintptr_t plan)
     return false;
 }
 
+// The resource wait itself (0x009DC300, spins until a mesh has loaded) is called from
+// 17 places, none checking for null; a building whose blueprint is gone reaches it with
+// one. Waiting on nothing returns at once.
+constexpr uintptr_t kWaitLoaded = 0x009DC300;   // void __fastcall(Resource*)
+using WaitLoaded_t = void(__fastcall*)(uintptr_t res);
+WaitLoaded_t g_origWaitLoaded = nullptr;
+
+void __fastcall HookWaitLoaded(uintptr_t res)
+{
+    if (res) {
+        g_origWaitLoaded(res);
+        return;
+    }
+    static int logged = 0;
+    if (logged++ < 5) {
+        void* caller = _ReturnAddress();
+        mod::Log("rooms: waited on a missing model (called from %p) - skipped; a building's files may be missing", caller);
+    }
+}
+
 void InstallTvScriptHooks()
 {
+    HookFn(kWaitLoaded, reinterpret_cast<void*>(&HookWaitLoaded), reinterpret_cast<void**>(&g_origWaitLoaded),
+           "model wait (null guard)");
     HookFn(kFloorPlanAttach, reinterpret_cast<void*>(&HookFloorPlanAttach),
            reinterpret_cast<void**>(&g_origFloorPlanAttach), "floor plan attach (null model guard)");
     wchar_t path[MAX_PATH];
