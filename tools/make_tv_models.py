@@ -1,8 +1,9 @@
 """Builds all the TV buildings' models. Each takes its working parts (drop zones, walk points,
-doors) from a game building, with the zones renamed as TV zones; the TV buildings get a
-new body of CC0 kit models ('kit', tools/blender_kit.py) and are dressed in Blender
-with new parts (tools/blender_props.py): ON AIR signs, transmitter towers, satellite
-dishes, rooftop units. The sign textures are drawn here.
+doors) from a game building, with the zones renamed as TV zones. The TV buildings are
+modelled from scratch in the base game's style ('blocks', tools/blender_build.py), dressed
+with new parts (tools/blender_props.py: ON AIR signs, transmitter towers, satellite dishes,
+rooftop units; the sign textures are drawn here) and lit with a baked lightmap like the
+game's buildings (tools/blender_bake.py).
 
 Usage: python make_tv_models.py --blender <blender.exe> [--install] [name ...]
        (or set BLENDER)
@@ -20,21 +21,22 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import building  # noqa: E402
 
 TOOLS = os.path.dirname(os.path.abspath(__file__))
-# New bodies for the TV buildings: CC0 kit models (third_party/kenney, see tools/blender_kit.py).
-KIT_ROOT = os.path.join(os.path.dirname(TOOLS), 'third_party', 'kenney')
-# The game textures each role of a kit body gets (tools/blender_kit.py); 'style' per building
-# overrides them.
-KIT_STYLE = {'wall': 'wall_ph54', 'trim': 'wall_ph55c', 'roof': 'wall_ph55', 'dark': 'plas_ph01',
-             'glass': 'glas_ph08', 'panel': 'steel_ph09', 'frame': 'steel_ph17', 'accent': 'wall_ph47b'}
+# The game textures a from-scratch building is dressed in (tools/blender_build.py roles);
+# 'style' per building and 'roles' per block override them.
+BUILD_STYLE = {'wall': 'wall_ph54', 'base': 'wall_ph55', 'trim': 'wall_ph40', 'glass': 'glas_ph08',
+               'frame': 'wall_ph40', 'door': 'door_ph02', 'roof': 'wall_ph55', 'tiles': 'roof_ph04'}
 FONT = os.path.join(os.environ.get('WINDIR', r'C:\Windows'), 'Fonts', 'ARLRDBD.TTF')
 
 BUILDINGS = [
     {
-        'name': 'tv_script_office', 'style': {'wall': 'wall_ph05', 'trim': 'wall_ph47b'},
-        
-        'kit': [{'kit': 'city-kit-commercial', 'model': 'building-j', 'x': 9.5, 'y': -1.5, 'w': 24.0, 'd': 14.0, 'h': 16.0},
-                {'kit': 'city-kit-commercial', 'model': 'building-c', 'x': 1.0, 'y': -12.5, 'w': 9.0, 'd': 9.0, 'h': 9.0}],
-        'donor': 'scriptoffice_3',
+        'name': 'tv_script_office', 'donor': 'scriptoffice_3',
+        'style': {'wall': 'wall_ph05', 'base': 'brick_ph03', 'door': 'door_ph10'},
+        'blocks': [
+            {'x': 9.5, 'y': -1.5, 'w': 22.0, 'd': 12.0, 'h': 10.5, 'floors': 3, 'roof': 'hip', 'pitch': 3.5,
+             'doors': [{'side': 'f', 'w': 2.2}]},
+            {'x': 1.5, 'y': -12.0, 'w': 9.0, 'd': 9.0, 'h': 4.0, 'floors': 1, 'roof': 'flat',
+             'doors': [{'side': 'f', 'w': 1.6}], 'windows': {'spacing': 3.0}},
+        ],
         'rooms': {'room_so_comedy': 'room_tvw_sitcom', 'room_so_action': 'room_tvw_crime',
                   'room_so_romdrama': 'room_tvw_drama', 'room_so_horror': 'room_tvw_soap',
                   'room_so_scifi': 'room_tvw_scifi', 'room_so_fire': 'room_tvw_variety',
@@ -45,95 +47,109 @@ BUILDINGS = [
         # The hall (office zone) is where the writers actually sit and type.
         'extra_scenes': {'so_hall': 'tvw_office'},
         'props': [
-            {'type': 'sign', 'x': 4.0, 'y': -7.2, 'w': 5.4, 'h': 1.4, 'legs': 0.5, 'texture': 'tvp_writers.png'},
-            {'type': 'mast', 'x': 17.0, 'y': -2.0, 'height': 6.0},
+            {'type': 'sign', 'x': 1.5, 'y': -13.5, 'w': 5.4, 'h': 1.4, 'legs': 0.5, 'texture': 'tvp_writers.png'},
+            {'type': 'mast', 'x': 4.0, 'y': -9.5, 'height': 6.0},
         ],
     },
     {
-        'name': 'tv_office', 'style': {'wall': 'brick_ph01', 'trim': 'wall_ph40'},
-        
-        'kit': [{'kit': 'city-kit-commercial', 'model': 'building-k', 'x': 0.0, 'y': 0.0, 'w': 26.0, 'd': 12.0, 'h': 15.0}],
-        'donor': 'customscriptoffice',
+        'name': 'tv_office', 'donor': 'customscriptoffice',
+        'style': {'wall': 'brick_ph01', 'door': 'door_ph10'},
+        'blocks': [
+            {'x': 0.0, 'y': 0.0, 'w': 26.0, 'd': 12.0, 'h': 11.0, 'floors': 3, 'roof': 'flat',
+             'doors': [{'side': 'f', 'w': 2.4, 'h': 2.7}]},
+        ],
         'rooms': {'room_cso_create': 'room_tv_writers', 'room_cso_canit': 'room_tv_cast',
                   'room_cso_blank': 'room_tv_showrun', 'room_cso_hall': 'room_tv_lobby'},
         'props': [
-            {'type': 'sign', 'x': 9.5, 'y': 1.2, 'w': 4.0, 'h': 1.3, 'legs': 0.6, 'texture': 'tvp_onair.png'},
-            {'type': 'mast', 'x': 12.0, 'y': 3.4, 'height': 6.0},
+            {'type': 'sign', 'x': 6.0, 'y': -2.0, 'w': 4.0, 'h': 1.3, 'legs': 0.6, 'texture': 'tvp_onair.png'},
+            {'type': 'mast', 'x': -9.0, 'y': 3.0, 'height': 6.0},
         ],
     },
     {
-        'name': 'tv_soundstage', 'style': {'panel': 'steel_ph09', 'frame': 'wall_ph55c'},
-        
-        'kit': [{'kit': 'space-kit', 'model': 'hangar_largeB', 'x': 0.0, 'y': -0.3, 'w': 26.0, 'd': 13.0, 'h': 11.0, 'rot': 90}],
-        'donor': 'stageschool',
+        'name': 'tv_soundstage', 'donor': 'stageschool',
+        'style': {'wall': 'wall_ph04', 'base': 'brick_ph03', 'tiles': 'steel_ph09', 'bigdoor': 'steel_ph16'},
+        'blocks': [
+            {'x': 0.0, 'y': -0.3, 'w': 26.0, 'd': 13.0, 'h': 10.0, 'floors': 1, 'roof': 'gable', 'pitch': 2.5,
+             'bands': False, 'windows': {'w': 1.2, 'h': 0.8, 'spacing': 4.0, 'sill': 7.6},
+             'doors': [{'side': 'f', 'at': -5.0, 'w': 6.0, 'h': 6.0, 'role': 'bigdoor', 'canopy': False},
+                       {'side': 'f', 'at': 5.0, 'w': 1.2, 'h': 2.3}]},
+        ],
         'rooms': {'room_ss_extras': 'room_tvs_audience', 'room_ss_actors': 'room_tvs_stage',
                   'room_ss_directors': 'room_tvs_control', 'room_ss_fire': 'room_tvs_green',
                   'room_ss_starmaker': 'room_tvs_makeup'},
         'props': [
-            {'type': 'sign', 'x': 0.0, 'y': -1.0, 'w': 6.0, 'h': 1.8, 'legs': 0.5, 'texture': 'tvp_onair.png'},
-            {'type': 'sign', 'x': -8.5, 'y': -3.6, 'w': 4.6, 'h': 1.2, 'legs': 0.3, 'texture': 'tvp_stage.png'},
-            {'type': 'spot', 'x': -11.0, 'y': -1.2},
-            {'type': 'spot', 'x': 11.0, 'y': -1.2},
-            {'type': 'spot', 'x': 5.5, 'y': -1.2},
+            {'type': 'sign', 'x': 0.0, 'y': -2.5, 'w': 6.0, 'h': 1.8, 'legs': 0.5, 'texture': 'tvp_onair.png'},
+            {'type': 'sign', 'x': 8.0, 'y': -2.5, 'w': 4.6, 'h': 1.2, 'legs': 0.3, 'texture': 'tvp_stage.png'},
+            {'type': 'spot', 'x': -11.0, 'y': -8.6},
+            {'type': 'spot', 'x': 11.0, 'y': -8.6},
+            {'type': 'spot', 'x': 1.5, 'y': -8.6},
         ],
     },
     {
-        'name': 'tv_network_hq', 'style': {'wall': 'wall_ph40', 'trim': 'wall_ph55'},
-        
-        'kit': [{'kit': 'city-kit-commercial', 'model': 'building-skyscraper-a', 'x': 2.2, 'y': 3.0, 'w': 13.0, 'd': 11.0, 'h': 30.0},
-                {'kit': 'city-kit-commercial', 'model': 'building-e', 'x': 2.2, 'y': -5.0, 'w': 18.0, 'd': 7.5, 'h': 7.0},
-                {'kit': 'space-kit', 'model': 'satelliteDish_large', 'x': 0.0, 'y': 5.0, 'scale': 3.0, 'z': 'roof', 'solid': False},
-                {'kit': 'space-kit', 'model': 'machine_wireless', 'x': 5.0, 'y': 1.0, 'scale': 3.0, 'z': 'roof', 'solid': False}],
-        'donor': 'publicity_office',
+        'name': 'tv_network_hq', 'donor': 'publicity_office',
+        'style': {'wall': 'wall_ph40', 'trim': 'wall_ph55', 'frame': 'wall_ph55', 'door': 'glas_ph08'},
+        'blocks': [
+            {'x': 2.2, 'y': 3.0, 'w': 13.0, 'd': 10.0, 'h': 28.0, 'floors': 8, 'roof': 'flat',
+             'windows': {'w': 1.6, 'h': 2.1, 'spacing': 2.2, 'sill': 0.7}},
+            {'x': 2.2, 'y': -5.0, 'w': 18.0, 'd': 7.0, 'h': 6.5, 'floors': 2, 'roof': 'flat',
+             'windows': {'w': 2.4, 'h': 2.0, 'spacing': 3.4, 'sill': 0.6},
+             'doors': [{'side': 'f', 'w': 3.0, 'h': 2.6}]},
+        ],
         'rooms': {'room_publicity_pr': 'room_tvn_programming', 'room_publicity_hall': 'room_tvn_lobby'},
         'props': [
-            {'type': 'tower', 'x': 5.5, 'y': 6.0, 'height': 9.0, 'base': 2.0},
+            {'type': 'tower', 'x': 5.5, 'y': 5.5, 'height': 9.0, 'base': 2.0},
+            {'type': 'dish', 'x': -1.5, 'y': 5.0, 'radius': 1.3, 'tilt': 45, 'face': 200},
             {'type': 'sign', 'x': 2.2, 'y': -6.5, 'w': 6.0, 'h': 2.2, 'legs': 0.6, 'texture': 'tvp_network.png'},
         ],
     },
     {
-        'name': 'tv_control_room', 'style': {'wall': 'brick_ph02', 'trim': 'wall_ph55c'},
-        
-        'kit': [{'kit': 'city-kit-commercial', 'model': 'building-k', 'x': -1.0, 'y': -1.5, 'w': 22.0, 'd': 12.0, 'h': 13.0},
-                {'kit': 'space-kit', 'model': 'satelliteDish_large', 'x': 15.0, 'y': -4.5, 'scale': 7.0},
-                {'kit': 'space-kit', 'model': 'satelliteDish_detailed', 'x': 15.5, 'y': 4.0, 'scale': 6.0},
-                {'kit': 'space-kit', 'model': 'structure_closed', 'x': -9.0, 'y': 6.5, 'scale': 3.5},
-                {'kit': 'space-kit', 'model': 'machine_wireless', 'x': -6.0, 'y': -1.0, 'scale': 3.0, 'z': 'roof', 'solid': False}],
-        'donor': 'research',
+        'name': 'tv_control_room', 'donor': 'research',
+        'style': {'wall': 'brick_ph02', 'door': 'door_ph10'},
+        'blocks': [
+            {'x': -1.0, 'y': -1.5, 'w': 22.0, 'd': 12.0, 'h': 10.0, 'floors': 3, 'roof': 'flat',
+             'doors': [{'side': 'f', 'w': 2.2}]},
+            {'x': -9.0, 'y': 6.5, 'w': 4.0, 'd': 4.0, 'h': 3.0, 'floors': 1, 'roof': 'flat', 'bands': False,
+             'windows': {'w': 0}, 'roles': {'wall': 'wall_ph55'},
+             'doors': [{'side': 'l', 'w': 1.2, 'h': 2.2, 'canopy': False}]},
+        ],
         'rooms': {'room_res_fac': 'room_tvc_transmit', 'room_res_fire': 'room_tvc_engineers',
                   'room_res_set': 'room_tvc_monitors', 'room_res_cos': 'room_tvc_tapes',
                   'room_res_mov': 'room_tvc_uplink', 'room_res_hall': 'room_tvc_hall'},
         'props': [
+            {'type': 'dish', 'x': 15.0, 'y': -4.5, 'radius': 2.6, 'tilt': 40, 'face': 200},
+            {'type': 'dish', 'x': 15.5, 'y': 4.0, 'radius': 2.0, 'tilt': 50, 'face': 160},
             {'type': 'mast', 'x': 6.0, 'y': 1.0, 'height': 9.0},
-            {'type': 'sign', 'x': -3.0, 'y': -6.6, 'w': 5.0, 'h': 1.2, 'legs': 0.4, 'texture': 'tvp_control.png'},
+            {'type': 'sign', 'x': -3.0, 'y': -6.0, 'w': 5.0, 'h': 1.2, 'legs': 0.4, 'texture': 'tvp_control.png'},
         ],
     },
     {
-        'name': 'tv_archive', 'style': {'wall': 'wall_ph48', 'trim': 'brick_ph03'},
-        
-        'kit': [{'kit': 'city-kit-commercial', 'model': 'building-e', 'x': -1.8, 'y': 1.0, 'w': 20.0, 'd': 14.0, 'h': 9.0}],
-        'donor': 'postproduction',
+        'name': 'tv_archive', 'donor': 'postproduction',
+        'style': {'wall': 'wall_ph48', 'base': 'brick_ph03', 'door': 'door_ph02'},
+        'blocks': [
+            {'x': -1.8, 'y': 1.0, 'w': 18.0, 'd': 13.0, 'h': 7.0, 'floors': 2, 'roof': 'hip', 'pitch': 3.0,
+             'windows': {'w': 1.0, 'h': 1.2, 'spacing': 3.6}, 'doors': [{'side': 'f', 'w': 1.8}]},
+        ],
         'rooms': {'room_postprod_postprod': 'room_tva_vault', 'room_postprod_hall': 'room_tva_hall'},
         'props': [
             {'type': 'sign', 'x': -1.4, 'y': -8.6, 'w': 5.2, 'h': 1.4, 'legs': 0.4, 'texture': 'tvp_archive.png'},
-            {'type': 'sign', 'x': 6.0, 'y': 7.0, 'w': 2.6, 'h': 2.6, 'legs': 0.6, 'texture': 'tvp_reel.png'},
+            {'type': 'sign', 'x': 5.0, 'y': 5.0, 'w': 2.6, 'h': 2.6, 'legs': 0.6, 'texture': 'tvp_reel.png'},
         ],
     },
     {
-        'name': 'tv_datacenter', 'style': {'panel': 'steel_ph24b', 'frame': 'steel_ph17'},
-        
-        'kit': [{'kit': 'space-kit', 'model': 'hangar_smallA', 'x': 0.0, 'y': -1.0, 'w': 20.0, 'd': 12.0, 'h': 8.0},
-                {'kit': 'space-kit', 'model': 'machine_generatorLarge', 'x': 9.0, 'y': 4.5, 'scale': 3.0},
-                {'kit': 'space-kit', 'model': 'machine_generator', 'x': -5.0, 'y': -4.0, 'scale': 3.0, 'z': 'roof', 'solid': False},
-                {'kit': 'space-kit', 'model': 'machine_generator', 'x': 0.0, 'y': -4.0, 'scale': 3.0, 'z': 'roof', 'solid': False},
-                {'kit': 'space-kit', 'model': 'machine_generator', 'x': 5.0, 'y': -4.0, 'scale': 3.0, 'z': 'roof', 'solid': False},
-                {'kit': 'space-kit', 'model': 'machine_generator', 'x': -5.0, 'y': 2.0, 'scale': 3.0, 'z': 'roof', 'solid': False},
-                {'kit': 'space-kit', 'model': 'machine_generator', 'x': 0.0, 'y': 2.0, 'scale': 3.0, 'z': 'roof', 'solid': False},
-                {'kit': 'space-kit', 'model': 'machine_generator', 'x': 5.0, 'y': 2.0, 'scale': 3.0, 'z': 'roof', 'solid': False}],
-        'donor': 'sell',
+        'name': 'tv_datacenter', 'donor': 'sell',
+        'style': {'wall': 'wall_ph55c', 'base': 'wall_ph55', 'trim': 'steel_ph17', 'frame': 'steel_ph17',
+                  'door': 'steel_ph16'},
+        'blocks': [
+            {'x': 0.0, 'y': -1.0, 'w': 20.0, 'd': 12.0, 'h': 6.5, 'floors': 1, 'roof': 'flat', 'bands': False,
+             'windows': {'w': 2.6, 'h': 0.7, 'spacing': 4.0, 'sill': 4.6},
+             'doors': [{'side': 'f', 'w': 1.4, 'h': 2.4}]},
+            {'x': 8.0, 'y': 6.3, 'w': 3.4, 'd': 2.6, 'h': 2.2, 'floors': 1, 'roof': 'flat', 'bands': False,
+             'cornice': False, 'windows': {'w': 0}, 'roles': {'wall': 'steel_ph24b'}},
+        ],
         'rooms': {'room_sell_sell': 'room_tvd_servers', 'room_sell_window': 'room_tvd_noc', 'room_hall': 'room_tvd_hall'},
-        'props': [
-            {'type': 'dish', 'x': -9.0, 'y': 5.0, 'radius': 1.4, 'tilt': 45, 'face': 180},
+        'props': [{'type': 'box', 'x': x, 'y': y, 'w': 1.6, 'd': 1.6, 'h': 1.0, 'texture': 'tvp_ac.png'}
+                  for y in (-4.0, 2.0) for x in (-5.0, 0.0, 5.0)] + [
+            {'type': 'dish', 'x': -8.0, 'y': 3.0, 'radius': 1.4, 'tilt': 45, 'face': 180},
             {'type': 'sign', 'x': 0.0, 'y': -6.0, 'w': 4.2, 'h': 1.0, 'legs': 0.4, 'texture': 'tvp_datacenter.png'},
         ],
     },
@@ -380,14 +396,14 @@ def find_blender():
     sys.exit('Blender not found: pass --blender <path to blender.exe> or set BLENDER')
 
 
-def run_blender(blender, script, work, spec_data, name):
-    spec = os.path.join(work, 'kit.json')
+def run_blender(blender, script, work, spec_data, name, done):
+    spec = os.path.join(work, 'build.json')
     json.dump(spec_data, open(spec, 'w'), indent=1)
     r = subprocess.run([blender, '-b', '--factory-startup', '-P', os.path.join(TOOLS, script), '--', work, spec],
                        capture_output=True, text=True)
-    lines = [l for l in r.stdout.splitlines() if 'blender_kit' in l or 'Error' in l or 'Traceback' in l]
+    lines = [l for l in r.stdout.splitlines() if script[:-3] in l or 'Error' in l or 'Traceback' in l]
     print('\n'.join(lines) or r.stdout[-2000:])
-    if r.returncode != 0 or not any('blender_kit: removed' in l for l in lines):
+    if r.returncode != 0 or not any(done in l for l in lines):
         print(r.stderr[-3000:])
         sys.exit('Blender failed for ' + name)
 
@@ -402,20 +418,24 @@ def main():
             continue
         work = os.path.join(tempfile.gettempdir(), 'moviesmod_models', b['name'])
         building.export(b['donor'], work)
+        for stale in ('lightmap.json', 'lightmap.png', 'thumbnail.png'):   # from an earlier run
+            if os.path.exists(os.path.join(work, stale)):
+                os.remove(os.path.join(work, stale))
         make_textures(os.path.join(work, 'textures'))
         if b.get('badge'):
             badge_thumbnail(b['donor'], b['badge'], os.path.join(work, 'thumbnail.png'))
-        if b.get('kit'):
-            style = dict(KIT_STYLE, **b.get('style', {}))
-            for tex in style.values():   # the game textures the new body is dressed in
+        if b.get('blocks'):
+            style = dict(BUILD_STYLE, **b.get('style', {}))
+            textures = set(style.values()) | {t for blk in b['blocks'] for t in blk.get('roles', {}).values()}
+            for tex in textures:   # the game textures the new building is dressed in
                 dst = os.path.join(work, 'textures', tex + '.dds')
                 if not os.path.exists(dst):
                     data = building.game_file('data/textures/%s.dds' % tex)
                     if data is None:
                         sys.exit('no game texture ' + tex)
                     open(dst, 'wb').write(data)
-            run_blender(blender, 'blender_kit.py', work, {'rooms': b['rooms'], 'kit_root': KIT_ROOT, 'parts': b['kit'],
-                                                          'style': style}, b['name'])
+            run_blender(blender, 'blender_build.py', work, {'rooms': b['rooms'], 'style': style, 'blocks': b['blocks']},
+                        b['name'], 'blender_build: removed')
         spec = os.path.join(work, 'spec.json')
         json.dump({'rooms': b['rooms'], 'props': b['props']}, open(spec, 'w'), indent=1)
         r = subprocess.run([blender, '-b', '--factory-startup', '-P', os.path.join(TOOLS, 'blender_props.py'), '--', work, spec],
@@ -425,9 +445,15 @@ def main():
         if r.returncode != 0 or not any('blender_props:' in l for l in lines):
             print(r.stderr[-3000:])
             sys.exit('Blender failed for ' + b['name'])
-        if b.get('kit'):
-            # The menu picture of the new building (replaces the donor's).
-            r = subprocess.run([blender, '-b', '--factory-startup', '-P', os.path.join(TOOLS, 'blender_kit.py'), '--', work,
+        if b.get('blocks'):
+            # Lighting like the game's buildings, then the menu picture of the new building.
+            r = subprocess.run([blender, '-b', '--factory-startup', '-P', os.path.join(TOOLS, 'blender_bake.py'), '--', work,
+                                'lm_%s_fac_0.dds' % b['name']], capture_output=True, text=True)
+            print('\n'.join(l for l in r.stdout.splitlines() if 'blender_bake' in l or 'Error' in l))
+            if r.returncode != 0 or not os.path.exists(os.path.join(work, 'lightmap.json')):
+                print(r.stdout[-2000:], r.stderr[-2000:])
+                sys.exit('lightmap bake failed for ' + b['name'])
+            r = subprocess.run([blender, '-b', '--factory-startup', '-P', os.path.join(TOOLS, 'blender_build.py'), '--', work,
                                 '--thumb', os.path.join(work, 'thumbnail.png')], capture_output=True, text=True)
             if r.returncode != 0 or not os.path.exists(os.path.join(work, 'thumbnail.png')):
                 print(r.stdout[-2000:], r.stderr[-2000:])

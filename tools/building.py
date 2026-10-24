@@ -236,6 +236,27 @@ def write_dds(img, path):
     open(path, 'wb').write(header + b''.join(levels))
 
 
+def write_dds_dxt1(img, path):
+    """DXT1 with a full mip chain, like the game's lightmaps (a quarter of the size of a
+    plain one)."""
+    from PIL import Image
+    import upscale_textures as ut
+    img = img.convert('RGBA')
+    w, h = img.size
+    levels, cur = [], img
+    while True:
+        levels.append(ut.encode_level(np.asarray(cur, np.float32), ut.DXT1, False))
+        if cur.size == (1, 1):
+            break
+        cur = cur.resize((max(1, cur.size[0] // 2), max(1, cur.size[1] // 2)), Image.LANCZOS)
+    flags = 0x1 | 0x2 | 0x4 | 0x1000 | 0x20000 | 0x80000
+    header = struct.pack('<4s7I', b'DDS ', 124, flags, h, w, len(levels[0]), 0, len(levels))
+    header += b'\0' * 44
+    header += struct.pack('<2I4s5I', 32, 0x4, b'DXT1', 0, 0, 0, 0, 0)
+    header += struct.pack('<5I', 0x1000 | 0x400000 | 0x8, 0, 0, 0, 0)
+    open(path, 'wb').write(header + b''.join(levels))
+
+
 def export_texture(image, out_dir):
     path = os.path.join(out_dir, image)
     if os.path.exists(path):
@@ -580,12 +601,55 @@ class Materials:
         return self.index[key]
 
 
-def obj_mesh(obj, pos, tex, nrm):
-    """Turns one OBJ object into per-material lists of (verts, normals, uvs, faces)."""
+def face_key(pts):
+    return tuple(sorted(tuple(round(float(x), 3) for x in p) for p in pts))
+
+
+def lightmap_index(work):
+    """Baked lightmap UVs (tools/blender_bake.py): object -> face corners -> UVs."""
+    path = os.path.join(work, 'lightmap.json')
+    if not os.path.exists(path):
+        return None, {}
+    data = json.load(open(path))
+    index = {}
+    for name, rows in data['objects'].items():
+        index[name] = {face_key(ps): (ps, uvs) for ps, uvs in rows}
+        index[name][None] = rows   # for faces whose corners round differently
+    return data['image'], index
+
+
+def lightmap_face(lightmap, pts):
+    hit = lightmap.get(face_key(pts))
+    if hit is not None:
+        return hit
+    best, err = None, 1e-3
+    for ps, uvs in lightmap[None]:
+        if len(ps) != len(pts):
+            continue
+        e = max(min(sum((float(p[j]) - q[j]) ** 2 for j in range(3)) for q in ps) for p in pts) ** 0.5
+        if e < err:
+            best, err = (ps, uvs), e
+    return best
+
+
+def obj_mesh(obj, pos, tex, nrm, lightmap=None):
+    """Turns one OBJ object into per-material lists of (verts, normals, uvs, faces) - and
+    lightmap UVs ('lm') when the object was baked."""
     out = {}
     for mat, corners in obj.faces:
         d = out.setdefault(mat, {'map': {}, 'verts': [], 'normals': [], 'uvs': [], 'faces': []})
         pts = [pos[c[0]] for c in corners]
+        lms = None
+        if lightmap is not None:
+            hit = lightmap_face(lightmap, pts)
+            if hit is None:
+                raise SystemExit('%s: a face has no baked lightmap UVs' % obj.name)
+            ps, uvs = hit
+            lms = []
+            for p in pts:
+                k = min(range(len(ps)), key=lambda i: sum((float(p[j]) - ps[i][j]) ** 2 for j in range(3)))
+                lms.append(tuple(uvs[k]))
+            d.setdefault('lm', [])
         tris = triangulate(pts)
         fn = None
         if any(c[2] is None for c in corners) and tris:
@@ -597,13 +661,16 @@ def obj_mesh(obj, pos, tex, nrm):
         for c in corners:
             nvec = nrm[c[2]] if c[2] is not None else fn
             uv = tex[c[1]] if c[1] is not None else (0.0, 0.0)
-            key = (c[0], c[1], c[2] if c[2] is not None else fn)
+            lmuv = lms[corners.index(c)] if lms else None
+            key = (c[0], c[1], c[2] if c[2] is not None else fn, lmuv)
             if key not in d['map']:
                 d['map'][key] = len(d['verts'])
                 d['verts'].append(pos[c[0]])
                 ln = math.sqrt(sum(x * x for x in nvec)) or 1.0
                 d['normals'].append(tuple(x / ln for x in nvec))
                 d['uvs'].append(uv)
+                if lms:
+                    d['lm'].append(lmuv)
             ids.append(d['map'][key])
         d['faces'] += [(ids[a], ids[b], ids[c]) for a, b, c in tris]
     return out
@@ -624,6 +691,8 @@ def split_mesh(d, limit=65535):
     for f in d['faces']:
         if cur is None or len(cur['verts']) + 3 > limit:
             cur = {'verts': [], 'normals': [], 'uvs': [], 'faces': []}
+            if 'lm' in d:
+                cur['lm'] = []
             remap = {}
             parts.append(cur)
         ids = []
@@ -633,6 +702,8 @@ def split_mesh(d, limit=65535):
                 cur['verts'].append(d['verts'][i])
                 cur['normals'].append(d['normals'][i])
                 cur['uvs'].append(d['uvs'][i])
+                if 'lm' in d:
+                    cur['lm'].append(d['lm'][i])
             ids.append(remap[i])
         cur['faces'].append(tuple(ids))
     return parts
@@ -681,11 +752,21 @@ def mesh_record(d, mat, name, donor_mesh=None):
         r['material'] = mat
         return r
     ids = (zlib.crc32(name.encode()) - (1 << 31), -1, 0)
-    return {'material': mat, 'flags': (0x70, 0, 0, 0), 'ids': ids, 'faces': d['faces'],
-            'verts': d['verts'], 'normals': d['normals'], 'uvs': d['uvs']}
+    r = {'material': mat, 'flags': (0x70, 0, 0, 0), 'ids': ids, 'faces': d['faces'],
+         'verts': d['verts'], 'normals': d['normals'], 'uvs': d['uvs']}
+    if d.get('lm'):
+        us, vs = [t[0] for t in d['lm']], [t[1] for t in d['lm']]
+        u0, u1, v0, v1 = min(us), max(us), min(vs), max(vs)
+
+        def q(x, a, b):
+            return 0 if b - a < 1e-12 else max(0, min(65535, int(round((x - a) / (b - a) * 65535))))
+        r['flags'] = (0x70, 1, 0, 0)
+        r['lightmap_ranges'] = [u0, v0, u1, v1]
+        r['lightmap'] = [(q(u, u0, u1), q(v, v0, v1)) for u, v in d['lm']]
+    return r
 
 
-def build_model(kind, objs, donor, meta, pos, tex, nrm, matlib):
+def build_model(kind, objs, donor, meta, pos, tex, nrm, matlib, lm_image=None, lm_index=None):
     """Builds the render groups of one model (fac / fld / blp) from its OBJ objects."""
     groups, order = {}, []
     for o in objs:
@@ -716,7 +797,8 @@ def build_model(kind, objs, donor, meta, pos, tex, nrm, matlib):
             donor_mesh = None
             if dg is not None and len(parts) > 2 and parts[2].isdigit() and int(parts[2]) < len(dg['meshes']):
                 donor_mesh = dg['meshes'][int(parts[2])]
-            per_mat = obj_mesh(o, pos, tex, nrm)
+            baked = lm_index.get(o.name) if lm_index and kind == 'fac' else None
+            per_mat = obj_mesh(o, pos, tex, nrm, baked)
             for mat_name, d in per_mat.items():
                 if not d['faces']:
                     continue
@@ -729,7 +811,7 @@ def build_model(kind, objs, donor, meta, pos, tex, nrm, matlib):
                     reused += 1
                     continue
                 for part in split_mesh(d):
-                    g['meshes'].append(mesh_record(part, matlib.get(mat_name), o.name))
+                    g['meshes'].append(mesh_record(part, matlib.get(mat_name, lm_image if part.get('lm') else None), o.name))
                     made += 1
         if g['meshes']:
             out.append(g)
@@ -820,6 +902,23 @@ def build(work, name, install=False):
         ang = math.atan2(p[1][1] - p[0][1], p[1][0] - p[0][0]) if len(p) > 1 else 0.0
         points.append((parts[1], float(p[0][0]), float(p[0][1]), ang))
 
+    # A baked lightmap (tools/blender_bake.py): written as the game's four variants.
+    lm_image, lm_index = lightmap_index(work)
+    lm_files = []
+    if lm_image:
+        from PIL import Image
+        lm_dir = os.path.join(CONTENT, 'data', 'textures', 'lightmap')
+        os.makedirs(lm_dir, exist_ok=True)
+        img = Image.open(os.path.join(work, 'lightmap.png')).convert('RGB')
+        if img.size[0] > 512:
+            img = img.resize((512, 512), Image.LANCZOS)   # the game's lightmap size
+        stem = lm_image[:-len('_0.dds')]
+        for k in range(4):
+            path = os.path.join(lm_dir, '%s_%d.dds' % (stem, k))
+            write_dds_dxt1(img, path)
+            lm_files.append(path)
+        print('lightmap %s (+3 variants), %d objects' % (lm_image, len(lm_index)))
+
     results = {}
     for kind in ('fac', 'fld', 'blp'):
         donor = load_model('data/meshes/%s_%s.msh' % (kind, donor_name))
@@ -830,7 +929,7 @@ def build(work, name, install=False):
         elif kind == 'fld' and not kobjs:
             sys.exit('no fld.* objects: the building needs a floor plan')
         else:
-            groups, reused, made = build_model(kind, kobjs, donor, meta, pos, tex, nrm, matlib)
+            groups, reused, made = build_model(kind, kobjs, donor, meta, pos, tex, nrm, matlib, lm_image, lm_index)
         m = {'flagsA': donor['flagsA'], 'flagsB': donor['flagsB'], 'static_anim': donor['static_anim'],
              'named_groups': donor['named_groups'] or (0 if donor['static_anim'] else 1), 'images': matlib.images, 'materials': matlib.mats, 'groups': groups,
              'shapes': shapes, 'rooms': [] if kind == 'blp' else rooms,
@@ -903,6 +1002,7 @@ def build(work, name, install=False):
         files = [results[k] for k in results] + [os.path.join(out_meshes, 'extrainfo', 'fac_%s.inf' % name), dst, ini]
         if scene:
             files.append(os.path.join(CONTENT, 'data', 'scene', 'interactions', 'fac_%s.flm' % name))
+        files += lm_files
         for t in set(tn for tn in os.listdir(tex_out) if tn.endswith('.dds')) if os.path.isdir(tex_out) else []:
             files.append(os.path.join(tex_out, t))
         for f in files:
