@@ -88,16 +88,21 @@ it exports the donor, renames its zones, draws sign textures with Pillow, and ru
 python tools/make_tv_models.py --blender "C:/path/to/blender.exe" --install [tv_network_hq ...]
 ```
 
-Buildings with a `kit` list get a whole new body first: `tools/blender_kit.py` deletes
+Buildings with a `blocks` list get a whole new body first: `tools/blender_build.py` deletes
 everything the player sees of the donor (outside model, construction ghost, volumes and
 outlines; `building.py` regenerates them) and keeps its working parts (ground pad, drop
-zones, walk points, door and pavement anchors, lot boundary). It then places CC0 models
-from `third_party/kenney` in game metres, gives each solid part a walk-around volume, copies
-the city kit's colour atlas and turns the flat-colour kits' materials into small textures.
-A part is `{'kit': 'city-kit-commercial', 'model': 'building-k', 'x': 0, 'y': 0, 'w': 26,
-'d': 12, 'h': 15}` (or `'scale'` in metres per kit unit; `'rot'` in degrees, 0 = the model's
-front faces the street at -Y; `'z': 'roof'` stands it on the part below; `'solid': False`
-for small parts). It also renders the menu picture (`--thumb`), in the game's style.
+zones, walk points, door and pavement anchors, lot boundary). It then models the building
+in the base game's style: plain blocks in the game's own textures mapped at real size, real
+window openings, floor bands, a cornice or parapet, a darker plinth, tiled or flat roofs and
+doors under canopies. A block is `{'x': 0, 'y': 0, 'w': 26, 'd': 12, 'h': 11, 'floors': 3,
+'roof': 'flat'}` (centre, footprint and wall height in game metres; the street is at -Y);
+`windows`, `doors`, `bands`, `cornice`, `plinth` and per-block texture `roles` are described
+at the top of the script. A building's `style` picks the game texture for each role (wall,
+base, trim, glass, frame, door, roof, tiles). It also renders the menu picture (`--thumb`).
+
+After the props, `tools/blender_bake.py` bakes a lightmap for the new parts (a soft sun, a
+blue sky, ambient occlusion) scaled to the range of the game's own lightmaps, and
+`building.py` writes it to `data/textures/lightmap/lm_<name>_fac_0..3.dds`.
 
 The floor plan shown while you carry a person (`fld`) is still the donor's: the zone scenes
 put people at the donor's desks and chairs, so a new interior has to keep those spots.

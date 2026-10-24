@@ -282,7 +282,7 @@ MoviesMod\
     inspector.cpp         developer inspector
     exports.def           exports DirectInput8Create
   content\data\facility\  new building files
-  third_party\            MinHook 1.3.4, Dear ImGui 1.91.6, Kenney model kits (CC0)
+  third_party\            MinHook 1.3.4, Dear ImGui 1.91.6
   tools\                  Python: pak extractor, RTTI lookup, field mapper, UI palette
   ghidra_scripts\         Ghidra headless scripts used for reverse engineering
   re\                     analysis copy of MoviesSE.exe, Ghidra outputs, notes
@@ -302,4 +302,3 @@ MoviesMod\
 
 - *The Movies* © Lionhead Studios / Activision. This is an unofficial fan mod; no game files are redistributed.
 - [MinHook](https://github.com/TsudaKageyu/minhook) (BSD 2-Clause), [Dear ImGui](https://github.com/ocornut/imgui) (MIT).
-- The TV buildings are built from [Kenney](https://kenney.nl)'s City Kit (Commercial), Space Kit and Furniture Kit (CC0).
