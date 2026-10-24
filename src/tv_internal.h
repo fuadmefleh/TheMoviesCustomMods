@@ -316,7 +316,33 @@ double SharePrice();
 std::string SellShares(double fraction);     // "" on success, else why not
 std::string BuyBackShares(double fraction);
 std::string PayDividend();
+// What a sale or buy-back of 'fraction' of the studio would do now (shares 0 = not possible).
+struct ShareQuote {
+    double shares = 0;
+    double cash = 0;          // raised by a sale, paid for a buy-back
+    double ownedBefore = 0;   // fractions of the studio
+    double ownedAfter = 0;
+};
+ShareQuote QuoteSell(double fraction);
+ShareQuote QuoteBuyBack(double fraction);
 std::wstring SharesPage();
+
+// Rich text for the game's own screens (tv_native.cpp): its colours and building blocks.
+namespace html {
+extern const wchar_t* const Gold;   // the game's highlight yellow: yours, the current tab
+extern const wchar_t* const Dim;    // notes and secondary figures
+extern const wchar_t* const Good;
+extern const wchar_t* const Warn;
+extern const wchar_t* const Bad;
+std::wstring Text(const std::string& utf8);   // escaped for the renderer
+std::wstring Colour(const std::wstring& text, const wchar_t* colour);
+std::wstring Heading(const std::wstring& text);
+std::wstring Note(const std::wstring& text);  // a dim paragraph
+// A horizontal bar 'width' pixels long at value == max.
+std::wstring Bar(double value, double max, const wchar_t* colour, int width = 160);
+// A strip of figures, each a dim label over a bold value.
+std::wstring Stats(const std::vector<std::pair<std::wstring, std::wstring>>& cells);
+}
 void SharesSave(std::map<std::string, std::string>& out);
 void SharesLoad(const std::map<std::string, std::string>& in);
 void SharesReset();

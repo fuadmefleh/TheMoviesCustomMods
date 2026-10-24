@@ -1101,10 +1101,13 @@ void DrawWindow()
                 ImFont* heading = overlay::HeadingFont();
                 if (heading)
                     ImGui::PushFont(heading);
-                // One row if the tabs fit at a readable width, two otherwise.
+                // One row if every label fits whole, two otherwise.
+                float need = 0;
+                for (int t = 0; t < TabCount; t++)
+                    need = std::max(need, ImGui::CalcTextSize(kTabNames[t]).x + 24.0f);
                 float avail = size.x - margin * 2;
-                int perRow = (avail - 8.0f * (TabCount - 1)) / TabCount >= 108.0f ? TabCount : (TabCount + 1) / 2;
-                float tabW = std::min(165.0f, (avail - 8.0f * (perRow - 1)) / perRow);
+                int perRow = (avail - 8.0f * (TabCount - 1)) / TabCount >= need ? TabCount : (TabCount + 1) / 2;
+                float tabW = std::min(std::max(165.0f, need), (avail - 8.0f * (perRow - 1)) / perRow);
                 for (int t = 0; t < TabCount; t++) {
                     int inRow = std::min(perRow, TabCount - t / perRow * perRow);
                     if (t % perRow == 0) {

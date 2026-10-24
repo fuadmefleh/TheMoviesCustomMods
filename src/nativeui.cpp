@@ -190,7 +190,7 @@ bool SetHtml(void* html, const wchar_t* text)
 
 // Builds the dialog, its HTML panel and buttons; returns false if anything faults.
 bool BuildDialog(const wchar_t* title, float width, float height, int buttons, const char* const* textures,
-                 const wchar_t* const* tooltips)
+                 const wchar_t* const* tooltips, const float* xs)
 {
     __try {
         void* d = GameNew(kDialogSize);
@@ -207,7 +207,7 @@ bool BuildDialog(const wchar_t* title, float width, float height, int buttons, c
             if (!b)
                 continue;
             SetClick(b, &OnButton, reinterpret_cast<void*>(static_cast<intptr_t>(i)), "MOVIESMOD_BUTTON");
-            VCall(b, 0x5C, 1, content, 8.0f + 54.0f * i);
+            VCall(b, 0x5C, 1, content, xs[i]);
             VCall(b, 0x64, 1, content, 4.0f);
             reinterpret_cast<void(__thiscall*)(void*, void*, int)>(kDialogAdd)(d, b, 1);
         }
@@ -437,12 +437,19 @@ void Open(const Screen& screen, int tab)
     g_tab = tab;
     std::vector<const char*> textures;
     std::vector<const wchar_t*> tips;
-    for (const Button& b : g_screen.buttons) {
+    std::vector<float> xs;
+    float x = 8;
+    for (size_t i = 0; i < g_screen.buttons.size(); i++) {
+        const Button& b = g_screen.buttons[i];
+        if (i > 0 && b.tab < 0 && g_screen.buttons[i - 1].tab >= 0)
+            x += 30;   // a gap between the tabs and the actions
         textures.push_back(b.texture);
         tips.push_back(b.tooltip.c_str());
+        xs.push_back(x);
+        x += 54;
     }
     if (!BuildDialog(g_screen.title.c_str(), g_screen.width, g_screen.height, static_cast<int>(textures.size()),
-                     textures.data(), tips.data())) {
+                     textures.data(), tips.data(), xs.data())) {
         mod::Log("nativeui: FAILED to build the screen");
         g_dialog = g_html = nullptr;
         return;
