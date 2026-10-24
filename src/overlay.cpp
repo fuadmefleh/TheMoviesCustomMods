@@ -10,6 +10,7 @@
 
 #include <d3d9.h>
 #include <dinput.h>
+#include <deque>
 #include <map>
 #include <set>
 #include <string>
@@ -53,7 +54,7 @@ struct LoadedTexture {
     int width = 0, height = 0;
 };
 std::map<std::string, LoadedTexture> g_textures;
-std::string g_shotName;   // a screenshot to take after this frame
+std::deque<std::string> g_shotNames;   // screenshots to take, one after each frame
 ImFont* g_headingFont = nullptr;
 HWND    g_hwnd = nullptr;
 WNDPROC g_origWndProc = nullptr;
@@ -377,9 +378,9 @@ void Render(IDirect3DDevice9* device)
         ImGui::Render();
         ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
         device->EndScene();
-        if (!g_shotName.empty()) {
-            SaveScreenshot(device, g_shotName);
-            g_shotName.clear();
+        if (!g_shotNames.empty()) {
+            SaveScreenshot(device, g_shotNames.front());
+            g_shotNames.pop_front();
         }
     }
 }
@@ -562,7 +563,11 @@ void Close()
 
 ImFont* TitleFont() { return g_titleFont; }
 
-void RequestScreenshot(const char* name) { g_shotName = name; }
+void RequestScreenshot(const char* name)
+{
+    if (g_shotNames.size() < 16)
+        g_shotNames.push_back(name);
+}
 
 void* Texture(const char* name, int* width, int* height)
 {

@@ -23,7 +23,7 @@ cl /nologo /O2 /MT /EHa /std:c++17 /W3 /LD /utf-8 ^
    "%ROOT%src\overlay.cpp" "%ROOT%src\inspector.cpp" "%ROOT%src\persist.cpp" ^
    "%ROOT%src\text.cpp" "%ROOT%src\tv.cpp" "%ROOT%src\tv_network.cpp" "%ROOT%src\tv_ui.cpp" ^
    "%ROOT%src\tv_story.cpp" "%ROOT%src\tv_paper.cpp" "%ROOT%src\tv_library.cpp" "%ROOT%src\tv_streaming.cpp" "%ROOT%src\tv_events.cpp" "%ROOT%src\tv_research.cpp" "%ROOT%src\tv_writers.cpp" "%ROOT%src\tv_shares.cpp" ^
-   "%ROOT%src\diag.cpp" "%ROOT%src\rooms.cpp" "%ROOT%src\ratings.cpp" "%ROOT%src\news.cpp" "%ROOT%src\manager.cpp" "%ROOT%src\selfcheck.cpp" "%ROOT%src\nativeui.cpp" "%ROOT%src\tv_native.cpp" "%ROOT%src\moviemaker.cpp" "%ROOT%src\lists.cpp" "%ROOT%src\buildmenu.cpp" "%ROOT%src\production.cpp" ^
+   "%ROOT%src\diag.cpp" "%ROOT%src\rooms.cpp" "%ROOT%src\ratings.cpp" "%ROOT%src\news.cpp" "%ROOT%src\manager.cpp" "%ROOT%src\selfcheck.cpp" "%ROOT%src\nativeui.cpp" "%ROOT%src\debugshots.cpp" "%ROOT%src\tv_native.cpp" "%ROOT%src\moviemaker.cpp" "%ROOT%src\lists.cpp" "%ROOT%src\buildmenu.cpp" "%ROOT%src\production.cpp" ^
    "%MH%\src\buffer.c" "%MH%\src\hook.c" "%MH%\src\trampoline.c" "%MH%\src\hde\hde32.c" ^
    "%IG%\imgui.cpp" "%IG%\imgui_draw.cpp" "%IG%\imgui_tables.cpp" "%IG%\imgui_widgets.cpp" ^
    "%IG%\backends\imgui_impl_dx9.cpp" "%IG%\backends\imgui_impl_win32.cpp" ^

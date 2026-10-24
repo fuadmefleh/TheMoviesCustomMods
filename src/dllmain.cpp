@@ -12,6 +12,7 @@
 
 #include "MinHook.h"
 #include "mod.h"
+#include "debugshots.h"
 #include "nativeui.h"
 #include "news.h"
 #include "overlay.h"
@@ -123,6 +124,7 @@ extern "C" HRESULT WINAPI Proxy_DirectInput8Create(HINSTANCE inst, DWORD version
         if (g_hooksEnabled) {
             overlay::Install();
             nativeui::Install();
+            debugshots::Install();
             buildmenu::Install();
             persist::Install();
             overlay::AddFrameCallback(&persist::Tick);

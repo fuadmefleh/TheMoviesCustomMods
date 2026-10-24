@@ -281,8 +281,11 @@ There is no automated test suite; testing happens in the game:
 | `facilities:` | Building layout discovery |
 | `text: missing key` | Text the game wanted |
 | `tv:` | Pitches, verdicts, every airing (quality, rating, income, cost), renewals, building counts |
+| `debugshots:` | Each game window as it opens (its RTTI class), with `[MoviesMod] DebugShots = 1` |
 
 Check the `.tvs` files in `Documents\The Movies\Saved Games\`.
+
+With `[MoviesMod] DebugShots = 1`, `src/debugshots.cpp` saves a screenshot of every game window as it opens (it hooks the root window's `AddChild` and `AddPopup`) to `MoviesMod\shots\win_<time>_<class>.bmp`, and Ctrl+F12 saves one at any time.
 
 **Timing:** one in-game year is about 4 real minutes at normal speed (about 1.6 game days per second), and a film takes about a game year to make.
 
