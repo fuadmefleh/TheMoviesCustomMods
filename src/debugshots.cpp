@@ -29,7 +29,7 @@ namespace {
 constexpr uintptr_t kRootWindow = 0x0104DF40;   // the full-screen layer every screen is added to
 constexpr int kAddChildSlot = 0x0C / 4;         // WWindow::AddChild(child, mode)
 constexpr int kAddPopupSlot = 0xAC / 4;         // WWindow::AddPopup(child)
-constexpr DWORD kSettleMs = 800;                // windows slide and fade in
+constexpr DWORD kSettleMs = 1500;               // windows load, slide and fade in
 
 using AddChild_t = uintptr_t(__thiscall*)(void* self, void* child, int mode);
 using AddPopup_t = uintptr_t(__thiscall*)(void* self, void* child);

@@ -328,8 +328,11 @@ ShareQuote QuoteBuyBack(double fraction);
 std::wstring SharesPage();
 
 // Rich text for the game's own screens (tv_native.cpp): its colours and building blocks.
+// The renderer lays everything out inline: <p> only breaks the line before itself, and
+// headings and tables flow on after the text before them. So every block here ends with
+// <br>, and pages put Line() round loose text instead of <p>.
 namespace html {
-extern const wchar_t* const Gold;   // the game's highlight yellow: yours, the current tab
+extern const wchar_t* const Accent; // yours, the current tab
 extern const wchar_t* const Dim;    // notes and secondary figures
 extern const wchar_t* const Good;
 extern const wchar_t* const Warn;
@@ -337,7 +340,9 @@ extern const wchar_t* const Bad;
 std::wstring Text(const std::string& utf8);   // escaped for the renderer
 std::wstring Colour(const std::wstring& text, const wchar_t* colour);
 std::wstring Heading(const std::wstring& text);
-std::wstring Note(const std::wstring& text);  // a dim paragraph
+std::wstring Note(const std::wstring& text);  // a dim line
+std::wstring Line(const std::wstring& text);  // text, then a line break
+std::wstring EndTable();
 // A horizontal bar 'width' pixels long at value == max.
 std::wstring Bar(double value, double max, const wchar_t* colour, int width = 160);
 // A strip of figures, each a dim label over a bold value.

@@ -344,17 +344,17 @@ namespace {
 
 std::wstring T(const std::string& s) { return html::Text(s); }
 
-// Who owns the studio, as one bar: the player's part in yellow, the investors' in slate.
+// Who owns the studio, as one bar: the player's part in blue, the investors' in slate.
 std::wstring OwnershipBar()
 {
     constexpr int kWidth = 600;
     int mine = std::clamp(static_cast<int>(Ownership() * kWidth + 0.5), 0, kWidth);
     std::wstring h = L"<table width=" + std::to_wstring(kWidth) + L" cellspacing=0><tr>";
     if (mine > 0)
-        h += L"<td width=" + std::to_wstring(mine) + L" bgcolor=#FFF9E81E height=14> </td>";
+        h += L"<td width=" + std::to_wstring(mine) + L" bgcolor=#FF1F4FB0 height=14> </td>";
     if (mine < kWidth)
-        h += L"<td width=" + std::to_wstring(kWidth - mine) + L" bgcolor=#FF4E6A92 height=14> </td>";
-    return h + L"</tr></table>";
+        h += L"<td width=" + std::to_wstring(kWidth - mine) + L" bgcolor=#FF8AA0B8 height=14> </td>";
+    return h + L"</tr></table><br>";
 }
 
 // One line of the options table: what a button does, and what it would do right now.
@@ -369,8 +369,8 @@ std::wstring SharesPage()
 {
     using html::Colour;
     if (g_sh.ousted)
-        return html::Heading(L"Studio shares") + L"<p>" + Colour(L"<b>You have lost the studio.</b>", html::Bad) +
-               L"</p><p>" + T(g_sh.fate) + L"</p>";
+        return html::Heading(L"Studio shares") + html::Line(Colour(L"<b>You have lost the studio.</b>", html::Bad)) +
+               html::Line(T(g_sh.fate));
     double own = Ownership();
     double capital = game::ReadMoney().capital;
     double change = g_sh.priceAtReview > 0 ? g_sh.price / g_sh.priceAtReview - 1.0 : 0;
@@ -384,20 +384,20 @@ std::wstring SharesPage()
 
     // Ownership, and what it puts at risk.
     h += html::Heading(L"Who owns the studio") + OwnershipBar();
-    h += L"<p>" + Colour(T(Format("You  %.0f%%", own * 100)), html::Gold) + Colour(L"   |   ", html::Dim) +
-         T(Format("Outside investors  %.0f%%", OutsideFraction() * 100)) + L"</p>";
+    h += html::Line(Colour(T(Format("You  %.0f%%", own * 100)), html::Accent) + Colour(L"   |   ", html::Dim) +
+                    T(Format("Outside investors  %.0f%%", OutsideFraction() * 100)));
     if (own >= 1.0)
         h += html::Note(L"You own the whole studio. Selling shares raises cash, but brings in a board that judges the "
                         L"studio every quarter.");
     else if (own >= 0.5)
-        h += L"<p>" + Colour(L"You hold the majority.", html::Good) + L" " +
-             Colour(L"Below 50% the board can vote you out; below 25% rivals can bid for the studio.", html::Dim) + L"</p>";
+        h += html::Line(Colour(L"You hold the majority.", html::Good) + L" " +
+                        Colour(L"Below 50% the board can vote you out; below 25% rivals can bid for the studio.", html::Dim));
     else if (own >= 0.25)
-        h += L"<p>" + Colour(L"<b>You no longer hold the majority:</b> if the board loses confidence it can vote you out.",
-                             html::Warn) + L"</p>";
+        h += html::Line(Colour(L"<b>You no longer hold the majority:</b> if the board loses confidence it can vote you out.",
+                               html::Warn));
     else
-        h += L"<p>" + Colour(L"<b>You own under a quarter:</b> the board can vote you out, and rival studios may bid "
-                             L"to take the company over.", html::Bad) + L"</p>";
+        h += html::Line(Colour(L"<b>You own under a quarter:</b> the board can vote you out, and rival studios may bid "
+                               L"to take the company over.", html::Bad));
 
     // The board, once there is one.
     if (own < 1.0) {
@@ -406,18 +406,18 @@ std::wstring SharesPage()
         h += html::Heading(L"The board");
         h += L"<table cellspacing=2><tr><td>" + Colour(L"<b>" + T(Mood(g_sh.confidence)) + L"</b>", moodColour) +
              L"   </td><td>" + html::Bar(g_sh.confidence, 100, moodColour, 300) + L"</td><td>   " +
-             T(Format("confidence %.0f / 100", g_sh.confidence)) + L"</td></tr></table>";
+             T(Format("confidence %.0f / 100", g_sh.confidence)) + L"</td></tr>" + html::EndTable();
         h += html::Note(T(Format("Next quarterly review in %d day%s. The board wants the share price up about 2%% a "
                                  "quarter and well-reviewed films in cinemas.", days, days == 1 ? "" : "s")));
         if (g_sh.dividendsThisQuarter > 0)
-            h += L"<p>" + Colour(T(Format("Dividend paid this quarter: %s. The board will remember it.",
-                                          Dollars(g_sh.dividendsThisQuarter).c_str())), html::Good) + L"</p>";
+            h += html::Line(Colour(T(Format("Dividend paid this quarter: %s. The board will remember it.",
+                                            Dollars(g_sh.dividendsThisQuarter).c_str())), html::Good));
         if (g_sh.warned)
-            h += L"<p>" + Colour(L"<b>The board will vote you out at the next review unless confidence recovers.</b>",
-                                 html::Bad) + L"</p>";
+            h += html::Line(Colour(L"<b>The board will vote you out at the next review unless confidence recovers.</b>",
+                                   html::Bad));
     }
 
-    // The price at each review, then today's in yellow.
+    // The price at each review, then today's in blue.
     if (!g_sh.history.empty()) {
         std::vector<double> prices(g_sh.history.begin(), g_sh.history.end());
         prices.push_back(g_sh.price);
@@ -425,14 +425,14 @@ std::wstring SharesPage()
         double low = *std::min_element(prices.begin(), prices.end());
         h += html::Heading(L"Share price by quarter") + L"<table cellspacing=2><tr>";
         for (size_t i = 0; i < prices.size(); i++) {
-            const wchar_t* c = i + 1 == prices.size() ? html::Gold : i > 0 && prices[i] < prices[i - 1] ? html::Bad : html::Good;
+            const wchar_t* c = i + 1 == prices.size() ? html::Accent : i > 0 && prices[i] < prices[i - 1] ? html::Bad : html::Good;
             int height = std::max(2, static_cast<int>(prices[i] / top * 90));
             h += L"<td valign=bottom><table width=12 cellspacing=0><tr><td bgcolor=#FF" + std::wstring(c + 1) +
                  L" height=" + std::to_wstring(height) + L"> </td></tr></table></td>";
         }
-        h += L"</tr></table>";
+        h += L"</tr>" + html::EndTable();
         h += html::Note(T(Format("High %s   |   Low %s   |   %d quarter%s. Green: up on the quarter before, red: down, "
-                                 "yellow: today.", Dollars(top).c_str(), Dollars(low).c_str(),
+                                 "blue: today.", Dollars(top).c_str(), Dollars(low).c_str(),
                                  static_cast<int>(g_sh.history.size()), g_sh.history.size() == 1 ? "" : "s")));
     }
 
@@ -473,7 +473,7 @@ std::wstring SharesPage()
                         L" (2% of the outside shareholders' stake). Raises the board's confidence." +
                         (cost <= capital ? L"" : L" " + Colour(L"Not enough cash.", html::Bad)));
     }
-    h += L"</table>";
+    h += html::EndTable();
     h += html::Note(T(Format("Cash on hand: %s. The buttons at the top, left to right: sell 5%%, sell 10%%, buy back "
                              "5%%, pay a dividend.", Dollars(capital).c_str())));
     return h;

@@ -17,13 +17,12 @@ namespace tv {
 
 namespace html {
 
-// The game's highlight yellow and slate blue, with a softer green, amber and red that read
-// on the dialog's dark panel.
-const wchar_t* const Gold = L"#F9E81E";
-const wchar_t* const Dim  = L"#9FB4D8";
-const wchar_t* const Good = L"#7CE07C";
-const wchar_t* const Warn = L"#FFB060";
-const wchar_t* const Bad  = L"#FF6A6A";
+// Dark inks that read on the dialog's pale cyan panel (its default text is black).
+const wchar_t* const Accent = L"#1F4FB0";
+const wchar_t* const Dim    = L"#4C6178";
+const wchar_t* const Good   = L"#1D7A1D";
+const wchar_t* const Warn   = L"#B25F00";
+const wchar_t* const Bad    = L"#C01818";
 
 std::wstring Text(const std::string& utf8) { return nativeui::Escape(utf8); }
 
@@ -34,9 +33,13 @@ std::wstring Colour(const std::wstring& text, const wchar_t* colour)
     return std::wstring(L"<font color=") + colour + L">" + text + L"</font>";
 }
 
-std::wstring Heading(const std::wstring& text) { return L"<h2>" + text + L"</h2>"; }
+std::wstring Heading(const std::wstring& text) { return L"<br><h2>" + text + L"</h2><br>"; }
 
-std::wstring Note(const std::wstring& text) { return L"<p>" + Colour(text, Dim) + L"</p>"; }
+std::wstring Note(const std::wstring& text) { return Colour(text, Dim) + L"<br>"; }
+
+std::wstring Line(const std::wstring& text) { return text + L"<br>"; }
+
+std::wstring EndTable() { return L"</table><br>"; }
 
 // A one-cell table of the right width: the renderer's way to draw a filled box.
 std::wstring Bar(double value, double max, const wchar_t* colour, int width)
@@ -79,13 +82,13 @@ std::wstring Money(double v) { return html::Colour(W(Dollars(v)), v >= 0 ? html:
 // The tab names in a line, the current one highlighted: the icons carry no labels.
 std::wstring TabLine(int tab)
 {
-    std::wstring h = L"<p>";
+    std::wstring h;
     for (int t = 0; t < NTabCount; t++) {
         if (t)
-            h += html::Colour(L"   |   ", html::Dim);
-        h += t == tab ? Bold(html::Colour(kTabNames[t], html::Gold)) : html::Colour(kTabNames[t], html::Dim);
+            h += html::Colour(L"  |  ", html::Dim);
+        h += t == tab ? Bold(html::Colour(kTabNames[t], html::Accent)) : html::Colour(kTabNames[t], html::Dim);
     }
-    return h + L"</p>";
+    return html::Line(h);
 }
 
 // The business at a glance, over every tab.
@@ -106,7 +109,7 @@ std::wstring Summary()
     return html::Stats({ { L"Date", W(DateText(Today())) },
                          { L"Series running", std::to_wstring(running) },
                          { L"With the networks", std::to_wstring(pitched) },
-                         { L"Pilots ready", ready ? html::Colour(std::to_wstring(ready), html::Gold) : L"0" },
+                         { L"Pilots ready", ready ? html::Colour(std::to_wstring(ready), html::Accent) : L"0" },
                          { L"TV profit, all time", Money(profit) },
                          { L"Homes with a TV", W(Format("%.1f million", Households(Year()))) } });
 }
@@ -155,9 +158,9 @@ std::wstring ShowsPage()
                        html::Colour(W(Format("%.0f%%", s.freshness * 100)), fresh),
                        s.totalAired ? Money(s.income - s.cost) : L"-" });
     }
-    table += L"</table>";
+    table += html::EndTable();
     if (!listed)
-        h += L"<p>No shows in development or on the air.</p>" +
+        h += html::Line(L"No shows in development or on the air.") +
              html::Note(L"Put writers on the desks of a TV Writers' Office, shoot a pilot on a soundstage and pitch it - "
                         L"or use Full controls to pitch one of your released films to a network.");
     else
@@ -173,7 +176,7 @@ std::wstring ShowsPage()
                           W(Format("%.1f", s.bestRating)), Money(s.income - s.cost) });
         }
     if (ended)
-        h += html::Heading(L"Finished") + past + L"</table>";
+        h += html::Heading(L"Finished") + past + html::EndTable();
     return h;
 }
 
@@ -182,7 +185,7 @@ std::wstring PilotsPage()
     std::vector<ShelfEntry> shelf = ShelfSummary();
     std::wstring h = html::Heading(L"Scripts and pilots");
     if (shelf.empty())
-        return h + L"<p>No scripts waiting.</p>" +
+        return h + html::Line(L"No scripts waiting.") +
                html::Note(L"Put writers on the desks of a TV Writers' Office: finished scripts come out of its door.");
     std::sort(shelf.begin(), shelf.end(), [](const ShelfEntry& a, const ShelfEntry& b) {
         return a.pilot != b.pilot ? a.pilot > b.pilot : a.quality > b.quality;
@@ -191,7 +194,7 @@ std::wstring PilotsPage()
     for (const ShelfEntry& e : shelf) {
         std::wstring state;
         if (e.pilot == 2)
-            state = html::Colour(W(Format("Ready: %.0f%%, starring %s", e.pilotQuality * 100, e.lead.c_str())), html::Gold);
+            state = html::Colour(W(Format("Ready: %.0f%%, starring %s", e.pilotQuality * 100, e.lead.c_str())), html::Accent);
         else if (e.pilot == 1 && e.wrapDay == 0)
             state = html::Colour(L"Shooting - drop a star on the soundstage", html::Warn);
         else if (e.pilot == 1)
@@ -202,7 +205,7 @@ std::wstring PilotsPage()
         h += Row({ Bold(W(e.title)), W(kFormats[e.format].name), html::Colour(W(Format("%.0f%%", e.quality * 100)), script),
                    state });
     }
-    h += L"</table>";
+    h += html::EndTable();
     int free = FreeSoundstages();
     h += html::Note((free > 0 ? W(Format("%d soundstage%s free.", free, free == 1 ? "" : "s"))
                               : std::wstring(L"No soundstage free: every one is shooting, or none is built.")) +
@@ -224,15 +227,15 @@ std::wstring RatingsPage()
         const ChartEntry& c = g_lastWeek[i];
         h += Row({ std::to_wstring(i + 1), Bold(W(c.title), c.player), W(NetworkShort(c.network)),
                    W(Format("%.1f", c.rating)), W(Format("%.0f%%", c.share * 100)),
-                   html::Bar(c.rating, top, c.player ? html::Gold : html::Dim) },
-                 false, c.player ? html::Gold : nullptr);
+                   html::Bar(c.rating, top, c.player ? html::Accent : html::Dim) },
+                 false, c.player ? html::Accent : nullptr);
     }
-    h += L"</table>";
+    h += html::EndTable();
     for (int i = 15; i < static_cast<int>(g_lastWeek.size()); i++)
         if (g_lastWeek[i].player)
-            h += L"<p>" + html::Colour(L"#" + std::to_wstring(i + 1) + L"  " + W(g_lastWeek[i].title) + L"  " +
-                                           W(Format("%.1f", g_lastWeek[i].rating)), html::Gold) + L"</p>";
-    return h + html::Note(L"Your shows in yellow.");
+            h += html::Line(html::Colour(L"#" + std::to_wstring(i + 1) + L"  " + W(g_lastWeek[i].title) + L"  " +
+                                             W(Format("%.1f", g_lastWeek[i].rating)), html::Accent));
+    return h + html::Note(L"Your shows in blue.");
 }
 
 std::wstring NetworksPage()
@@ -254,10 +257,10 @@ std::wstring NetworksPage()
         float avg = sum[n] / count[n];
         bool own = OwnOutlet(n);
         h += Row({ Bold(W(NetworkName(n)), own) + (own ? L" (yours)" : L""), std::to_wstring(count[n]),
-                   W(Format("%.0f%%", avg * 100)), html::Bar(avg, 0.5f, own ? html::Gold : html::Dim) },
-                 false, own ? html::Gold : nullptr);
+                   W(Format("%.0f%%", avg * 100)), html::Bar(avg, 0.5f, own ? html::Accent : html::Dim) },
+                 false, own ? html::Accent : nullptr);
     }
-    h += L"</table>";
+    h += html::EndTable();
     if (!listed)
         h += html::Note(L"The networks' shares arrive with the first week's ratings.");
     return h;
@@ -286,9 +289,9 @@ std::wstring BoxOfficePage()
         const game::Project& p = *year[i];
         h += Row({ std::to_wstring(i + 1), Bold(W(Utf8(p.title)), !p.rival), p.rival ? W(Utf8(p.studio)) : L"Your studio",
                    p.starRating >= 0 ? W(Format("%.1f", p.starRating * 5)) : L"-", W(Dollars(gross(p))) },
-                 false, p.rival ? nullptr : html::Gold);
+                 false, p.rival ? nullptr : html::Accent);
     }
-    return h + L"</table>" + html::Note(L"Your films in yellow. Stars out of five, from the critics.");
+    return h + html::EndTable() + html::Note(L"Your films in blue. Stars out of five, from the critics.");
 }
 
 std::wstring PressPage()
@@ -297,18 +300,18 @@ std::wstring PressPage()
         return html::Heading(L"The press") +
                html::Note(L"No front pages yet: they come with your shows' season finales, the awards and big milestones.");
     const Newspaper& p = g_papers.back();
-    std::wstring h = L"<p align=center>" + html::Colour(W(p.paper) + L"  -  " + W(DateText(p.day)), html::Dim) + L"</p>";
+    std::wstring h = L"<p align=center>" + html::Colour(W(p.paper) + L"  -  " + W(DateText(p.day)), html::Dim) + L"</p><br>";
     if (!p.kicker.empty())
-        h += L"<p align=center>" + W(p.kicker) + L"</p>";
-    h += L"<h1>" + W(p.headline) + L"</h1>";
+        h += L"<p align=center>" + W(p.kicker) + L"</p><br>";
+    h += L"<h1>" + W(p.headline) + L"</h1><br>";
     if (!p.subhead.empty())
-        h += L"<p align=center><b>" + W(p.subhead) + L"</b></p>";
+        h += L"<p align=center><b>" + W(p.subhead) + L"</b></p><br>";
     std::wstring body = W(p.body);
     for (size_t at; (at = body.find(L'\n')) != std::wstring::npos;)
         body.replace(at, 1, L"<br>");
-    h += L"<hr><p>" + body + L"</p>";
+    h += L"<hr>" + html::Line(body);
     if (!p.verdict.empty())
-        h += L"<p><b>" + W(p.verdict) + L"</b></p>";
+        h += html::Line(L"<b>" + W(p.verdict) + L"</b>");
     if (!p.quote.empty())
         h += html::Note(W(p.quote));
     if (g_papers.size() > 1)
@@ -319,11 +322,11 @@ std::wstring PressPage()
 std::wstring Page(int tab)
 {
     if (!Unlocked())
-        return html::Heading(L"Television") + L"<p>Television arrives in your world in 1949.</p>" +
+        return html::Heading(L"Television") + html::Line(L"Television arrives in your world in 1949.") +
                html::Note(L"Build a TV Production Office to start making shows.");
     std::wstring h = TabLine(tab) + Summary();
     if (tab >= 0 && tab < NTabCount)   // one picture of each tab per session, for checking the layout
-        nativeui::ShotOnce(Utf8(std::wstring(L"native_tv_") + kTabNames[tab]).c_str(), 600);
+        nativeui::ShotOnce(Utf8(std::wstring(L"native_tv_") + kTabNames[tab]).c_str(), 250);
     switch (tab) {
     case NShows:     return h + ShowsPage();
     case NPilots:    return h + PilotsPage();
@@ -506,7 +509,7 @@ void OpenShares()
         { "button_marketing.", L"Pay a dividend to the shareholders", -1, [] { Report(PayDividend()); } },
     };
     s.html = [](int) {
-        nativeui::ShotOnce("native_shares", 600);
+        nativeui::ShotOnce("native_shares", 250);
         return SharesPage();
     };
     s.width = 760;
