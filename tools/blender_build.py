@@ -4,9 +4,10 @@ the working parts of an exported building (tools/building.py export).
   blender -b --factory-startup -P blender_build.py -- <work_dir> <spec.json>
   blender -b --factory-startup -P blender_build.py -- <work_dir> --thumb <out.png>
 
-Everything the player sees of the donor goes: its outside model, construction ghost,
-volumes and outlines (tools/building.py regenerates them from the new body). Its working
-parts stay: the ground pad (fac._land_), drop zones, walk points, door and pavement
+Everything the player sees of the donor goes: its outside model, floor plan, construction
+ghost, volumes and outlines (tools/building.py regenerates them from the new body; the floor
+plan, which the game cuts open while you carry a person, is the body with thick walls). Its
+working parts stay: the ground pad (fac._land_), drop zones, walk points, door and pavement
 anchors and the lot boundary.
 
 The look is the game's: plain blocks in the game's own textures (plaster, brick, steel)
@@ -14,12 +15,15 @@ mapped at real size, real window openings (reveals, glass, a mullion, a sill), f
 a cornice or parapet, a darker plinth, tiled or flat roofs, doors under canopies. Shading
 comes from the lightmap baked afterwards (tools/blender_bake.py).
 
-spec.json: {"rooms": {"old": "new"}, "style": {role: texture}, "blocks": [block, ...]}
+spec.json: {"rooms": {"old": "new"}, "zones": {name: [x0, y0, x1, y1] or outline}, "style": {role: texture},
+            "blocks": [block, ...]}
 Game coordinates: metres, Z up, the street side is -Y. A block:
   x y w d h        centre of the footprint, its size and wall height
   z                base height (default 0: on the ground)
   floors           storeys (default h / 3.6)
-  roof             "flat" (with a parapet), "gable" (ridge along x), "hip", "none"
+  roof             "flat" (with a parapet), "gable" (ridge along x), "hip", "none", "temple"
+                   (ridge along y, pediments; "porch" metres of portico on "columns" over
+                   "steps", in the trim texture; the columns in the 'column' role)
   pitch            roof rise in metres (gable/hip, default 0.3 x the shorter side)
   windows          {"w": 1.4, "h": 1.7, "spacing": 3.2, "sill": 0.9, "sides": "fblr",
                     "ground": false (none on the ground floor), "role": "glass"}
@@ -118,10 +122,24 @@ for o in list(bpy.data.objects):
         if old in SPEC.get('rooms', {}):
             o.name = 'room.' + SPEC['rooms'][old]
 
+# Zones laid out for the new body: {name: [x0, y0, x1, y1] or [[x, y], ...] (an outline,
+# counter-clockwise)}. They replace the donor's zone of that name, or add a new one (e.g. a
+# waiting spot out front).
+for zname, shape in SPEC.get('zones', {}).items():
+    for o in list(bpy.data.objects):
+        if kind(o) == 'room' and o.name.split('.')[1] == zname:
+            bpy.data.objects.remove(o)
+    if isinstance(shape[0], (int, float)):
+        zx0, zy0, zx1, zy1 = shape
+        shape = [(zx0, zy0), (zx1, zy0), (zx1, zy1), (zx0, zy1)]
+    zm = bpy.data.meshes.new('room.' + zname)
+    zm.from_pydata([(x, y, 0.0) for x, y in shape], [], [tuple(range(len(shape)))])
+    bpy.context.collection.objects.link(bpy.data.objects.new('room.' + zname, zm))
+
 removed = 0
 for o in list(bpy.data.objects):
     k = kind(o)
-    if (k == 'fac' and '._land_.' not in o.name) or k in ('blp', 'shape') or \
+    if (k == 'fac' and '._land_.' not in o.name) or k in ('fld', 'blp', 'shape') or \
             (k == 'ctl' and o.name.split('.')[1] != 'lot_boundary'):
         bpy.data.objects.remove(o)
         removed += 1
@@ -361,7 +379,62 @@ def make_block(B, b):
             B.poly([(x0, y1, e), (x0, y0, e), (rx0, cy, ridge)], (-1, 0, 1), tiles, TILE['tiles'])
             B.poly([(x1, y0, e), (x1, y1, e), (rx1, cy, ridge)], (1, 0, 1), tiles, TILE['tiles'])
             B.poly([(x0, y0, e), (x1, y0, e), (x1, y1, e), (x0, y1, e)], (0, 0, -1), trim, TILE['trim'])
+    elif roof == 'temple':
+        temple(B, b, z, top, trim)
+        return top + b.get('pitch', 0.18 * w)
     return top + (b.get('pitch', 0.3 * min(w, d)) if roof in ('gable', 'hip') else 0.9)
+
+
+def column(B, x, y, z0, z1, r, texture, sides=12):
+    """A round column with a square base and capital."""
+    for i in range(sides):
+        a0, a1 = 2 * math.pi * i / sides, 2 * math.pi * (i + 1) / sides
+        p0 = (x + r * math.cos(a0), y + r * math.sin(a0))
+        p1 = (x + r * math.cos(a1), y + r * math.sin(a1))
+        am = (a0 + a1) / 2
+        u0, u1 = i / sides, (i + 1) / sides
+        B.poly([(p0[0], p0[1], z0), (p1[0], p1[1], z0), (p1[0], p1[1], z1), (p0[0], p0[1], z1)],
+               (math.cos(am), math.sin(am), 0), texture, uvs=[(u0, 0), (u1, 0), (u1, (z1 - z0) / 3), (u0, (z1 - z0) / 3)])
+    for zc in (z0 + 0.15, z1 - 0.15):
+        B.box((x, y, zc), (r * 2.6, r * 2.6, 0.3), texture, TILE['trim'])
+
+
+def temple(B, b, z, top, trim):
+    """A classical front: the ridge runs front to back, a pediment over a portico of
+    columns ('porch' metres deep, 'columns' of them) on a flight of 'steps'."""
+    cx, cy, w, d = b['x'], b['y'], b['w'], b['d']
+    porch, n, steps = b.get('porch', 0.0), b.get('columns', 0), b.get('steps', 0)
+    o, ent = 0.45, 1.0   # eaves overhang, the entablature's depth
+    rise = b.get('pitch', 0.18 * w)
+    yf, yb = cy - d / 2 - porch, cy + d / 2
+    stone, tiles = tex(b, 'trim'), tex(b, 'tiles')
+    # The entablature: a deep band over the walls and the portico, and its cornice.
+    B.box((cx, (yf + yb) / 2, top - ent / 2), (w + 0.3, yb - yf + 0.3, ent), stone, TILE['trim'])
+    x0, x1, y0, y1 = cx - w / 2 - o, cx + w / 2 + o, yf - o, yb + o
+    e = top - rise * o / (w / 2)
+    ridge = top + rise
+    B.poly([(x0, y0, e), (x0, y1, e), (cx, y1, ridge), (cx, y0, ridge)], (-1, 0, 1), tiles, TILE['tiles'])
+    B.poly([(x1, y1, e), (x1, y0, e), (cx, y0, ridge), (cx, y1, ridge)], (1, 0, 1), tiles, TILE['tiles'])
+    B.poly([(x0, y0, e), (x1, y0, e), (x1, y1, e), (x0, y1, e)], (0, 0, -1), trim, TILE['trim'])
+    for yy, ny in ((yf - 0.15, -1), (yb + 0.15, 1)):   # the pediments, set back under the eaves
+        B.poly([(cx - w / 2, yy, top), (cx + w / 2, yy, top), (cx, yy, ridge - 0.25)], (0, ny, 0), tex(b, 'gable'), TILE['gable'])
+        B.poly([(cx - w / 2 - 0.2, yy + ny * 0.05, top), (cx + w / 2 + 0.2, yy + ny * 0.05, top),
+                (cx + w / 2 + 0.2, yy + ny * 0.05, top + 0.3), (cx - w / 2 - 0.2, yy + ny * 0.05, top + 0.3)],
+               (0, ny, 0), stone, TILE['trim'])
+    floor = z + 0.3 * steps
+    if porch:
+        B.poly([(cx - w / 2, yf, top - ent), (cx + w / 2, yf, top - ent), (cx + w / 2, cy - d / 2, top - ent),
+                (cx - w / 2, cy - d / 2, top - ent)], (0, 0, -1), stone, TILE['trim'])
+    # The steps: a podium under the portico, each step a little further out.
+    for k in range(steps):
+        out = (steps - k) * 0.45
+        B.box((cx, (yf - out + yb) / 2, z + 0.15 + 0.3 * k), (w + 0.6 + out, yb - yf + out, 0.3), stone, TILE['trim'],
+              faces=('+x', '-x', '-y', '+z'))
+    if n > 1:
+        r = b.get('column_r', 0.42)
+        for i in range(n):
+            x = cx - w / 2 + 0.8 + i * (w - 1.6) / (n - 1)
+            column(B, x, yf + 0.7, floor, top - ent, r, b.get('roles', {}).get('column', STYLE.get('column', stone)))
 
 
 B = Builder()
@@ -374,6 +447,16 @@ for b in SPEC['blocks']:
     volumes.append(bpy.context.active_object)
 faces = B.faces
 body = B.finish('fac.body.00')
+
+# The floor plan: the same body, its walls given thickness inwards so the cut-away shows them.
+plan = body.copy()
+plan.data = body.data.copy()
+plan.name = 'fld.body.00'
+bpy.context.collection.objects.link(plan)
+solid = plan.modifiers.new('walls', 'SOLIDIFY')
+solid.thickness, solid.offset = 0.25, -1.0
+bpy.context.view_layer.objects.active = plan
+bpy.ops.object.modifier_apply(modifier=solid.name)
 
 bpy.ops.wm.obj_export(filepath=os.path.join(WORK, 'building.obj'), export_materials=True, path_mode='RELATIVE')
 print('blender_build: removed %d donor objects, built %d blocks (%d faces, %d textures), %d volumes'

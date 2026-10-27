@@ -236,7 +236,7 @@ def aim_strings(frames, anchor, width_div):
     """Re-aims the sub sprite's strings every frame at its own disc, from the parent's disc
     (anchor, in the sub sprite's coordinates). Rotating the template's strings with the
     button left them short of (grey) or past (yellow) the new button positions."""
-    chars, mats, disc = {}, {}, None
+    chars, mats, widths, disc = {}, {}, {}, None   # widths: from the template's own placements
     for fr in frames:
         touched = False
         for t in fr:
@@ -244,12 +244,14 @@ def aim_strings(frames, anchor, width_div):
                 d = struct.unpack_from('<H', t.body, 0)[0]
                 chars.pop(d, None)
                 mats.pop(d, None)
+                widths.pop(d, None)
             elif t.code == 26:
                 po = swf.PlaceObject2.parse(t.body)
                 if po.char is not None:
                     chars[po.depth] = po.char
                 if po.matrix is not None:
                     mats[po.depth] = po.matrix
+                    widths[po.depth] = math.hypot(po.matrix.a / 65536, po.matrix.b / 65536) / width_div
                     if chars.get(po.depth) == DISC_CHAR:
                         disc = (po.matrix.tx, po.matrix.ty)
                     touched = True
@@ -258,8 +260,7 @@ def aim_strings(frames, anchor, width_div):
         for depth, cid in chars.items():
             if cid not in JOINER_CHARS or depth not in mats:
                 continue
-            m = mats[depth]
-            width = math.hypot(m.a / 65536, m.b / 65536) / width_div
+            width = widths[depth]
             new = string_matrix(anchor, disc, width)
             mats[depth] = new
             for i, t in enumerate(fr):

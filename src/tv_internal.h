@@ -326,6 +326,24 @@ struct ShareQuote {
 ShareQuote QuoteSell(double fraction);
 ShareQuote QuoteBuyBack(double fraction);
 std::wstring SharesPage();
+// The bag of shares and the investors' briefcase at the Accounting Office (tv_shares.cpp).
+bool IsShareObject(uintptr_t project);
+const char* ShareObjectMesh(uintptr_t project);
+bool SharesDrop(const std::string& zone, uintptr_t project);   // true if it was one of them
+void PlaceShareObjects();             // put them out at the Accounting Office if missing
+// Accountants (tv_accounts.cpp): the player's staff in career 1, hired at the Accounting Office.
+int  Accountants();
+void AccountsReset();
+void InstallAccounts();
+// Someone dropped on the Accounts Floor (room_tvk_books); true if it was handled there.
+bool AccountsDrop(const std::string& zone, uintptr_t room, uintptr_t person);
+// The lines of their hover bubble (kind, phase, status); false if it isn't one of them.
+// The right-hand HUD list's picture for one (ui/shares_*.dds), and the Studio shares screen.
+const char* ShareObjectPicture(uintptr_t project);
+void OpenSharesScreen();
+bool ShareObjectLabel(uintptr_t project, std::wstring* kind, std::wstring* phase, std::wstring* status);
+void AskSellShares(double fraction);  // the game's yes/no dialog, then sell (tv_native.cpp)
+void ReportShares(const std::string& error);
 
 // Rich text for the game's own screens (tv_native.cpp): its colours and building blocks.
 // The renderer lays everything out inline: <p> only breaks the line before itself, and
@@ -489,6 +507,11 @@ extern bool g_filmPilots;
 void   ApplyPilot(Series& s, const game::Project& pilot);   // pilot fields (and the pilot's star as lead)
 bool   StartPilotForProject(uintptr_t project);   // a shelf script object dropped on a TV building
 bool   IsUnshotScript(uintptr_t project);
+bool   IsPilotReel(uintptr_t project);      // a shot pilot not yet pitched: a reel on the lot
+const char* PilotReelMesh(uintptr_t project);
+bool   DropReel(const std::string& zone, uintptr_t project);   // true if it was a reel
+// The hover bubble of a finished TV script or reel (kind, phase, status); false to keep the game's.
+bool   TvScriptLabel(uintptr_t project, std::wstring* kind, std::wstring* phase, std::wstring* status);
 bool   CastPilot(const std::string& name, float stars, bool director);   // a person dropped on a soundstage
 void   AutoPilots(bool castStandIns);             // shoot the best scripts on free soundstages
 // The script shelf for display (native screen): one entry per script not yet pitched.

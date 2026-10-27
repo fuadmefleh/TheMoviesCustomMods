@@ -11,6 +11,7 @@
 #include "nativeui.h"
 #include "news.h"
 #include "overlay.h"
+#include "projectlist.h"
 #include "rooms.h"
 #include "sim.h"
 
@@ -239,6 +240,9 @@ uintptr_t ScriptRoomOffice(uintptr_t) { return 0; }
 uintptr_t OfficeProject(uintptr_t) { return 0; }
 void SetTvScriptTest(ProjectTest) {}
 void RefreshScriptLook(uintptr_t) {}
+void SetMeshChooser(ProjectMesh) {}
+void SetLabeler(ProjectLabel) {}
+std::string ZoneName(uintptr_t) { return ""; }
 
 } // namespace rooms
 
@@ -294,6 +298,7 @@ namespace nativeui {
 
 bool Ready() { return true; }
 bool Enabled() { return true; }
+void ShotOnce(const char*, unsigned) {}
 void GameOverDialog(const std::wstring&, const std::wstring&) { mod::Log("sim: game over dialog"); }
 void Confirm(const std::wstring&, const std::wstring&, std::function<void()> onYes, std::function<void()>)
 {
@@ -328,3 +333,16 @@ std::wstring Escape(const std::string& utf8)
 void Install() {}
 
 } // namespace nativeui
+
+// projectlist.cpp patches the HUD's project list.
+namespace projectlist {
+void SetCategory(ProjectTest, ProjectPicture, ProjectInfo) {}
+} // namespace projectlist
+
+// tv_accounts.cpp hooks the game's hiring; the simulator's studio has one accountant.
+namespace tv {
+int Accountants() { return 1; }
+void AccountsReset() {}
+void InstallAccounts() {}
+bool AccountsDrop(const std::string&, uintptr_t, uintptr_t) { return false; }
+} // namespace tv

@@ -217,7 +217,7 @@ bool BuildDialog(const wchar_t* title, float width, float height, int buttons, c
         VCall(h, 0x78, width - 48);
         *reinterpret_cast<float*>(static_cast<char*>(h) + kHtmlWrap) = width - 48;
         VCall(h, 0x5C, 1, content, 8.0f);
-        VCall(h, 0x64, 1, content, 62.0f);
+        VCall(h, 0x64, 1, content, buttons ? 62.0f : 8.0f);   // under the buttons, if any
         reinterpret_cast<void(__thiscall*)(void*, void*, int)>(kDialogAdd)(d, h, 1);
 
         VCall(d, 0x78, width);

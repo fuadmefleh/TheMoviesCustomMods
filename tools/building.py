@@ -925,7 +925,7 @@ def build(work, name, install=False):
         matlib = Materials(meta, mtl, work, tex_out)
         kobjs = objects(kind)
         if kind == 'blp' and not kobjs:
-            groups, reused, made = blueprint_groups(donor, building_pts, controls['lot_boundary'], matlib, name)
+            groups, reused, made = blueprint_groups(donor, building_pts, controls['lot_boundary'], matlib, name, work)
         elif kind == 'fld' and not kobjs:
             sys.exit('no fld.* objects: the building needs a floor plan')
         else:
@@ -1013,9 +1013,47 @@ def build(work, name, install=False):
         print('installed %d files into %s' % (len(files), dst_root))
 
 
-def blueprint_groups(donor, building_pts, lot, matlib, name):
+def lot_rect(lot):
+    """The blueprint sheet's rectangle: the lot boundary's bounds (x0, y0, x1, y1)."""
+    lv = np.asarray(lot['verts'])
+    return float(lv[:, 0].min()), float(lv[:, 1].min()), float(lv[:, 0].max()), float(lv[:, 1].max())
+
+
+def work_lot_rect(work):
+    """lot_rect of a work folder's building.obj (for tools/blender_blueprint.py)."""
+    pos, _, _, objs, _ = read_obj(os.path.join(work, 'building.obj'))
+    for o in objs:
+        if base_name(o.name)[:2] == ['ctl', 'lot_boundary']:
+            return lot_rect(control_from_obj(o, pos))
+    pts = [pos[c[0]] for o in objs if base_name(o.name)[0] == 'fac' for _, cs in o.faces for c in cs]
+    return lot_rect(footprint_control(pts, margin=0.5))
+
+
+def blueprint_sheet(work, name, lot, tex_out):
+    """The new building's own blueprint sheet from <work>/blueprint.png (a top-down render of
+    the lot rectangle, tools/blender_blueprint.py): squared to 512 x 512 and outlined in
+    black like the game's. Returns the texture name, or None to keep the donor's."""
+    src = os.path.join(work, 'blueprint.png')
+    if not os.path.exists(src):
+        return None
+    from PIL import Image, ImageChops, ImageFilter
+    img = Image.open(src).convert('RGBA').resize((512, 512), Image.LANCZOS)
+    alpha = img.getchannel('A').point(lambda a: 255 if a > 8 else 0)
+    ring = ImageChops.subtract(alpha.filter(ImageFilter.MaxFilter(7)), alpha)
+    sheet = Image.new('RGBA', img.size, (0, 0, 0, 0))
+    sheet.paste((20, 20, 20, 255), mask=ring)
+    sheet.alpha_composite(img)
+    os.makedirs(tex_out, exist_ok=True)
+    tex = 'bpf_%s.dds' % name
+    write_dds(sheet, os.path.join(tex_out, tex))
+    return tex
+
+
+def blueprint_groups(donor, building_pts, lot, matlib, name, work=None):
     """Construction ghost: the donor's scaffolding stretched over the new building, and the
-    blueprint sheet laid over the new footprint."""
+    blueprint sheet laid over the new footprint (the new building's own picture when the
+    work folder has one, see blueprint_sheet)."""
+    sheet = blueprint_sheet(work, name, lot, matlib.tex_out) if work else None
     pts = np.asarray(building_pts)
     lo, hi = pts.min(axis=0), pts.max(axis=0)
     dpts = np.asarray([v for g in donor['groups'] if not g.get('name', '').startswith('blp')
@@ -1028,11 +1066,15 @@ def blueprint_groups(donor, building_pts, lot, matlib, name):
         for me in g['meshes']:
             mat, imgs = mat_signature(donor, me['material'])
             key = '__blp_%d' % me['material']
+            is_sheet = g.get('name', '').startswith('blp')
+            if is_sheet and sheet:
+                key += '_' + name
+                matlib.meta['materials'][key] = {'bytes': mat.hex(), 'diffuse': sheet, 'reflection': imgs[1]}
+                if sheet not in matlib.new_textures:
+                    matlib.new_textures.append(sheet)
             matlib.meta['materials'].setdefault(key, {'bytes': mat.hex(), 'diffuse': imgs[0], 'reflection': imgs[1]})
-            if g.get('name', '').startswith('blp'):
-                lv = np.asarray(lot['verts'])
-                x0, y0 = lv[:, 0].min(), lv[:, 1].min()
-                x1, y1 = lv[:, 0].max(), lv[:, 1].max()
+            if is_sheet:
+                x0, y0, x1, y1 = lot_rect(lot)
                 verts = [(x0, y0, 0.0), (x1, y0, 0.0), (x1, y1, 0.0), (x0, y1, 0.0)]
                 d = {'verts': verts, 'normals': [(0, 0, 1)] * 4, 'uvs': [(0, 0), (1, 0), (1, 1), (0, 1)],
                      'faces': [(0, 1, 2), (0, 2, 3)]}

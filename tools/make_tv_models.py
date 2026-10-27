@@ -46,6 +46,16 @@ BUILDINGS = [
                    'so_horror': 'tvw_soap', 'so_scifi': 'tvw_scifi', 'so_stunt': 'tvw_variety', 'so_hall': 'tvw_hall'},
         # The hall (office zone) is where the writers actually sit and type.
         'extra_scenes': {'so_hall': 'tvw_office'},
+        # The floor plan: six writers' rooms either side of a hall running from the door, the
+        # writers' office in the annex.
+        'zones': {'room_': [[-1.2, 4.2], [-1.2, -7.2], [-2.7, -7.2], [-2.7, -16.2], [5.7, -16.2], [5.7, -7.2],
+                            [20.2, -7.2], [20.2, 4.2]],
+                  'room_tvw_soap': [-1.2, 0.3, 5.8, 4.2], 'room_tvw_drama': [6.0, 0.3, 13.0, 4.2],
+                  'room_tvw_scifi': [13.2, 0.3, 20.2, 4.2], 'room_tvw_variety': [-1.2, -7.2, 3.2, -3.3],
+                  'room_tvw_crime': [3.4, -7.2, 7.8, -3.3], 'room_tvw_sitcom': [11.2, -7.2, 20.2, -3.3],
+                  'room_tvw_hall': [[-1.2, -3.1], [8.0, -3.1], [8.0, -7.2], [11.0, -7.2], [11.0, -3.1], [20.2, -3.1],
+                                    [20.2, 0.1], [-1.2, 0.1]],
+                  'room_tvw_office': [-2.7, -16.2, 5.7, -7.8]},
         'props': [
             {'type': 'sign', 'x': 1.5, 'y': -13.5, 'w': 5.4, 'h': 1.4, 'legs': 0.5, 'texture': 'tvp_writers.png'},
             {'type': 'mast', 'x': 4.0, 'y': -9.5, 'height': 6.0},
@@ -60,6 +70,9 @@ BUILDINGS = [
         ],
         'rooms': {'room_cso_create': 'room_tv_writers', 'room_cso_canit': 'room_tv_cast',
                   'room_cso_blank': 'room_tv_showrun', 'room_cso_hall': 'room_tv_lobby'},
+        'zones': {'room_': [-12.7, -5.7, 12.7, 5.7], 'room_tv_lobby': [-4.0, -5.7, 4.0, 0.0],
+                  'room_tv_showrun': [-12.7, -5.7, -4.2, 5.7], 'room_tv_writers': [-4.0, 0.2, 12.7, 5.7],
+                  'room_tv_cast': [4.2, -5.7, 12.7, 0.0]},
         'props': [
             {'type': 'sign', 'x': 6.0, 'y': -2.0, 'w': 4.0, 'h': 1.3, 'legs': 0.6, 'texture': 'tvp_onair.png'},
             {'type': 'mast', 'x': -9.0, 'y': 3.0, 'height': 6.0},
@@ -77,6 +90,9 @@ BUILDINGS = [
         'rooms': {'room_ss_extras': 'room_tvs_audience', 'room_ss_actors': 'room_tvs_stage',
                   'room_ss_directors': 'room_tvs_control', 'room_ss_fire': 'room_tvs_green',
                   'room_ss_starmaker': 'room_tvs_makeup'},
+        'zones': {'room_': [-12.7, -6.5, 12.7, 5.9], 'room_tvs_stage': [-12.7, 0.2, 2.0, 5.9],
+                  'room_tvs_audience': [-12.7, -6.5, -1.0, 0.0], 'room_tvs_makeup': [2.2, 0.2, 7.4, 5.9],
+                  'room_tvs_control': [7.6, 0.2, 12.7, 5.9], 'room_tvs_green': [6.6, -6.5, 12.7, 0.0]},
         'props': [
             {'type': 'sign', 'x': 0.0, 'y': -2.5, 'w': 6.0, 'h': 1.8, 'legs': 0.5, 'texture': 'tvp_onair.png'},
             {'type': 'sign', 'x': 8.0, 'y': -2.5, 'w': 4.6, 'h': 1.2, 'legs': 0.3, 'texture': 'tvp_stage.png'},
@@ -96,6 +112,9 @@ BUILDINGS = [
              'doors': [{'side': 'f', 'w': 3.0, 'h': 2.6}]},
         ],
         'rooms': {'room_publicity_pr': 'room_tvn_programming', 'room_publicity_hall': 'room_tvn_lobby'},
+        'zones': {'room_': [[-6.5, -8.2], [10.9, -8.2], [10.9, -1.8], [8.4, -1.8], [8.4, 7.7], [-4.0, 7.7],
+                            [-4.0, -1.8], [-6.5, -1.8]],
+                  'room_tvn_lobby': [-6.5, -8.2, 10.9, -1.8], 'room_tvn_programming': [-4.0, -1.6, 8.4, 7.7]},
         'props': [
             {'type': 'tower', 'x': 5.5, 'y': 5.5, 'height': 9.0, 'base': 2.0},
             {'type': 'dish', 'x': -1.5, 'y': 5.0, 'radius': 1.3, 'tilt': 45, 'face': 200},
@@ -115,6 +134,11 @@ BUILDINGS = [
         'rooms': {'room_res_fac': 'room_tvc_transmit', 'room_res_fire': 'room_tvc_engineers',
                   'room_res_set': 'room_tvc_monitors', 'room_res_cos': 'room_tvc_tapes',
                   'room_res_mov': 'room_tvc_uplink', 'room_res_hall': 'room_tvc_hall'},
+        'zones': {'room_': [[-11.7, -7.2], [9.7, -7.2], [9.7, 4.2], [-7.3, 4.2], [-7.3, 8.2], [-10.7, 8.2],
+                            [-10.7, 4.2], [-11.7, 4.2]],
+                  'room_tvc_hall': [-4.5, -7.2, 2.5, -3.0], 'room_tvc_engineers': [-11.7, -7.2, -4.7, 4.2],
+                  'room_tvc_tapes': [-4.5, -2.8, 2.5, 4.2], 'room_tvc_monitors': [2.7, 1.5, 9.7, 4.2],
+                  'room_tvc_transmit': [2.7, -2.8, 9.7, 1.3], 'room_tvc_uplink': [2.7, -7.2, 9.7, -3.0]},
         'props': [
             {'type': 'dish', 'x': 15.0, 'y': -4.5, 'radius': 2.6, 'tilt': 40, 'face': 200},
             {'type': 'dish', 'x': 15.5, 'y': 4.0, 'radius': 2.0, 'tilt': 50, 'face': 160},
@@ -130,6 +154,8 @@ BUILDINGS = [
              'windows': {'w': 1.0, 'h': 1.2, 'spacing': 3.6}, 'doors': [{'side': 'f', 'w': 1.8}]},
         ],
         'rooms': {'room_postprod_postprod': 'room_tva_vault', 'room_postprod_hall': 'room_tva_hall'},
+        'zones': {'room_': [-10.5, -5.2, 6.9, 7.2], 'room_tva_hall': [-10.5, -5.2, 6.9, -1.2],
+                  'room_tva_vault': [-10.5, -1.0, 6.9, 7.2]},
         'props': [
             {'type': 'sign', 'x': -1.4, 'y': -8.6, 'w': 5.2, 'h': 1.4, 'legs': 0.4, 'texture': 'tvp_archive.png'},
             {'type': 'sign', 'x': 5.0, 'y': 5.0, 'w': 2.6, 'h': 2.6, 'legs': 0.6, 'texture': 'tvp_reel.png'},
@@ -147,10 +173,47 @@ BUILDINGS = [
              'cornice': False, 'windows': {'w': 0}, 'roles': {'wall': 'steel_ph24b'}},
         ],
         'rooms': {'room_sell_sell': 'room_tvd_servers', 'room_sell_window': 'room_tvd_noc', 'room_hall': 'room_tvd_hall'},
+        'zones': {'room_': [-9.7, -6.7, 9.7, 4.7], 'room_tvd_hall': [-3.0, -6.7, 3.0, -3.0],
+                  'room_tvd_noc': [3.2, -6.7, 9.7, -3.0], 'room_tvd_servers': [-9.7, -2.8, 9.7, 4.7]},
         'props': [{'type': 'box', 'x': x, 'y': y, 'w': 1.6, 'd': 1.6, 'h': 1.0, 'texture': 'tvp_ac.png'}
                   for y in (-4.0, 2.0) for x in (-5.0, 0.0, 5.0)] + [
             {'type': 'dish', 'x': -8.0, 'y': 3.0, 'radius': 1.4, 'tilt': 45, 'face': 180},
             {'type': 'sign', 'x': 0.0, 'y': -6.0, 'w': 4.2, 'h': 1.0, 'legs': 0.4, 'texture': 'tvp_datacenter.png'},
+        ],
+    },
+    {
+        # The studio's accountants, and its shares. Jobseekers dropped on the hiring desk
+        # (room_tvk_hire, a real hire room: src/rooms.cpp) become accountants; drop your bag of shares on the share
+        # desk to sell, the investors' briefcase there to buy back, or in the boardroom to
+        # pay them a dividend (src/tv_shares.cpp). A sober brick office with a stone entrance.
+        'name': 'tv_accounting', 'donor': 'customscriptoffice',
+        'style': {'wall': 'brick_ph02', 'base': 'wall_ph04', 'trim': 'wall_ph04', 'frame': 'wall_ph40',
+                  'door': 'door_ph10'},
+        'blocks': [
+            {'x': 0.0, 'y': 0.5, 'w': 26.0, 'd': 12.0, 'h': 8.0, 'floors': 2, 'roof': 'flat',
+             'windows': {'w': 1.2, 'h': 1.9, 'spacing': 2.4, 'sill': 0.8}},
+            {'x': 0.0, 'y': -6.3, 'w': 6.0, 'd': 2.0, 'h': 5.0, 'floors': 1, 'roof': 'flat', 'bands': False,
+             'windows': {'w': 0}, 'roles': {'wall': 'wall_ph04'},
+             'doors': [{'side': 'f', 'w': 2.0, 'h': 2.8, 'canopy': False}]},
+        ],
+        'rooms': {'room_cso_create': 'room_tvk_books', 'room_cso_canit': 'room_tvk_shares',
+                  'room_cso_blank': 'room_tvk_board', 'room_cso_hall': 'room_tvk_hire'},
+        # The accountants sit at the desks and type: the script office hall's scene (src/rooms.cpp).
+        # The hiring desk needs a scene too, or it has no places and takes nobody: the crew
+        # facility's hiring desk's. Jobseekers wait out front (room_tvk_wait, src/tv_accounts.cpp),
+        # standing about like extras waiting on the pre-production lot.
+        'scenes': {'so_hall': 'tvk_books', 'cf_hire': 'tvk_hire'},
+        # Jobseekers wait out front (room_tvk_wait, src/tv_accounts.cpp), standing about. A
+        # scene's positions are in the building's own coordinates, so the waiting places are
+        # made here on the forecourt rather than copied from another building.
+        'zones': {'room_': [-12.7, -5.2, 12.7, 6.2], 'room_tvk_hire': [-4.0, -5.2, 4.0, 0.8],
+                  'room_tvk_board': [-12.7, -5.2, -4.2, 6.2], 'room_tvk_books': [-4.0, 1.0, 12.7, 6.2],
+                  'room_tvk_shares': [4.2, -5.2, 12.7, 0.8], 'room_tvk_wait': [2.2, -10.8, 6.6, -8.4]},
+        'stand_scenes': {'tvk_wait': [(3.0, -9.4), (4.4, -9.8), (5.8, -9.3), (3.6, -10.4), (5.1, -10.5)]},
+        'props': [
+            {'type': 'sign', 'x': 0.0, 'y': -7.35, 'w': 5.6, 'h': 0.8, 'z': 3.6, 'legs': 0, 'texture': 'tvp_accounts.png'},
+            {'type': 'sign', 'x': -5.5, 'y': -8.6, 'w': 2.2, 'h': 1.5, 'legs': 0.8, 'texture': 'tvp_ledger.png'},
+            {'type': 'box', 'x': -8.0, 'y': 3.0, 'w': 1.6, 'd': 1.6, 'h': 1.0, 'texture': 'tvp_ac.png', 'min_roof': 1.0},
         ],
     },
 ]
@@ -276,6 +339,23 @@ def make_textures(out):
     centred_text(img, 'DATA CENTER', 56, (170, 255, 200), glow=(60, 255, 140, 255))
     img.save(os.path.join(out, 'tvp_datacenter.png'))
 
+    img = sign(1024, 144, (22, 60, 40), (8, 30, 18), (225, 190, 90))
+    centred_text(img, 'ACCOUNTANTS', 92, (240, 212, 120))
+    img.save(os.path.join(out, 'tvp_accounts.png'))
+
+    # A ledger page: ruled columns of figures and a gold dollar.
+    img = sign(384, 256, (245, 240, 220), (225, 218, 190), (22, 60, 40))
+    d = ImageDraw.Draw(img)
+    for y in range(40, 236, 22):
+        d.line([(24, y), (360, y)], fill=(150, 185, 210), width=2)
+    d.line([(230, 24), (230, 232)], fill=(200, 80, 80), width=3)
+    f = font(20)
+    for i, fig in enumerate(['12,400', '8,150', '31,975', '4,020', '17,300', '9,880', '83,725']):
+        d.text((250, 20 + i * 22), fig, font=f, fill=(40, 40, 60) if i < 6 else (22, 110, 50))
+    d.line([(240, 172), (350, 172)], fill=(40, 40, 60), width=2)
+    d.text((70, 30), '$', font=font(170), fill=(205, 160, 40))
+    img.save(os.path.join(out, 'tvp_ledger.png'))
+
     img = sign(512, 136, (40, 20, 70), (15, 5, 35), (255, 120, 220))
     centred_text(img, 'TV WRITERS', 64, (255, 200, 245), glow=(255, 90, 210, 255))
     img.save(os.path.join(out, 'tvp_writers.png'))
@@ -361,16 +441,102 @@ def badge_thumbnail(donor, label, path):
     img.save(path)
 
 
-def copy_scenes(scenes, install):
-    """The donor's AI scenes (people working in a zone) under the new zones' names."""
+def stand_scenes(zones, install):
+    """Scenes of one person standing about at a given spot (x, y in the building's own
+    coordinates), one per place: the script office's idle scene moved there."""
+    sys.path.insert(0, TOOLS)
+    import struct
+    import scenes as flm
+    raw = flm.unwrap(building.game_file('data/scene/interactions/ai_room_so_stunt_00.flm'))
+    recs = flm.parse(raw)['recs']
+    out = os.path.join(building.CONTENT, 'data', 'scene', 'interactions')
+    os.makedirs(out, exist_ok=True)
+    made = 0
+    for zone, places in zones.items():
+        for n, (x, y) in enumerate(places):
+            d = bytearray(raw)
+            for kind, _, at in recs:
+                if kind == 6:     # Character: position at floats 14, 15 of the body
+                    struct.pack_into('<2f', d, at + 8 + 14 * 4, x, y)
+                elif kind == 1:   # AnimBox (the idle loop): position at floats 2, 3
+                    struct.pack_into('<2f', d, at + 8 + 2 * 4, x, y)
+            data = flm.wrap(bytes(d))
+            name = 'ai_room_%s_%02d.flm' % (zone, n)
+            open(os.path.join(out, name), 'wb').write(data)
+            if install:
+                dst = os.path.join(building.GAME, 'Data', 'scene', 'interactions')
+                os.makedirs(dst, exist_ok=True)
+                open(os.path.join(dst, name), 'wb').write(data)
+            made += 1
+    if zones:
+        print('  %d standing places made' % made)
+
+
+# Where a scene record keeps positions (floats into the record body, after type and size):
+# every box at 2, 3; a walk's path points too; a character at 14, 15; a prop at 7, 8.
+SCENE_XY = {0: (2,), 1: (2,), 2: (2, 13, 16, 19, 22), 3: (2,), 4: (2,), 9: (2,), 6: (14,), 5: (7,)}
+
+
+def scene_places(raw):
+    """The people's places in a scene (its characters' positions)."""
+    import struct
+    import scenes as flm
+    out = []
+    for kind, _, at in flm.parse(raw)['recs']:
+        if kind == 6:
+            x, y = struct.unpack_from('<2f', raw, at + 8 + 14 * 4)
+            if x or y:
+                out.append((x, y))
+    return out
+
+
+def shift_scene(raw, dx, dy):
+    """A scene moved by (dx, dy) metres: its people, props and paths."""
+    import struct
+    import scenes as flm
+    d = bytearray(raw)
+    for kind, size, at in flm.parse(raw)['recs']:
+        for i in SCENE_XY.get(kind, ()):
+            o = at + 8 + i * 4
+            if o + 8 > at + size:
+                continue
+            x, y = struct.unpack_from('<2f', d, o)
+            if x or y:
+                struct.pack_into('<2f', d, o, x + dx, y + dy)
+    return bytes(d)
+
+
+def zone_centre(shape):
+    if isinstance(shape[0], (int, float)):
+        return (shape[0] + shape[2]) / 2, (shape[1] + shape[3]) / 2
+    return sum(p[0] for p in shape) / len(shape), sum(p[1] for p in shape) / len(shape)
+
+
+def copy_scenes(scenes, install, zones=None):
+    """The donor's AI scenes (people working in a zone) under the new zones' names. A scene's
+    positions are in its building's own coordinates, so for a zone laid out anew (zones) the
+    scenes are moved to its middle."""
+    sys.path.insert(0, TOOLS)
+    import scenes as flm
     out = os.path.join(building.CONTENT, 'data', 'scene', 'interactions')
     os.makedirs(out, exist_ok=True)
     copied = 0
     for old, new in scenes.items():
+        files = []
         for n in range(10):
             data = building.game_file('data/scene/interactions/ai_room_%s_%02d.flm' % (old, n))
-            if data is None:
-                continue
+            if data is not None:
+                files.append((n, data))
+        shape = (zones or {}).get('room_' + new)
+        if shape and files:
+            places = [p for _, data in files for p in scene_places(flm.unwrap(data))]
+            if places:
+                cx, cy = zone_centre(shape)
+                dx = cx - sum(p[0] for p in places) / len(places)
+                dy = cy - sum(p[1] for p in places) / len(places)
+                files = [(n, flm.wrap(shift_scene(flm.unwrap(data), dx, dy))) for n, data in files]
+                print('  scenes %s moved %.1f, %.1f m into their zone' % (new, dx, dy))
+        for n, data in files:
             name = 'ai_room_%s_%02d.flm' % (new, n)
             open(os.path.join(out, name), 'wb').write(data)
             if install:
@@ -418,7 +584,7 @@ def main():
             continue
         work = os.path.join(tempfile.gettempdir(), 'moviesmod_models', b['name'])
         building.export(b['donor'], work)
-        for stale in ('lightmap.json', 'lightmap.png', 'thumbnail.png'):   # from an earlier run
+        for stale in ('lightmap.json', 'lightmap.png', 'thumbnail.png', 'blueprint.png'):   # from an earlier run
             if os.path.exists(os.path.join(work, stale)):
                 os.remove(os.path.join(work, stale))
         make_textures(os.path.join(work, 'textures'))
@@ -434,7 +600,8 @@ def main():
                     if data is None:
                         sys.exit('no game texture ' + tex)
                     open(dst, 'wb').write(data)
-            run_blender(blender, 'blender_build.py', work, {'rooms': b['rooms'], 'style': style, 'blocks': b['blocks']},
+            run_blender(blender, 'blender_build.py', work, {'rooms': b['rooms'], 'zones': b.get('zones', {}), 'style': style,
+                                                            'blocks': b['blocks']},
                         b['name'], 'blender_build: removed')
         spec = os.path.join(work, 'spec.json')
         json.dump({'rooms': b['rooms'], 'props': b['props']}, open(spec, 'w'), indent=1)
@@ -458,9 +625,18 @@ def main():
             if r.returncode != 0 or not os.path.exists(os.path.join(work, 'thumbnail.png')):
                 print(r.stdout[-2000:], r.stderr[-2000:])
                 sys.exit('thumbnail failed for ' + b['name'])
+            # The blueprint sheet on the ground while it is placed: the new building from above.
+            sheet = os.path.join(work, 'blueprint.png')
+            rect = [str(v) for v in building.work_lot_rect(work)]
+            r = subprocess.run([blender, '-b', '--factory-startup', '-P', os.path.join(TOOLS, 'blender_blueprint.py'), '--',
+                                work, *rect, sheet], capture_output=True, text=True)
+            if r.returncode != 0 or not os.path.exists(sheet):
+                print(r.stdout[-2000:], r.stderr[-2000:])
+                sys.exit('blueprint sheet failed for ' + b['name'])
         building.build(work, b['name'], install=install)
-        copy_scenes(b.get('scenes', {}), install)
-        copy_scenes(b.get('extra_scenes', {}), install)
+        copy_scenes(b.get('scenes', {}), install, b.get('zones'))
+        copy_scenes(b.get('extra_scenes', {}), install, b.get('zones'))
+        stand_scenes(b.get('stand_scenes', {}), install)
 
 
 if __name__ == '__main__':

@@ -383,8 +383,11 @@ void FinishPilot(TvScript& t)
     t.pilotQuality = std::clamp(0.55f * t.quality + 0.30f * t.leadStars + (t.director.empty() ? 0.02f : 0.08f) + stage +
                                     noise, 0.05f, 1.0f);
     t.pilot = PilotShot;
+    rooms::RefreshScriptLook(t.project);   // the script becomes a reel
     Notify(Format("The pilot of '%s' is in the can", t.title.c_str()),
-           Format("Starring %s. Quality %.0f%% - pitch it to the networks.", t.lead.c_str(), t.pilotQuality * 100), kGold);
+           Format("Starring %s. Quality %.0f%%. Drag its reel to the Network HQ to pitch it to the networks.",
+                  t.lead.c_str(), t.pilotQuality * 100),
+           kGold);
     mod::Log("tv: pilot '%s' shot - script %.2f, %s %.2f, director '%s' -> %.2f", t.title.c_str(), t.quality,
              t.lead.c_str(), t.leadStars, t.director.c_str(), t.pilotQuality);
 }
@@ -626,6 +629,42 @@ std::vector<ShelfEntry> ShelfSummary()
 
 int FreeSoundstages() { return FreeStages(); }
 
+namespace {
+
+// A series from a shot pilot: pitched to the network that suits it best, or ordered
+// straight onto your own network.
+void PitchScript(const TvScript& t, bool ownNetwork)
+{
+    Series s;
+    s.id = g_nextId++;
+    s.title = t.title;
+    s.format = t.format;
+    ApplyPilot(s, ShelfProject(t));
+    if (ownNetwork) {
+        s.network = kPlayerNetwork;
+        int episodes = s.format == Miniseries ? 6 : FullOrder(s.format, Year());
+        OrderSeason(s, episodes, Today() + kPremiereDelay);
+        g_series.push_back(s);
+        AutoSchedule();
+        Notify(Format("'%s' greenlit", s.title.c_str()),
+               Format("%d episodes for %s, on the air in two weeks.", episodes, NetworkName(kPlayerNetwork)), kGold);
+    } else {
+        StartPitch(s, std::max(0, BestNetwork(s)));
+        g_series.push_back(s);
+    }
+    mod::Log("tv: %s '%s' (pilot %.2f)", ownNetwork ? "greenlit" : "pitched", t.title.c_str(), s.pilotQuality);
+}
+
+TvScript* ReelScript(uintptr_t project)
+{
+    for (TvScript& t : g_shelf)
+        if (project && t.project == project && t.pilot == PilotShot && !Pitched(t))
+            return &t;
+    return nullptr;
+}
+
+} // namespace
+
 std::string PitchBestPilot()
 {
     const TvScript* best = nullptr;
@@ -636,15 +675,73 @@ std::string PitchBestPilot()
             best = &t;
     if (!best)
         return "";
-    Series s;
-    s.id = g_nextId++;
-    s.title = best->title;
-    s.format = best->format;
-    ApplyPilot(s, ShelfProject(*best));
-    StartPitch(s, std::max(0, BestNetwork(s)));
-    g_series.push_back(s);
-    mod::Log("tv: pitched '%s' (pilot %.2f)", best->title.c_str(), s.pilotQuality);
+    PitchScript(*best, false);
     return best->title;
+}
+
+bool IsPilotReel(uintptr_t project) { return ReelScript(project) != nullptr; }
+
+const char* PilotReelMesh(uintptr_t project)
+{
+    return ReelScript(project) ? "p_icon_finished_tv.msh" : nullptr;
+}
+
+bool TvScriptLabel(uintptr_t project, std::wstring* kind, std::wstring* phase, std::wstring* status)
+{
+    const TvScript* t = nullptr;
+    for (const TvScript& s : g_shelf)
+        if (project && s.project == project)
+            t = &s;
+    if (!t)
+        return false;   // still being written: the game's "Scriptwriting" is right
+    const char* format = t->format >= 0 && t->format < FormatCount ? kFormats[t->format].name : "TV";
+    if (Pitched(*t)) {
+        *kind = html::Text(Format("%s pilot", format));
+        *phase = L"Pitched";
+        *status = L"See the TV screen";
+    } else if (t->pilot == PilotShot) {
+        *kind = html::Text(Format("%s pilot", format));
+        *phase = html::Text(Format("Pilot shot - %.0f%%", t->pilotQuality * 100));
+        *status = L"Take it to the Network HQ";
+    } else if (t->pilot == PilotShooting) {
+        *kind = html::Text(Format("%s script", format));
+        *phase = L"Pilot in production";
+        *status = t->shootEnd == 0 ? L"Needs a star on the soundstage" : L"Shooting on the soundstage";
+    } else {
+        *kind = html::Text(Format("%s script", format));
+        *phase = L"Script Complete";
+        *status = L"Ready to shoot a pilot";
+    }
+    return true;
+}
+
+// A pilot's reel dropped on a TV building: the Network HQ (or the TV Production Office)
+// pitches it to the networks, the Control Room puts it on your own network.
+bool DropReel(const std::string& zone, uintptr_t project)
+{
+    TvScript* t = ReelScript(project);
+    if (!t)
+        return false;
+    if (zone.rfind("room_tvc_", 0) == 0) {
+        if (!g_networks[kPlayerNetwork].exists) {
+            Notify(Format("Nowhere to air '%s'", t->title.c_str()),
+                   "The Control Room runs your own network, and you haven't launched one. Take the reel to the Network "
+                   "HQ to pitch it to the networks instead.",
+                   kYellow);
+            return true;
+        }
+        PitchScript(*t, true);
+    } else if (zone.rfind("room_tvn_", 0) == 0 || zone.rfind("room_tv_", 0) == 0) {
+        PitchScript(*t, false);
+    } else {
+        Notify(Format("The pilot of '%s' is finished", t->title.c_str()),
+               "Take the reel to the Network HQ (or the TV Production Office) to pitch it to the networks, or to the "
+               "Control Room to air it on your own network.",
+               kYellow);
+        return true;
+    }
+    rooms::RefreshScriptLook(project);
+    return true;
 }
 
 void AutoPilots(bool castStandIns)

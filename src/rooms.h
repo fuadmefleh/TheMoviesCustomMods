@@ -32,6 +32,29 @@ using DropHandler = bool (*)(const Drop& drop);   // return true if handled
 using ProjectTest = bool (*)(uintptr_t project);
 void SetTvScriptTest(ProjectTest test);
 void RefreshScriptLook(uintptr_t project);   // re-pick the icon now (after tagging a project)
+// Other mod objects on the lot (a shot pilot's reel, a bag of shares): the model to show
+// for a project, e.g. "p_shares_bag.msh", or nullptr for the usual one.
+using ProjectMesh = const char* (*)(uintptr_t project);
+void SetMeshChooser(ProjectMesh chooser);
+// The bubble shown over an object on the lot: the three lines under its title (the game's
+// genre, phase and status, e.g. "Action / Script Complete / Ready For Casting"). Fill them
+// and return true to replace the game's lines for that project.
+struct ObjectLabel {
+    std::wstring kind, phase, status;
+};
+using ProjectLabel = bool (*)(uintptr_t project, ObjectLabel* label);
+void SetLabeler(ProjectLabel labeler);
+
+// A zone's name (room+0x1A4), e.g. "room_tvk_hire", or "" if unreadable.
+std::string ZoneName(uintptr_t room);
+// Puts someone already in a room to work in its AI scene (TMRoom::Admit), e.g. an accountant
+// at a desk on the Accounts Floor. SendToRoom walks them there first, as a player's drop does.
+bool SeatInScene(uintptr_t room, uintptr_t who);
+bool SendToRoom(uintptr_t room, uintptr_t who);
+// A zone with a work scene (e.g. "room_tvk_books"), or the accountants' hiring desk
+// ("room_tvk_hire"), in a building on the lot, or 0.
+uintptr_t FindWorkRoom(const char* zone);
+void RememberRoom(uintptr_t room);   // makes a room FindWorkRoom can find (one seen in use)
 
 // Replaces the plain room's drop handler. Call from the game thread after MH_Initialize.
 void Install();

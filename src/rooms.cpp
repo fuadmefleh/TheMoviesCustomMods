@@ -5,6 +5,7 @@
 // patching this one slot only affects plain rooms.
 
 #include "rooms.h"
+#include "careers.h"
 
 #include <windows.h>
 #include <intrin.h>
@@ -136,10 +137,21 @@ void Report(uintptr_t room, uintptr_t who, const std::string& name, bool scriptR
     g_handler(d);
 }
 
+bool ObjectShown(uintptr_t obj)   // CProjectObject +0x64
+{
+    __try {
+        return *reinterpret_cast<uint8_t*>(obj + 0x64) != 0;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
+
 void __fastcall HookOnDrop(uintptr_t room, void* /*edx*/, uintptr_t who)
 {
     g_original(room, who);
     std::string name = RoomName(room);
+    if (game::ClassName(who) == "CProjectObject")
+        mod::Log("rooms: after the game's drop the object is %s", ObjectShown(who) ? "shown" : "hidden");
     if (name.rfind("room_tv", 0) != 0 || !g_handler) {
         mod::Log("rooms: %s dropped on plain zone '%s' (not a TV zone)", game::ClassName(who).c_str(), name.c_str());
         return;
@@ -366,8 +378,72 @@ void __fastcall HookScriptOnDrop(uintptr_t room, void* /*edx*/, uintptr_t who)
     Report(room, who, name, true);
 }
 
+// Plain zones that people work in: the room's AI scene (data/scene/interactions/
+// <scene>_0N.flm, copied from a game room by tools/make_tv_models.py) is what someone taken in
+// by TMRoom::Admit (0x0093CFD0) does there - the accountants' desks are the script office
+// hall's sit-and-type scene. Plain rooms are made without one.
+struct ZoneScene {
+    const char* zone;
+    const char* scene;
+};
+// The jobseekers' spot in front of the Accounting Office: the extras' stand-and-wait scene.
+const ZoneScene kZoneScenes[] = { { "room_tvk_books", "ai_room_tvk_books" }, { "room_tvk_wait", "ai_room_tvk_wait" } };
+constexpr uintptr_t kRoomAdmit = 0x0093CFD0;   // void __thiscall(TMRoom*, TMMobile* who, int)
+constexpr int kRoomHasScene = 0x1C9;
+
+std::map<uintptr_t, std::string> g_workRooms;   // zones with a scene (and the hiring desk), as created or loaded
+const char* const kHireZone = "room_tvk_hire";
+
+void GiveScene(uintptr_t room, const char* scene)
+{
+    g_workRooms[room] = scene;
+    __try {
+        // Only the name: 0x0093C4B0 would also load it, and faults on a room not yet in a building.
+        reinterpret_cast<void(__thiscall*)(uintptr_t, const char*, int)>(kStringAssign)(room + kRoomScene, scene,
+                                                                                        static_cast<int>(strlen(scene)));
+        mod::Log("rooms: %s works with scene %s (scene flag %d)", scene + 8, scene,
+                 *reinterpret_cast<unsigned char*>(room + kRoomHasScene));
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        mod::Log("rooms: FAILED to give a zone its scene %s", scene);
+    }
+}
+
+// The Accounting Office's hiring desk is the game's own hire room (CHireRoom, what the
+// Employment Office's builder and janitor desks are), for the accountant (career 17,
+// careers.cpp). Built like the crew facility's hire room: no scene of its own.
+constexpr uintptr_t kHireRoomCtor = 0x00924230;   // CHireRoom* __thiscall(void* mem, int career), 0x25C bytes
+constexpr int kAccountantCareer = careers::kAccountant;
+
+uintptr_t BuildHireRoom(int career)
+{
+    __try {
+        uintptr_t mem = reinterpret_cast<uintptr_t(__cdecl*)(unsigned)>(kOperatorNew)(0x25C);
+        if (!mem)
+            return 0;
+        uintptr_t room = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, int)>(kHireRoomCtor)(mem, career);
+        *reinterpret_cast<unsigned char*>(room + kRoomEnabled) = 1;
+        return room;
+    } __except (g_buildFault = GetExceptionCode(), EXCEPTION_EXECUTE_HANDLER) {
+        return 0;
+    }
+}
+
 uintptr_t __cdecl HookFactory(uintptr_t mesh, int index, void* prefix, int sep)
 {
+    {
+        using Record_t = uintptr_t(__thiscall*)(uintptr_t, int);
+        uintptr_t record = reinterpret_cast<Record_t>(0x0097EA00)(mesh, index);
+        const char* name = record && Readable(record + 4, 24) ? reinterpret_cast<const char*>(record + 4) : "";
+        if (strcmp(name, "room_tvk_hire") == 0) {
+            if (uintptr_t room = BuildHireRoom(kAccountantCareer)) {
+                mod::Log("rooms: created hire room %s (accountants)", name);
+                g_workRooms[room] = "";   // where jobseekers wait (tv_accounts.cpp)
+                return room;
+            }
+            mod::Log("rooms: FAILED to build hire room %s (exception %08X) - using a plain one", name,
+                     static_cast<unsigned>(g_buildFault));
+        }
+    }
     if (g_nativeWriters) {
         using Record_t = uintptr_t(__thiscall*)(uintptr_t, int);
         uintptr_t record = reinterpret_cast<Record_t>(0x0097EA00)(mesh, index);
@@ -394,6 +470,9 @@ uintptr_t __cdecl HookFactory(uintptr_t mesh, int index, void* prefix, int sep)
         if (record && Readable(record + 4, 8) && strncmp(reinterpret_cast<const char*>(record + 4), "room_tv", 7) == 0) {
             *reinterpret_cast<unsigned char*>(room + kRoomEnabled) = 1;
             mod::Log("rooms: created enabled zone %s", reinterpret_cast<const char*>(record + 4));
+            for (const ZoneScene& z : kZoneScenes)
+                if (strcmp(reinterpret_cast<const char*>(record + 4), z.zone) == 0)
+                    GiveScene(room, z.scene);
         }
     }
     return room;
@@ -403,6 +482,12 @@ void __fastcall HookSerialize(uintptr_t base, void* edx)
 {
     g_origSerialize(base, edx);
     EnableIfTv(base - 0x64, "loaded");
+    std::string zone = NarrowAt(base - 0x64 + kRoomName);
+    for (const ZoneScene& z : kZoneScenes)
+        if (zone == z.zone)
+            GiveScene(base - 0x64, z.scene);
+    if (zone == kHireZone)
+        g_workRooms[base - 0x64] = "";
 }
 
 void HookFn(uintptr_t addr, void* detour, void** orig, const char* name)
@@ -441,6 +526,7 @@ constexpr uintptr_t kScriptRoomVtables[] = { 0x00D6B51C, 0x00D6B604, 0x00D6B764,
                                              0x00D6D7C4, 0x00D6E184, 0x00D6E70C };
 
 ProjectTest g_isTvScript = nullptr;
+ProjectMesh g_meshFor = nullptr;
 bool g_tvIcons = false;   // the _tv models are installed
 using UpdateMesh_t = void(__fastcall*)(uintptr_t obj);
 using DropOnRoom_t = bool(__fastcall*)(uintptr_t ctrl, void* edx, uintptr_t who);
@@ -459,15 +545,10 @@ uintptr_t TvScriptOf(uintptr_t who)
 
 bool IsTvZone(uintptr_t room) { return room && NarrowAt(room + kRoomName).rfind("room_tv", 0) == 0; }
 
-void ApplyTvIcon(uintptr_t obj)
+// Swaps the object's model for a named one (the object's render Object, SetMesh).
+void SetObjectMesh(uintptr_t obj, const char* name)
 {
     __try {
-        if (!*reinterpret_cast<uint8_t*>(obj + kObjShown))
-            return;
-        int stage = *reinterpret_cast<int*>(obj + kObjStage), sub = *reinterpret_cast<int*>(obj + kObjSubState);
-        if (stage != 2 && stage != 3)
-            return;   // only scripts: being written, or finished
-        const char* name = sub == 0 || sub == 4 ? "p_icon_done_tv.msh" : "p_icon_write_tv.msh";
         uintptr_t mesh = reinterpret_cast<uintptr_t(__cdecl*)(const char*, int)>(kLoadMesh)(name, 1);
         if (!mesh)
             return;
@@ -480,14 +561,41 @@ void ApplyTvIcon(uintptr_t obj)
     }
 }
 
+bool Shown(uintptr_t obj)
+{
+    __try {
+        return *reinterpret_cast<uint8_t*>(obj + kObjShown) != 0;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
+
+void ApplyTvIcon(uintptr_t obj)
+{
+    __try {
+        if (!Shown(obj))
+            return;
+        int stage = *reinterpret_cast<int*>(obj + kObjStage), sub = *reinterpret_cast<int*>(obj + kObjSubState);
+        if (stage != 2 && stage != 3)
+            return;   // only scripts: being written, or finished
+        SetObjectMesh(obj, sub == 0 || sub == 4 ? "p_icon_done_tv.msh" : "p_icon_write_tv.msh");
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+    }
+}
+
 void __fastcall HookUpdateMesh(uintptr_t obj)
 {
     g_origUpdateMesh(obj);
-    if (g_tvIcons && g_isTvScript) {
-        uintptr_t project = *reinterpret_cast<uintptr_t*>(obj + kObjProject);
-        if (project && g_isTvScript(project))
-            ApplyTvIcon(obj);
-    }
+    uintptr_t project = *reinterpret_cast<uintptr_t*>(obj + kObjProject);
+    if (!project)
+        return;
+    if (g_meshFor && Shown(obj))
+        if (const char* mesh = g_meshFor(project)) {
+            SetObjectMesh(obj, mesh);
+            return;
+        }
+    if (g_tvIcons && g_isTvScript && g_isTvScript(project))
+        ApplyTvIcon(obj);
 }
 
 bool __fastcall HookDropOnRoom(uintptr_t ctrl, void* edx, uintptr_t who)
@@ -573,8 +681,86 @@ void __fastcall HookWaitLoaded(uintptr_t res)
     }
 }
 
+// The bubble over a script or film on the lot is a window (vtable 0x00D552CC) holding its
+// CProjectObject at +0x450. Its refresh (0x007B4860) fills the lines under the title: the
+// genre (+0x3F0, from the project), the phase (+0x408, PROJECT_PHASE_*) and the status
+// (+0x420, PHASE_*_ADVANCE such as "Ready For Casting"). Each is a rich-text widget: vtable
+// +0x54 sets its text, +0x84 lays it out, +0x20 shows or hides it. Mod objects get their own.
+constexpr uintptr_t kBubbleRefresh = 0x007B4860;   // void __fastcall(ProjectBubble*)
+constexpr int kBubbleObject = 0x450, kBubbleKind = 0x3F0, kBubblePhase = 0x408, kBubbleStatus = 0x420;
+struct WStr {
+    wchar_t* text;
+    int      len;
+    int      cap;
+    wchar_t  inline_[10];
+};
+constexpr uintptr_t kFree = 0x00ACD4A1;
+using BubbleRefresh_t = void(__fastcall*)(uintptr_t bubble);
+BubbleRefresh_t g_origBubbleRefresh = nullptr;
+ProjectLabel g_labeler = nullptr;
+
+void SetBubbleLine(uintptr_t bubble, int field, const std::wstring& text, bool genreLine)
+{
+    uintptr_t w = *reinterpret_cast<uintptr_t*>(bubble + field);
+    if (!w)
+        return;
+    std::wstring markup = text.empty() ? L""
+                          : genreLine  ? L"<nobr><font size=12>" + text + L"</font></nobr>"
+                                       : L"<nobr><x6>" + text + L"</x6></nobr>";
+    WStr s{ nullptr, 0, 10, {} };
+    s.text = s.inline_;
+    reinterpret_cast<void(__thiscall*)(WStr*, const wchar_t*, int)>(kWStringAssign)(&s, markup.c_str(),
+                                                                                    static_cast<int>(markup.size()));
+    uintptr_t vt = *reinterpret_cast<uintptr_t*>(w);
+    if (field == kBubbleStatus)
+        (*reinterpret_cast<void(__thiscall**)(uintptr_t, int)>(vt + 0x20))(w, text.empty() ? 0 : 1);
+    (*reinterpret_cast<void(__thiscall**)(uintptr_t, WStr*)>(vt + 0x54))(w, &s);
+    (*reinterpret_cast<void(__thiscall**)(uintptr_t, int)>(vt + 0x84))(w, 0);
+    if (s.cap > 10 && s.text != s.inline_)
+        reinterpret_cast<void(__cdecl*)(void*)>(kFree)(s.text);
+}
+
+void RelabelBubble(uintptr_t bubble, const ObjectLabel& label)
+{
+    __try {
+        SetBubbleLine(bubble, kBubbleKind, label.kind, true);
+        SetBubbleLine(bubble, kBubblePhase, label.phase, false);
+        SetBubbleLine(bubble, kBubbleStatus, label.status, false);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        static int logged = 0;
+        if (logged++ < 3)
+            mod::Log("rooms: couldn't relabel an object's bubble");
+    }
+}
+
+uintptr_t ReadPtr(uintptr_t at)
+{
+    __try {
+        return *reinterpret_cast<uintptr_t*>(at);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return 0;
+    }
+}
+
+uintptr_t BubbleProject(uintptr_t bubble)
+{
+    uintptr_t obj = ReadPtr(bubble + kBubbleObject);
+    return obj && game::ClassName(obj) == "CProjectObject" ? ReadPtr(obj + kObjProject) : 0;
+}
+
+void __fastcall HookBubbleRefresh(uintptr_t bubble)
+{
+    g_origBubbleRefresh(bubble);
+    uintptr_t project = g_labeler ? BubbleProject(bubble) : 0;
+    ObjectLabel label;
+    if (project && g_labeler(project, &label))
+        RelabelBubble(bubble, label);
+}
+
 void InstallTvScriptHooks()
 {
+    HookFn(kBubbleRefresh, reinterpret_cast<void*>(&HookBubbleRefresh), reinterpret_cast<void**>(&g_origBubbleRefresh),
+           "object bubble");
     HookFn(kWaitLoaded, reinterpret_cast<void*>(&HookWaitLoaded), reinterpret_cast<void**>(&g_origWaitLoaded),
            "model wait (null guard)");
     HookFn(kFloorPlanAttach, reinterpret_cast<void*>(&HookFloorPlanAttach),
@@ -608,6 +794,47 @@ void InstallTvScriptHooks()
 } // namespace
 
 void SetTvScriptTest(ProjectTest test) { g_isTvScript = test; }
+void SetMeshChooser(ProjectMesh chooser) { g_meshFor = chooser; }
+void SetLabeler(ProjectLabel labeler) { g_labeler = labeler; }
+std::string ZoneName(uintptr_t room) { return room ? NarrowAt(room + kRoomName) : ""; }
+
+bool SeatInScene(uintptr_t room, uintptr_t who)
+{
+    __try {
+        reinterpret_cast<void(__thiscall*)(uintptr_t, uintptr_t, int)>(kRoomAdmit)(room, who, 0);
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
+
+uintptr_t FindWorkRoom(const char* zone)
+{
+    for (auto it = g_workRooms.begin(); it != g_workRooms.end();) {
+        // A demolished building's rooms are gone: drop what no longer reads as that zone.
+        if (game::ClassName(it->first).empty() || ZoneName(it->first) != zone) {
+            if (game::ClassName(it->first).empty())
+                it = g_workRooms.erase(it);
+            else
+                ++it;
+            continue;
+        }
+        return it->first;
+    }
+    return 0;
+}
+
+void RememberRoom(uintptr_t room) { g_workRooms.emplace(room, ""); }
+
+bool SendToRoom(uintptr_t room, uintptr_t who)
+{
+    __try {
+        g_original(room, who);   // walks them in, as a player's drop does
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+    return SeatInScene(room, who);
+}
 
 namespace {
 uintptr_t ProjectObjectOf(uintptr_t project)

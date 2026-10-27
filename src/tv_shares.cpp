@@ -7,6 +7,11 @@
 // share price, the critics, debt, dividends. Below 50% the board can vote the player out;
 // below 25% rival studios can bid to take the company over. Either way the game is over for
 // that studio. The mod's HUD button "Studio shares" opens the screen.
+//
+// Shares change hands at the studio's Accounting Office, a building on the lot. The player's
+// stake is a bag of share certificates waiting at its door, the outside investors' stake a
+// briefcase. Drop the bag on the share desk to sell 5% of the studio; the briefcase on the
+// share desk to buy 5% back, or in the boardroom to pay the investors a dividend.
 
 #define NOMINMAX
 #include <windows.h>
@@ -20,6 +25,7 @@
 #include "news.h"
 #include "overlay.h"
 #include "persist.h"
+#include "rooms.h"
 #include "tv_internal.h"
 
 namespace tv {
@@ -28,7 +34,10 @@ namespace {
 constexpr double kTotalShares = 1000000;
 constexpr double kMinOwned = 0.10;          // the player can't sell below 10%
 constexpr float  kQuarter = 91.25f;
-constexpr double kSaleFee = 0.07, kBuyPremium = 0.05;
+// Dealing costs: 7% on a sale and 5% over the market on a buy-back, one point less for
+// each accountant (down to 2% and 1%).
+double SaleFee() { return std::max(0.02, 0.07 - 0.01 * Accountants()); }
+double BuyPremium() { return std::max(0.01, 0.05 - 0.01 * Accountants()); }
 
 struct Shares {
     double owned = kTotalShares;   // the player's shares
@@ -241,6 +250,7 @@ void SharesDaily(float day)
     g_sh.price += (fair - g_sh.price) * rate;
     g_sh.price *= 1.0 + Noise() * 0.006 * std::sqrt(days);
     g_sh.price = std::max(g_sh.price, 0.01);
+    PlaceShareObjects();
     if (Ownership() < 1.0 && day - g_sh.lastReview >= kQuarter)
         QuarterlyReview(day);
     else if (Ownership() >= 1.0)
@@ -254,6 +264,127 @@ bool SharesWarned() { return g_sh.warned; }
 
 double SharePrice() { return g_sh.price; }
 
+// ---------------------------------------------------------------------------------
+// The bag and the briefcase: script objects on the lot (the research-pack spawn) with our
+// own models, found again by title after a load. One of each, at the Accounting Office's door
+// while there is something to trade; if the game takes one away when it is dropped, a new
+// one is put out.
+
+namespace {
+
+const wchar_t* const kBagTitle  = L"Your shares";
+const wchar_t* const kCaseTitle = L"Investors' shares";
+const char* const    kAccountsType = "facility_tv_accounting";
+const char* const    kOldAccountsType = "facility_tv_stock_exchange";   // its first version, in older saves
+
+bool IsShareOffice(const std::string& type) { return type == kAccountsType || type == kOldAccountsType; }
+// The share desk and the boardroom (room_tvx_* in the first version).
+bool IsShareDesk(const std::string& zone) { return zone == "room_tvk_shares" || zone == "room_tvx_floor"; }
+bool IsBoardroom(const std::string& zone) { return zone == "room_tvk_board" || zone == "room_tvx_board"; }
+uintptr_t g_bag = 0, g_case = 0;
+
+bool WantBag() { return !g_sh.ousted && QuoteSell(0.05).shares >= 1; }
+bool WantCase() { return !g_sh.ousted && OutsideFraction() > 1e-6; }
+
+} // namespace
+
+bool IsShareObject(uintptr_t project) { return project && (project == g_bag || project == g_case); }
+
+const char* ShareObjectMesh(uintptr_t project)
+{
+    return !project ? nullptr : project == g_bag ? "p_shares_bag.msh" : project == g_case ? "p_shares_case.msh" : nullptr;
+}
+
+void PlaceShareObjects()
+{
+    g_bag = g_case = 0;
+    for (const game::Project& p : game::PlayerProductions()) {
+        if (p.stage >= 7)
+            continue;
+        if (p.title == kBagTitle)
+            g_bag = p.address;
+        else if (p.title == kCaseTitle)
+            g_case = p.address;
+    }
+    rooms::RefreshScriptLook(g_bag);
+    rooms::RefreshScriptLook(g_case);
+    if ((g_bag || !WantBag()) && (g_case || !WantCase()))
+        return;
+    for (const game::Facility& f : game::Facilities()) {
+        if (!IsShareOffice(f.type))
+            continue;
+        float pos[3], angle;
+        if (!game::FacilityPlacement(f.address, pos, &angle))
+            continue;
+        // In front of the door (the model faces -y), the bag on its left, the case on its right.
+        float fx = std::sin(angle), fy = -std::cos(angle);
+        auto place = [&](const wchar_t* title, float side) {
+            uintptr_t p = game::SpawnScript(title, pos[0] + fx * 11.0f + fy * side, pos[1] + fy * 11.0f - fx * side);
+            mod::Log("tv: shares - '%ls' put out at the Accounting Office (%08X)", title, static_cast<unsigned>(p));
+            return p;
+        };
+        if (!g_bag && WantBag())
+            g_bag = place(kBagTitle, -2.5f);
+        if (!g_case && WantCase())
+            g_case = place(kCaseTitle, 2.5f);
+        rooms::RefreshScriptLook(g_bag);
+        rooms::RefreshScriptLook(g_case);
+        return;
+    }
+}
+
+const char* ShareObjectPicture(uintptr_t project)
+{
+    return !project ? nullptr : project == g_bag ? "ui/shares_bag.dds" : project == g_case ? "ui/shares_case.dds" : nullptr;
+}
+
+bool ShareObjectLabel(uintptr_t project, std::wstring* kind, std::wstring* phase, std::wstring* status)
+{
+    if (!IsShareObject(project))
+        return false;
+    if (project == g_bag) {
+        ShareQuote q = QuoteSell(0.05);
+        *kind = html::Text(Format("Studio shares - you own %.0f%%", Ownership() * 100));
+        *phase = q.shares >= 1 ? html::Text(Format("Sell 5%% for %s", Dollars(q.cash).c_str())) : L"Nothing left to sell";
+        *status = L"Drop on the Share Desk";
+    } else {
+        ShareQuote q = QuoteBuyBack(0.05);
+        *kind = html::Text(Format("Investors own %.0f%%", OutsideFraction() * 100));
+        *phase = html::Text(Format("Share Desk: buy back %s", Dollars(q.cash).c_str()));
+        *status = html::Text(Format("Boardroom: dividend %s", Dollars(DividendCost()).c_str()));
+    }
+    return true;
+}
+
+bool SharesDrop(const std::string& zone, uintptr_t project)
+{
+    if (!IsShareObject(project))
+        return false;
+    bool bag = project == g_bag;
+    if ((IsShareDesk(zone) || IsBoardroom(zone)) && Accountants() == 0) {
+        Notify("No accountants", "Someone has to do the paperwork. Hire an accountant: drop a jobseeker (or one of "
+                                 "your staff) on the Accounting Office's hiring desk.",
+               kYellow);
+        return true;
+    }
+    if (IsShareDesk(zone)) {
+        if (bag)
+            AskSellShares(0.05);
+        else
+            ReportShares(BuyBackShares(0.05));
+    } else if (IsBoardroom(zone) && !bag) {
+        ReportShares(PayDividend());
+    } else {
+        Notify(bag ? "Your shares" : "The investors' shares",
+               bag ? "Drop your shares on the Accounting Office's share desk to sell 5% of the studio."
+                   : "Drop the investors' shares on the Accounting Office's share desk to buy 5% back, or in its "
+                     "boardroom to pay them a dividend.",
+               kYellow);
+    }
+    PlaceShareObjects();
+    return true;
+}
+
 ShareQuote QuoteSell(double fraction)
 {
     ShareQuote q;
@@ -264,7 +395,7 @@ ShareQuote QuoteSell(double fraction)
     if (n < 1)
         return q;
     q.shares = n;
-    q.cash = n * g_sh.price * (1.0 - kSaleFee);
+    q.cash = n * g_sh.price * (1.0 - SaleFee());
     q.ownedAfter = (g_sh.owned - n) / kTotalShares;
     return q;
 }
@@ -277,7 +408,7 @@ ShareQuote QuoteBuyBack(double fraction)
     if (g_sh.ousted || n < 1)
         return q;
     q.shares = n;
-    q.cash = n * g_sh.price * (1.0 + kBuyPremium);
+    q.cash = n * g_sh.price * (1.0 + BuyPremium());
     q.ownedAfter = (g_sh.owned + n) / kTotalShares;
     return q;
 }
@@ -357,7 +488,7 @@ std::wstring OwnershipBar()
     return h + L"</tr></table><br>";
 }
 
-// One line of the options table: what a button does, and what it would do right now.
+// One line of the Accounting Office table: a drop, and what it would do right now.
 std::wstring Option(const wchar_t* name, const std::wstring& now)
 {
     return L"<tr><td><b>" + std::wstring(name) + L"</b></td><td>" + now + L"</td></tr>";
@@ -436,46 +567,49 @@ std::wstring SharesPage()
                                  static_cast<int>(g_sh.history.size()), g_sh.history.size() == 1 ? "" : "s")));
     }
 
-    // The buttons, left to right, with what each would do now.
-    h += html::Heading(L"Your options") + L"<table width=100% cellspacing=2>";
-    for (double f : { 0.05, 0.10 }) {
-        ShareQuote q = QuoteSell(f);
+    // What each drop at the Accounting Office would do now.
+    h += html::Heading(L"At the Accounting Office") + L"<table width=100% cellspacing=2>";
+    {
+        ShareQuote q = QuoteSell(0.05);
         std::wstring now;
         if (q.shares < 1) {
-            now = Colour(T(Format("Not possible: you keep at least %.0f%% of the studio.", kMinOwned * 100)), html::Dim);
+            now = Colour(T(Format("Nothing to sell: you keep at least %.0f%% of the studio.", kMinOwned * 100)), html::Dim);
         } else {
-            now = Colour(L"+" + T(Dollars(q.cash)), html::Good) +
-                  T(Format(" after 7%% fees. You'd own %.0f%%.", q.ownedAfter * 100));
+            now = L"Sell 5%: " + Colour(L"+" + T(Dollars(q.cash)), html::Good) +
+                  T(Format(" after %.0f%% fees. You'd own %.0f%%.", SaleFee() * 100, q.ownedAfter * 100));
             if (q.ownedBefore >= 0.5 && q.ownedAfter < 0.5)
                 now += L" " + Colour(L"You'd lose the majority.", html::Warn);
             else if (q.ownedBefore >= 0.25 && q.ownedAfter < 0.25)
                 now += L" " + Colour(L"Rivals could bid for the studio.", html::Bad);
         }
-        h += Option(f < 0.07 ? L"Sell 5%" : L"Sell 10%", now);
-    }
-    {
-        ShareQuote q = QuoteBuyBack(0.05);
-        std::wstring now;
-        if (q.shares < 1)
-            now = Colour(L"Nothing to buy: you own the whole studio.", html::Dim);
-        else
-            now = Colour(L"-" + T(Dollars(q.cash)), q.cash <= capital ? nullptr : html::Bad) +
-                  T(Format(" (market price + 5%%). You'd own %.0f%%.", q.ownedAfter * 100)) +
-                  (q.cash <= capital ? L"" : L" " + Colour(L"Not enough cash.", html::Bad));
-        h += Option(L"Buy back 5%", now);
+        h += Option(L"Your shares on the share desk", now);
     }
     if (own >= 1.0) {
-        h += Option(L"Pay a dividend", Colour(L"No outside shareholders to pay.", html::Dim));
+        h += Option(L"The investors' briefcase", Colour(L"There are no outside investors yet.", html::Dim));
     } else {
+        ShareQuote q = QuoteBuyBack(0.05);
+        h += Option(L"Their briefcase on the share desk",
+                    L"Buy back 5%: " + Colour(L"-" + T(Dollars(q.cash)), q.cash <= capital ? nullptr : html::Bad) +
+                        T(Format(" (market price + %.0f%%). You'd own %.0f%%.", BuyPremium() * 100, q.ownedAfter * 100)) +
+                        (q.cash <= capital ? L"" : L" " + Colour(L"Not enough cash.", html::Bad)));
         double cost = DividendCost();
-        h += Option(L"Pay a dividend",
-                    Colour(L"-" + T(Dollars(cost)), cost <= capital ? nullptr : html::Bad) +
-                        L" (2% of the outside shareholders' stake). Raises the board's confidence." +
+        h += Option(L"Their briefcase in the boardroom",
+                    L"Pay a dividend: " + Colour(L"-" + T(Dollars(cost)), cost <= capital ? nullptr : html::Bad) +
+                        L" (2% of their stake). Raises the board's confidence." +
                         (cost <= capital ? L"" : L" " + Colour(L"Not enough cash.", html::Bad)));
     }
     h += html::EndTable();
-    h += html::Note(T(Format("Cash on hand: %s. The buttons at the top, left to right: sell 5%%, sell 10%%, buy back "
-                             "5%%, pay a dividend.", Dollars(capital).c_str())));
+    int accountants = Accountants();
+    h += html::Note(accountants == 0
+                        ? Colour(L"No accountants: hire one at the Accounting Office's hiring desk before you can trade.",
+                                 html::Warn)
+                        : T(Format("%d accountant%s: fees cut to %.0f%% on a sale, %.0f%% over the market on a buy-back.",
+                                   accountants, accountants == 1 ? "" : "s", SaleFee() * 100, BuyPremium() * 100)));
+    bool office = game::CountFacilities(kAccountsType) + game::CountFacilities(kOldAccountsType) > 0;
+    h += html::Note(T(office ? Format("Cash on hand: %s. Pick up the bag or the briefcase at the Accounting Office's door "
+                                        "and drop it in the building.", Dollars(capital).c_str())
+                               : Format("Cash on hand: %s. Build an Accounting Office (Television buildings) to trade your "
+                                        "shares.", Dollars(capital).c_str())));
     return h;
 }
 
@@ -501,6 +635,8 @@ void SharesSave(persist::Section& out)
 void SharesReset()
 {
     g_fateShown = false;
+    g_bag = g_case = 0;
+    AccountsReset();   // count the new game's accountants afresh
     g_sh = Shares{};
     g_lastDay = 0;
 }

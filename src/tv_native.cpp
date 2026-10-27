@@ -1,7 +1,8 @@
 // The Television screen in the game's own interface (nativeui.cpp): a game dialog with
-// icon tabs over rich-text pages, opened from a button on the HUD. Decisions that need
-// many controls (pitching, the schedule grid, research) still open the overlay screen
-// through the "Full controls" button until they are ported.
+// icon tabs over rich-text pages, opened from a button on the HUD. They only report: the
+// player acts in the world (scripts, reels and shares are dragged onto buildings). What has
+// no place in the world yet (the schedule grid, research) is still in the overlay screen,
+// behind the "Full controls" button.
 
 #include <windows.h>
 #include <algorithm>
@@ -161,8 +162,8 @@ std::wstring ShowsPage()
     table += html::EndTable();
     if (!listed)
         h += html::Line(L"No shows in development or on the air.") +
-             html::Note(L"Put writers on the desks of a TV Writers' Office, shoot a pilot on a soundstage and pitch it - "
-                        L"or use Full controls to pitch one of your released films to a network.");
+             html::Note(L"Put writers on the desks of a TV Writers' Office. Drag a finished script to the Multi-Camera "
+                        L"Soundstage to shoot its pilot, then drag the pilot's reel to the Network HQ to pitch it.");
     else
         h += table;
 
@@ -194,7 +195,7 @@ std::wstring PilotsPage()
     for (const ShelfEntry& e : shelf) {
         std::wstring state;
         if (e.pilot == 2)
-            state = html::Colour(W(Format("Ready: %.0f%%, starring %s", e.pilotQuality * 100, e.lead.c_str())), html::Accent);
+            state = html::Colour(W(Format("Reel ready: %.0f%%, starring %s", e.pilotQuality * 100, e.lead.c_str())), html::Accent);
         else if (e.pilot == 1 && e.wrapDay == 0)
             state = html::Colour(L"Shooting - drop a star on the soundstage", html::Warn);
         else if (e.pilot == 1)
@@ -209,8 +210,9 @@ std::wstring PilotsPage()
     int free = FreeSoundstages();
     h += html::Note((free > 0 ? W(Format("%d soundstage%s free.", free, free == 1 ? "" : "s"))
                               : std::wstring(L"No soundstage free: every one is shooting, or none is built.")) +
-                    L" The camera button shoots a pilot from the best waiting script; the tick pitches the best "
-                    L"finished pilot to the network likeliest to buy it. Full controls pick the network, budget and deal.");
+                    L" Drag a script onto the soundstage to shoot its pilot. A finished pilot is a reel on the lot: "
+                    L"drop it on the Network HQ to pitch it to the network likeliest to buy it, or on the Control Room "
+                    L"to air it on your own network.");
     return h;
 }
 
@@ -344,20 +346,6 @@ Which g_which = WhichTv;
 
 bool Showing(Which w) { return nativeui::IsOpen() && g_which == w; }
 
-void ShootNextPilot()
-{
-    AutoPilots(false);
-    nativeui::Refresh();
-}
-
-void PitchNextPilot()
-{
-    if (PitchBestPilot().empty())
-        Notify("No pilot to pitch", "Shoot a pilot first: drop a TV script on a TV building, then a star on the soundstage.",
-               kYellow);
-    nativeui::Refresh();
-}
-
 void OpenFullControls()
 {
     nativeui::Close();
@@ -380,8 +368,6 @@ void OpenNative()
         { "button_online.",   L"Networks",              NNetworks,  nullptr },
         { "button_trl.",      L"Box office",            NBoxOffice, nullptr },
         { "button_reviews2.", L"The press",             NPress,     nullptr },
-        { "button_shooting.", L"Shoot a pilot from the best waiting script", -1, &ShootNextPilot },
-        { "button_ok.",       L"Pitch the best finished pilot",           -1, &PitchNextPilot },
         { "button_sliders.",  L"Full controls: pitch, schedule, research", -1, &OpenFullControls },
     };
     s.html = &Page;
@@ -501,13 +487,6 @@ void OpenShares()
     }
     nativeui::Screen s;
     s.title = L"Studio shares";
-    // In the order of the page's "Your options" table.
-    s.buttons = {
-        { "button_minus.",     L"Sell 5% of the studio",              -1, [] { AskSell(0.05); } },
-        { "button_reduce.",    L"Sell 10% of the studio",             -1, [] { AskSell(0.10); } },
-        { "button_plus.",      L"Buy back 5% (market price + 5%)",    -1, [] { Report(BuyBackShares(0.05)); } },
-        { "button_marketing.", L"Pay a dividend to the shareholders", -1, [] { Report(PayDividend()); } },
-    };
     s.html = [](int) {
         nativeui::ShotOnce("native_shares", 250);
         return SharesPage();
@@ -527,6 +506,14 @@ bool OnToggleKey()
 }
 
 } // namespace
+
+void AskSellShares(double fraction) { AskSell(fraction); }
+void ReportShares(const std::string& error) { Report(error); }
+void OpenSharesScreen()
+{
+    if (!Showing(WhichShares))
+        OpenShares();
+}
 
 void InstallNative()
 {

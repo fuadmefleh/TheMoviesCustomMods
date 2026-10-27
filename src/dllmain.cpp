@@ -11,6 +11,7 @@
 #include <cstdio>
 
 #include "MinHook.h"
+#include "careers.h"
 #include "mod.h"
 #include "debugshots.h"
 #include "nativeui.h"
@@ -18,6 +19,7 @@
 #include "overlay.h"
 #include "diag.h"
 #include "persist.h"
+#include "projectlist.h"
 #include "rooms.h"
 #include "text.h"
 #include "tv.h"
@@ -126,6 +128,8 @@ extern "C" HRESULT WINAPI Proxy_DirectInput8Create(HINSTANCE inst, DWORD version
             nativeui::Install();
             debugshots::Install();
             buildmenu::Install();
+            careers::Install();
+            projectlist::Install();
             persist::Install();
             overlay::AddFrameCallback(&persist::Tick);
             rooms::Install();

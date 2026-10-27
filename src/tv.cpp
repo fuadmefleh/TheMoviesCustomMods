@@ -15,6 +15,7 @@
 #include "mod.h"
 #include "overlay.h"
 #include "persist.h"
+#include "projectlist.h"
 #include "rooms.h"
 #include "tv_internal.h"
 
@@ -523,8 +524,41 @@ float StarRatingOf(const rooms::Drop& d)
     }
 }
 
+// TV scripts, pilot reels and the bags of shares: only the mod's buildings take them.
+bool IsModObject(uintptr_t project) { return IsTvScriptProject(project) || IsShareObject(project); }
+
+const char* ModObjectMesh(uintptr_t project)
+{
+    if (const char* m = ShareObjectMesh(project))
+        return m;
+    return PilotReelMesh(project);
+}
+
+// Their hover bubble says what they are and where they go, not "Ready For Casting".
+bool ModObjectLabel(uintptr_t project, rooms::ObjectLabel* l)
+{
+    return ShareObjectLabel(project, &l->kind, &l->phase, &l->status) ||
+           TvScriptLabel(project, &l->kind, &l->phase, &l->status);
+}
+
 bool OnRoomDrop(const rooms::Drop& d)
 {
+    // Shares go to the Accounting Office; nothing else is dealt with there yet.
+    if (d.project && SharesDrop(d.room, d.project))
+        return true;
+    // People on the Accounts Floor: accountants sit down at the desks.
+    if (!d.project && d.person && AccountsDrop(d.room, d.roomObject, d.person))
+        return true;
+    if (d.room.rfind("room_tvx_", 0) == 0 || d.room.rfind("room_tvk_", 0) == 0) {
+        if (d.project || d.person)
+            Notify("The Accounting Office", "The accountants deal with the shares here: your bag of shares, or the "
+                   "investors' briefcase.",
+                   kYellow);
+        return true;
+    }
+    // A finished pilot's reel: pitched at the Network HQ, aired from the Control Room.
+    if (d.project && DropReel(d.room, d.project))
+        return true;
     // A TV script dropped on any TV building: shoot its pilot (on a soundstage).
     if (d.room.rfind("room_tv", 0) == 0 && d.project && !g_filmPilots && IsUnshotScript(d.project)) {
         StartPilotForProject(d.project);
@@ -1019,7 +1053,12 @@ void Install()
     persist::Register("tv_shares", &SharesSave, &SharesLoad, &SharesReset);
     InstallNative();
     rooms::SetHandler(&OnRoomDrop);
-    rooms::SetTvScriptTest(&IsTvScriptProject);
+    rooms::SetTvScriptTest(&IsModObject);
+    rooms::SetMeshChooser(&ModObjectMesh);
+    rooms::SetLabeler(&ModObjectLabel);
+    InstallAccounts();
+    // The bag and the briefcase get a group of their own on the HUD's project list.
+    projectlist::SetCategory(&IsShareObject, &ShareObjectPicture, [](uintptr_t) { OpenSharesScreen(); });
 }
 
 } // namespace tv
