@@ -88,8 +88,12 @@ void People(uintptr_t studio)
     for (uintptr_t s : stars)
         if (Rd<uintptr_t>(s + 0x934) == studio && ++mine == 1)
             sample = s;
-    Check(!stars.empty(), "stars list", Fmt("%d stars, %d yours, first is %s", static_cast<int>(stars.size()), mine,
-                                            stars.empty() ? "" : game::ClassName(stars[0]).c_str()));
+    // A new game has no stars yet: nothing to check then.
+    if (stars.empty())
+        mod::Log("selfcheck:   no stars yet - stars list not checked");
+    else
+        Check(game::ClassName(stars[0]).rfind("CStar", 0) == 0, "stars list",
+              Fmt("%d stars, %d yours, first is %s", static_cast<int>(stars.size()), mine, game::ClassName(stars[0]).c_str()));
     if (sample) {
         uintptr_t mood = Rd<uintptr_t>(sample + 0xC98);
         uintptr_t wb = mood ? Rd<uintptr_t>(mood + 0x128) : 0;
@@ -108,7 +112,8 @@ void People(uintptr_t studio)
         handymen += Rd<int>(s + 0x814) == 5;
         janitors += Rd<int>(s + 0x814) == 6;
     }
-    Check(ours > 0, "staff list", Fmt("%d people, %d yours: %d handymen, %d janitors", static_cast<int>(staff.size()),
+    // The list holds the jobseekers too, so it isn't empty even before anyone is hired.
+    Check(!staff.empty(), "staff list", Fmt("%d people, %d yours: %d handymen, %d janitors", static_cast<int>(staff.size()),
                                       ours, handymen, janitors));
 }
 

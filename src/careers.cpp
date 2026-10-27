@@ -163,6 +163,31 @@ void __cdecl HookCredits(uintptr_t credits, uintptr_t staff)
     g_origCredits(credits, staff);
 }
 
+// The cursor while a person is carried (FUN_0091EE70): the game's switch has no case for
+// careers past 15, so accountants keep whatever cursor was showing. They get the builders'
+// and janitors' "staff" one.
+constexpr uintptr_t kPickCursor = 0x0091EE70;   // void __thiscall(cursors, person)
+constexpr uintptr_t kCursorByName = 0x0091E660; // cursor __thiscall(cursors, const char* name)
+constexpr int kCursorCurrent = 0x88;
+using PickCursor_t = void(__fastcall*)(uintptr_t, void*, uintptr_t);
+PickCursor_t g_origPickCursor = nullptr;
+
+void SetCursor(uintptr_t cursors, const char* name)
+{
+    __try {
+        uintptr_t c = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, const char*)>(kCursorByName)(cursors, name);
+        *reinterpret_cast<uintptr_t*>(cursors + kCursorCurrent) = c;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+    }
+}
+
+void __fastcall HookPickCursor(uintptr_t cursors, void* edx, uintptr_t person)
+{
+    g_origPickCursor(cursors, edx, person);
+    if (person && game::ClassName(person) == "CStaff" && CareerOf(person) == kAccountant)
+        SetCursor(cursors, "staff");
+}
+
 // --- The HUD's people card ---------------------------------------------------------
 
 constexpr uintptr_t kOperatorNew   = 0x00ACBC50;   // void* __cdecl(size)
@@ -554,6 +579,7 @@ void Install()
     // lists have usually been read already - into the old tables. Read them again into ours.
     bool read = early || ReadTasks();
     g_origCredits = reinterpret_cast<Credits_t>(Hook(0x0043B220, reinterpret_cast<const void*>(&HookCredits), "film credits"));
+    g_origPickCursor = reinterpret_cast<PickCursor_t>(Hook(kPickCursor, reinterpret_cast<const void*>(&HookPickCursor), "carried cursor"));
     mod::Log("careers: %d careers (accountant = %d); costume lists %s", kCareers, kAccountant,
              early ? "will be read at game start" : read ? "read again" : "FAILED to read again");
     bool hud = InstallHudPage();

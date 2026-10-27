@@ -144,8 +144,9 @@ void BackToWork()
 }
 
 // Someone looking for work: no career and no employer (the lot's jobseekers; +0x784 turned
-// out not to mark them).
-bool IsJobseeker(uintptr_t person)
+// out not to mark them). Only staff jobseekers (CStaff itself): the would-be actors
+// (CWannabe) are unemployed too, but they come with acting experience.
+bool IsUnemployed(uintptr_t person)
 {
     __try {
         return Rd<int>(person + kStaffCareer) == 0 && Rd<uintptr_t>(person + kStaffEmployer) == 0;
@@ -153,6 +154,8 @@ bool IsJobseeker(uintptr_t person)
         return false;
     }
 }
+
+bool IsJobseeker(uintptr_t person) { return IsUnemployed(person) && game::ClassName(person) == "CStaff"; }
 
 uintptr_t FindJobseeker()
 {

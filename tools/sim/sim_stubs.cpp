@@ -14,6 +14,7 @@
 #include "projectlist.h"
 #include "rooms.h"
 #include "sim.h"
+#include "tv_internal.h"
 
 namespace sim {
 
@@ -345,4 +346,14 @@ int Accountants() { return 1; }
 void AccountsReset() {}
 void InstallAccounts() {}
 bool AccountsDrop(const std::string&, uintptr_t, uintptr_t) { return false; }
+} // namespace tv
+
+// tv_ceremony.cpp stages the game's awards show; the simulator has none (the papers report).
+namespace tv {
+bool CeremonyEnabled() { return false; }
+bool QueueCeremony(int, int, std::vector<CeremonyCategory>, bool, void (*)()) { return false; }
+void AnnounceAwardsSoon() {}
+void CeremonyFrame() {}
+void InstallCeremony(bool) {}
+void RefreshStudioRatings() {}
 } // namespace tv

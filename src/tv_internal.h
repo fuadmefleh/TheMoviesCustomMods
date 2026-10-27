@@ -473,6 +473,30 @@ void   EventsReset();
 
 void   RecordHistory(const std::string& text);   // the Empire tab's timeline
 
+// The Golden Antenna ceremony on the game's own awards stage (tv_ceremony.cpp).
+struct CeremonyNominee {
+    std::string title;      // as the papers print it: 'Title', or Name, 'Title'
+    bool        player = false;
+    int         network = 0;
+    float       score = 0;
+};
+struct CeremonyCategory {
+    std::string name;       // "Outstanding Comedy Series"
+    std::string blurb;      // what it's for (the presenter explains)
+    std::vector<CeremonyNominee> nominees;   // the winner first
+};
+bool CeremonyEnabled();
+// Holds the show at the next quiet moment; 'after' runs when it's over (or skipped).
+// A live show (the awards night) is announced on the lot's tannoy first; a replay isn't.
+bool QueueCeremony(int edition, int year, std::vector<CeremonyCategory> categories, bool live, void (*after)());
+void AnnounceAwardsSoon();   // the tannoy: "An Awards Ceremony will be held soon"
+void CeremonyFrame();
+void InstallCeremony(bool enabled);
+// The latest Golden Antenna winners (tv_events.cpp); they count toward the studio rankings
+// like the movie awards (tv_ceremony.cpp hooks the studio's awards factor).
+std::vector<CeremonyNominee> LatestAntennaWinners();
+void RefreshStudioRatings();
+
 // Research, challenges, live episodes (tv_research.cpp)
 enum TechId { TechLaughTrack, TechAudienceResearch, TechMultiCamera, TechRemoteVans, TechSalesTeam, TechVideotape,
               TechColour, TechSatellite, TechStereo, TechHD, TechCDN, TechRecAI, TechCount };

@@ -275,12 +275,10 @@ namespace {
 const wchar_t* const kBagTitle  = L"Your shares";
 const wchar_t* const kCaseTitle = L"Investors' shares";
 const char* const    kAccountsType = "facility_tv_accounting";
-const char* const    kOldAccountsType = "facility_tv_stock_exchange";   // its first version, in older saves
 
-bool IsShareOffice(const std::string& type) { return type == kAccountsType || type == kOldAccountsType; }
-// The share desk and the boardroom (room_tvx_* in the first version).
-bool IsShareDesk(const std::string& zone) { return zone == "room_tvk_shares" || zone == "room_tvx_floor"; }
-bool IsBoardroom(const std::string& zone) { return zone == "room_tvk_board" || zone == "room_tvx_board"; }
+bool IsShareOffice(const std::string& type) { return type == kAccountsType; }
+bool IsShareDesk(const std::string& zone) { return zone == "room_tvk_shares"; }
+bool IsBoardroom(const std::string& zone) { return zone == "room_tvk_board"; }
 uintptr_t g_bag = 0, g_case = 0;
 
 bool WantBag() { return !g_sh.ousted && QuoteSell(0.05).shares >= 1; }
@@ -605,7 +603,7 @@ std::wstring SharesPage()
                                  html::Warn)
                         : T(Format("%d accountant%s: fees cut to %.0f%% on a sale, %.0f%% over the market on a buy-back.",
                                    accountants, accountants == 1 ? "" : "s", SaleFee() * 100, BuyPremium() * 100)));
-    bool office = game::CountFacilities(kAccountsType) + game::CountFacilities(kOldAccountsType) > 0;
+    bool office = game::CountFacilities(kAccountsType) > 0;
     h += html::Note(T(office ? Format("Cash on hand: %s. Pick up the bag or the briefcase at the Accounting Office's door "
                                         "and drop it in the building.", Dollars(capital).c_str())
                                : Format("Cash on hand: %s. Build an Accounting Office (Television buildings) to trade your "

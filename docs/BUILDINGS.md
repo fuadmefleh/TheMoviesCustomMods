@@ -104,8 +104,17 @@ After the props, `tools/blender_bake.py` bakes a lightmap for the new parts (a s
 blue sky, ambient occlusion) scaled to the range of the game's own lightmaps, and
 `building.py` writes it to `data/textures/lightmap/lm_<name>_fac_0..3.dds`.
 
-The floor plan shown while you carry a person (`fld`) is still the donor's: the zone scenes
-put people at the donor's desks and chairs, so a new interior has to keep those spots.
+The floor plan shown while you carry a person (`fld`) is the new body with thick walls, and a
+building's `zones` lay its drop zones out again to fit it: each entry is a rectangle
+`[x0, y0, x1, y1]` or an outline of points, and replaces the donor's `room.<name>` (or adds
+one). Zone scenes (`scenes`, `extra_scenes`) are positioned in the building's own coordinates,
+not the zone's, so the copied scenes are moved until their people stand at the middle of
+their new zone. `stand_scenes` makes scenes from scratch for zones with no donor scene: one
+person standing at each listed place (the Accounting Office's jobseekers' spot outside).
+
+The construction ghost (`blp`) is drawn with a blueprint sheet of its own:
+`tools/blender_blueprint.py` renders the outside model from straight above over the lot
+boundary, and `building.py` turns it into `textures/bpf_<name>.dds`.
 
 `tools/blender_preview.py` renders a building's OBJ to a PNG to check the result:
 

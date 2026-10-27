@@ -27,6 +27,7 @@ namespace tv {
 const char* const kOfficeType      = "facility_tv_production_office";
 const char* const kStageType       = "facility_tv_soundstage";
 bool g_filmPilots = false;   // [tv] FilmPilots: films and bare scripts may be pitched
+bool g_awardsCeremony = true;   // [tv] AwardsCeremony: the Golden Antennas on the game's awards stage
 const char* const kHqType          = "facility_tv_network_hq";
 const char* const kControlRoomType = "facility_tv_control_room";
 const char* const kArchiveType     = "facility_tv_archive";
@@ -549,10 +550,14 @@ bool OnRoomDrop(const rooms::Drop& d)
     // People on the Accounts Floor: accountants sit down at the desks.
     if (!d.project && d.person && AccountsDrop(d.room, d.roomObject, d.person))
         return true;
-    if (d.room.rfind("room_tvx_", 0) == 0 || d.room.rfind("room_tvk_", 0) == 0) {
-        if (d.project || d.person)
+    if (d.room.rfind("room_tvk_", 0) == 0) {
+        if (d.project)
             Notify("The Accounting Office", "The accountants deal with the shares here: your bag of shares, or the "
                    "investors' briefcase.",
+                   kYellow);
+        else if (d.person)
+            Notify("The Accounting Office", "Drop a jobseeker on the hiring desk to hire them as an accountant, or an "
+                   "accountant on the Accounts Floor to put them to work.",
                    kYellow);
         return true;
     }
@@ -781,6 +786,7 @@ void ApplyCapacity()
 
 void Simulate()
 {
+    CeremonyFrame();
     if (!game::Ready())
         return;
     float today = Today();
@@ -1031,6 +1037,7 @@ void LoadSettings()
     g_costScale = std::clamp(static_cast<float>(_wtof(buf)), 0.0f, 100.0f);
     g_devTools = GetPrivateProfileIntW(L"MoviesMod", L"DevTools", 0, path) != 0;
     g_filmPilots = GetPrivateProfileIntW(L"tv", L"FilmPilots", 0, path) != 0;
+    g_awardsCeremony = GetPrivateProfileIntW(L"tv", L"AwardsCeremony", 1, path) != 0;
     mod::Log("tv: income x%.2f, costs x%.2f", g_incomeScale, g_costScale);
 }
 
@@ -1057,6 +1064,7 @@ void Install()
     rooms::SetMeshChooser(&ModObjectMesh);
     rooms::SetLabeler(&ModObjectLabel);
     InstallAccounts();
+    InstallCeremony(g_awardsCeremony);
     // The bag and the briefcase get a group of their own on the HUD's project list.
     projectlist::SetCategory(&IsShareObject, &ShareObjectPicture, [](uintptr_t) { OpenSharesScreen(); });
 }

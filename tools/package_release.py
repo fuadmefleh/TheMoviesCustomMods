@@ -68,8 +68,6 @@ def main():
                            (os.path.join(ROOT, 'content', 'lists'), 'MoviesMod/lists')):
         for dirpath, _, names in os.walk(folder):
             for n in sorted(names):
-                if 'tv_test' in n:
-                    continue   # the building pipeline's test building
                 path = os.path.join(dirpath, n)
                 files.append((path, prefix + '/' + os.path.relpath(path, folder).replace(os.sep, '/')))
     for tool in ('extract_ui.py', 'pak.py'):

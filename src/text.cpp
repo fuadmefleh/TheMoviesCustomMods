@@ -140,13 +140,32 @@ void AssignRecord(uint8_t* record, const std::wstring& value)
     }
 }
 
+bool RecordFound(const uint8_t* record)
+{
+    __try {
+        return *reinterpret_cast<const int*>(record + kRecordFound) != 0;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
+
 uint8_t* __cdecl HookTranslateKey(const GameString* key, int variant, const GameString* exclude)
 {
     uint8_t* record = g_origTranslate(key, variant, exclude);
     if (record && key && key->text && key->len > 0 && key->len < 128) {
-        auto it = g_entries.find(Upper(std::string(key->text, key->len)));
+        std::string k = Upper(std::string(key->text, key->len));
+        auto it = g_entries.find(k);
+        // A key given without its variant (SITT_DETAILS_CAREER_X for _10 / _20, the variant
+        // picked by gender) takes ours when the game has none.
+        if (it == g_entries.end() && !RecordFound(record)) {
+            it = g_entries.find(k + "_10");
+            if (it == g_entries.end())
+                it = g_entries.find(k + "_20");
+        }
         if (it != g_entries.end())
             AssignRecord(record, it->second);
+        else if (!RecordFound(record) && g_checked.size() < 20000 && g_checked.insert(k).second)
+            mod::Log("text: missing key '%s' (rich text)", k.c_str());
     }
     return record;
 }

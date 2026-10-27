@@ -1,4 +1,4 @@
-﻿"""Draws the mod's HUD icons in the style of the game's data/textures/ui pictures (64x64:
+"""Draws the mod's HUD icons in the style of the game's data/textures/ui pictures (64x64:
 a pale silhouette with a dark teal outline, details cut in the outline colour).
 
   python job_icons.py [--install] [--preview out.png]
@@ -6,6 +6,8 @@ a pale silhouette with a dark teal outline, details cut in the outline colour).
 job_acct.dds     the accountants' page of the people card (src/careers.cpp): a calculator
 shares_bag.dds   the studio's shares on the right-hand list (src/projectlist.cpp): a money bag
 shares_case.dds  the investors' shares there: a briefcase
+awards_tv.dds    the Golden Antenna trophy at the awards ceremony (src/tv_ceremony.cpp): the game's
+                 own award cup (from awards_film.dds), pale gold, holding a TV set
 """
 import os
 import sys
@@ -106,8 +108,45 @@ def fit_card(img):
     return big.resize((64, 64), Image.LANCZOS)
 
 
+GOLD = (226, 208, 158)       # the TV cup's tint (the game's are pink, teal, lilac and peach)
+TV_OUTLINE = (57, 89, 99, 255)
+CUP_TOP = 19                 # rows above this in the game's award icons are the thing in the cup
+
+
+def award_tv():
+    """The game's award cup with a television set in it instead of a film reel."""
+    from io import BytesIO
+    film = Image.open(BytesIO(building.game_file('data/textures/ui/awards_film.dds'))).convert('RGBA')
+    base = (216, 183, 175)
+    cup = Image.new('RGBA', film.size, (0, 0, 0, 0))
+    for y in range(CUP_TOP, film.height):
+        for x in range(film.width):
+            r, g, b, a = film.getpixel((x, y))
+            if y == CUP_TOP and 18 <= x <= 45:
+                continue   # the reel's last row; the handles start on this row too
+            if a and r + g + b > 300:   # the cup's pale body: same shading, gold
+                k = (r + g + b) / sum(base)
+                r, g, b = (min(255, round(c * k)) for c in GOLD)
+            cup.putpixel((x, y), (r, g, b, a))
+    # The set, drawn 4x and scaled down: a white cabinet, a grey-blue screen, two knobs and
+    # rabbit-ear antennas, outlined like the game's pictures.
+    big = Image.new('RGBA', (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(big)
+    for x in (100, 156):
+        d.line([(128, 42), (x, 18)], fill=TV_OUTLINE, width=9)
+        d.ellipse([x - 9, 9, x + 9, 27], fill=WHITE, outline=TV_OUTLINE, width=5)
+    d.rounded_rectangle([76, 38, 180, 96], radius=12, fill=WHITE, outline=TV_OUTLINE, width=8)
+    d.rounded_rectangle([88, 48, 148, 88], radius=10, fill=(150, 178, 182, 255), outline=TV_OUTLINE, width=6)
+    d.line([(97, 58), (110, 54)], fill=(225, 238, 238, 255), width=5)   # a glint on the glass
+    for y in (54, 70):
+        d.ellipse([156, y, 170, y + 14], fill=TV_OUTLINE)
+    icon = big.resize((64, 64), Image.LANCZOS)
+    icon.alpha_composite(cup)
+    return icon
+
+
 def draw():
-    return {'job_acct': render(silhouette(), WHITE), 'shares_bag': render(bag(), CARD, card=True),
+    return {'awards_tv': award_tv(), 'job_acct': render(silhouette(), WHITE), 'shares_bag': render(bag(), CARD, card=True),
             'shares_case': render(case(), CARD, card=True)}
 
 

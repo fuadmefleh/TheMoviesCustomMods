@@ -104,6 +104,7 @@ The full design covers:
 ### Phase 6: Polish (partly built)
 
 - [x] **Golden Antenna Awards** every May from 1949: seven categories (comedy, drama, variety, documentary, miniseries, lead performance, writing), your shows against the rivals' by quality and popularity; winners stay fresher, get better fees and bigger premieres; an awards edition of the paper
+- [x] **Golden Antenna ceremony** on the game's own awards stage (`src/tv_ceremony.cpp`, `re/awards.md`): the TV categories as the game's awards for one night, the presenters' lines in TV words, only the fitting recordings voiced; replay from the Empire tab
 - [x] **Television history**: coast-to-coast (1951), colour (1954), the quiz show scandal (1958: game shows shunned until 1962), "a vast wasteland" (1961: networks stricter for a year), the moon landing (1969), satellites (1976), broadband (2007); **writers' strikes** in 1960, 1988 and 2007 halt scripted production while unscripted shows boom
 - [x] **Star scandals**: stand by the star or let them go
 - [x] **Media Empire Value** (cash, library, shows, network, cable, streaming, awards) with a yearly history, trophy cabinet and timeline in the new Empire tab

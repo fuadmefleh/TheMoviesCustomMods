@@ -86,6 +86,10 @@ The full windows:
 | Multi-Camera Soundstage | Always for now | Adds room for **1 more show**. Better episodes, especially sitcoms, soaps, talk shows and game shows. |
 | Network HQ | From 1946 | Lets you launch **your own network** (Networks tab). One per lot. |
 | Broadcast Control Room | From 1946 | Needed to take your network **Regional**, then **National** (from 1950). One per lot. |
+| TV Writers' Office | Always | Drop scriptwriters on a desk (sitcom, crime, drama, soap, science fiction or variety) and they write TV scripts you can pitch without making a film first. |
+| Media Archive | Always | Rerun prices are 25% higher, and shows rest faster between syndication deals. |
+| Data Center | Always | Each one carries millions more subscribers for your streaming service before it starts falling over. |
+| Accounting Office | Always | Where the **accountants** work and the studio's **shares** change hands (see below). |
 
 **The TV loop:**
 1. **Pitch a pilot.** On the *Pitch a Pilot* tab, choose one of your released films as the pilot. Then give the series a title and pick a format. Each film can be used as a pilot only once.
@@ -156,6 +160,16 @@ Production capacity is limited. Shows beyond what your buildings can handle go *
 - It keeps all the advertising money, but pays weekly station costs; empty slots air reruns and earn little.
 - Expand Local (12% of homes) → Regional (40%) → National (90%, from 1950); both need a **Broadcast Control Room**.
 - Hire a **Programming Director** to schedule new shows every Monday. On Casual the studio does it for free.
+
+**Accountants and studio shares.** Things happen on the lot, not in menus: you drag people and objects onto buildings.
+- **Accountants** are a new kind of employee with their own page on the people card (top left). Every so often a jobseeker walks over and waits in front of the **Accounting Office**; drop them on its hiring desk to hire them. Drop an accountant on the Accounts Floor to put them to work at a desk.
+- The Accounting Office can't deal in shares without at least one accountant. Each accountant cuts the dealing fees by a point: a sale costs 7% (down to 2%), a buy-back 5% over the market price (down to 1%).
+- Your stake waits at the office's door as a **bag of share certificates**, the outside investors' stake as a **briefcase**. Both also appear in their own group in the project list on the right; click one to fly the camera to it.
+  - Drop the bag on the **share desk** to sell 5% of the studio.
+  - Drop the briefcase on the share desk to buy 5% back, or in the **boardroom** to pay the investors a dividend.
+- The share price follows what the studio is worth, with momentum, noise and the era's crashes. Once outsiders own part of the studio, a board judges you every quarter. Below 50% the board can vote you out; below 25% rival studios can take the company over. You can't sell below 10%.
+
+**The Golden Antenna Awards.** Nominations are announced each April (a story on the timeline and the lot's tannoy), and every May from 1949 television holds its own awards night on the game's awards stage: the two presenters, the nominees lighting up on the studios' board, the envelope. Seven categories (comedy, drama, variety, documentary, miniseries, lead performance and writing) pit your shows against the rival networks'. Winners stay fresher, earn better fees and draw a bigger crowd to their next premiere. Each Golden Antenna also counts toward the studio rankings like a movie award, until the next year's awards. The newspaper follows the show, and the Empire tab can replay the last ceremony. Set `[tv] AwardsCeremony = 0` for the newspaper only.
 
 **News pop-ups** at the top of the screen announce pitches, verdicts, premieres, renewals and cancellations, even when the window is closed.
 
@@ -278,7 +292,10 @@ MoviesMod\
     game.cpp/.h           safe access to game state (money, date, films, buildings)
     persist.cpp/.h        .tvs save data
     text.cpp/.h           string database hook
-    tv.cpp/.h             Television & Streaming
+    tv.cpp/.h             Television & Streaming (tv_*.cpp: networks, writers, shares, accountants...)
+    rooms.cpp/.h          new buildings' drop zones, hire desks and room scenes
+    careers.cpp/.h        new employee types (accountants) and their page on the people card
+    projectlist.cpp/.h    the shares' group in the HUD project list
     inspector.cpp         developer inspector
     exports.def           exports DirectInput8Create
   content\data\facility\  new building files

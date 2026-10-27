@@ -7,6 +7,7 @@
 #include <cmath>
 
 #include "mod.h"
+#include "news.h"
 #include "overlay.h"
 #include "tv_internal.h"
 
@@ -16,11 +17,22 @@ namespace {
 
 constexpr int   kAwardsFirstYear = 1949;
 constexpr float kAwardsDayOfYear = 135;   // mid-May
+constexpr float kNominationsDayOfYear = kAwardsDayOfYear - 30;   // nominations a month before
 
 enum Category { BestComedy, BestDrama, BestVariety, BestDocumentary, BestMiniseries, BestLead, BestWriting, CategoryCount };
 const char* const kCategoryNames[CategoryCount] = {
     "Outstanding Comedy Series", "Outstanding Drama Series", "Outstanding Variety Program",
     "Outstanding Documentary", "Outstanding Miniseries", "Outstanding Lead Performance", "Outstanding Writing",
+};
+// What the presenters say each one is for.
+const char* const kCategoryBlurbs[CategoryCount] = {
+    "Awarded to the comedy of the year: the series the critics praised and the most viewers laughed along with.",
+    "Awarded to the drama series of the year, judged on its quality and on the audience it held.",
+    "Awarded to the best variety, talk, game or reality program on the air.",
+    "Awarded to the documentary that best informed, and gripped, the nation.",
+    "Awarded to the finest miniseries of the year.",
+    "Awarded to the lead performer who shone brightest in a scripted series this year.",
+    "Awarded to the writers' room behind the best-written scripted series.",
 };
 
 struct Trophy {
@@ -28,6 +40,7 @@ struct Trophy {
     int         category = 0;
     std::string title;      // show (and performer)
     bool        player = false;
+    int         network = 0;    // a rival network's show: whose studio stands in for it
 };
 
 struct Milestone {
@@ -77,7 +90,26 @@ struct Nominee {
     std::string title;      // what the papers print
     float       score = 0;
     Series*     series = nullptr;
+    int         network = 0;
+    int         aiId = -1;      // a rival network's show
 };
+
+// This year's nominees, fixed when they're announced: the awards are decided among them.
+struct NomKey {
+    bool player;
+    int  id;      // Series::id or AiShow::id
+};
+int g_nomYear = 0;
+std::vector<NomKey> g_nominated[CategoryCount];
+int g_eveYear = 0;
+
+bool Nominated(int c, bool player, int id)
+{
+    for (const NomKey& k : g_nominated[c])
+        if (k.player == player && k.id == id)
+            return true;
+    return false;
+}
 
 bool InCategory(int category, int format)
 {
@@ -93,44 +125,132 @@ bool InCategory(int category, int format)
     }
 }
 
+// The year's five nominees in a category, best first (the same every time it's asked).
+std::vector<Nominee> Field(int c, int year, float today)
+{
+    std::vector<Nominee> field;
+    bool frozen = g_nomYear == year;
+    for (Series& s : g_series) {
+        if (frozen ? !Nominated(c, true, s.id)
+                   : !InCategory(c, s.format) || s.totalAired == 0 || today - s.lastReleaseDay > kDaysPerYear)
+            continue;
+        if (c == BestLead && s.lead.empty())
+            continue;
+        float q = s.aired ? s.qualitySum / s.aired : (s.lastQuality > 0 ? s.lastQuality : s.pilotQuality);
+        float bonus = c == BestWriting ? 0.02f * s.writers.size() : c == BestLead ? 0.03f : 0.0f;
+        if (c == BestComedy && HasTech(TechLaughTrack))
+            bonus -= 0.03f;   // critics can hear the canned laughter
+        Nominee n;
+        n.title = c == BestLead ? Format("%s, '%s'", s.lead.c_str(), s.title.c_str()) : "'" + s.title + "'";
+        n.score = q * 0.75f + s.lastShare * 0.6f + bonus + Roll(year, s.id, c, -0.06f, 0.06f);
+        n.series = &s;
+        field.push_back(n);
+    }
+    for (const AiShow& a : g_aiShows) {
+        if (frozen ? !Nominated(c, false, a.id) : !InCategory(c, a.format) || a.weeks == 0)
+            continue;
+        Nominee n;
+        n.title = c == BestLead ? Format("%s %s, '%s'", kFirst[a.id % 10], kLast[(a.id / 10) % 10], a.title.c_str())
+                                : "'" + a.title + "'";
+        n.score = a.quality * 0.75f + (a.shareSum / std::max(1, a.weeks)) * 0.6f + Roll(year, 100000 + a.id, c, -0.06f, 0.06f);
+        n.network = a.network;
+        n.aiId = a.id;
+        field.push_back(n);
+    }
+    std::sort(field.begin(), field.end(), [](const Nominee& x, const Nominee& y) { return x.score > y.score; });
+    field.resize(std::min<size_t>(field.size(), 5));
+    return field;
+}
+
+// The ceremony's programme: every category with nominees.
+std::vector<CeremonyCategory> Programme(int year, float today)
+{
+    std::vector<CeremonyCategory> out;
+    for (int c = 0; c < CategoryCount; c++) {
+        std::vector<Nominee> field = Field(c, year, today);
+        if (field.empty())
+            continue;
+        CeremonyCategory cat;
+        cat.name = kCategoryNames[c];
+        cat.blurb = kCategoryBlurbs[c];
+        for (const Nominee& n : field)
+            cat.nominees.push_back({ n.title, n.series != nullptr, n.series ? n.series->network : n.network, n.score });
+        out.push_back(cat);
+    }
+    return out;
+}
+
+// The last ceremony, to watch again from the Empire tab (this session only).
+std::vector<CeremonyCategory> g_lastShow;
+int g_lastShowEdition = 0, g_lastShowYear = 0;
+bool g_paperAfterShow = false;
+
+void PaperAfterShow()
+{
+    RefreshStudioRatings();
+    if (g_paperAfterShow && !g_papers.empty()) {
+        g_paperOpen = static_cast<int>(g_papers.size()) - 1;
+        overlay::Open();
+    }
+    g_paperAfterShow = false;
+}
+
+// A month before the awards: the nominees are announced (a story on the game's timeline and
+// the lot's tannoy) and fixed; the winners are picked from them on the night.
+void AnnounceNominations(int year)
+{
+    float today = Today();
+    int edition = year - kAwardsFirstYear + 1;
+    std::string body, yours;
+    int mine = 0;
+    for (int c = 0; c < CategoryCount; c++)
+        g_nominated[c].clear();
+    g_nomYear = 0;   // a fresh field, not last year's nominees
+    for (int c = 0; c < CategoryCount; c++) {
+        std::vector<Nominee> field = Field(c, year, today);
+        if (field.empty())
+            continue;
+        std::string names;
+        for (size_t i = 0; i < field.size(); i++) {
+            const Nominee& n = field[i];
+            g_nominated[c].push_back({ n.series != nullptr, n.series ? n.series->id : n.aiId });
+            names += (i ? ", " : "") + n.title;
+            if (n.series) {
+                yours += Format("%s%s (%s)", mine ? "; " : "", n.title.c_str(), kCategoryNames[c]);
+                mine++;
+            }
+        }
+        body += Format("%s: %s\n", kCategoryNames[c], names.c_str());
+    }
+    g_nomYear = year;
+    if (body.empty())
+        return;
+    std::string ordinal = Format("%d%s", edition, edition % 100 / 10 == 1 ? "th" : edition % 10 == 1 ? "st" : edition % 10 == 2 ? "nd" : edition % 10 == 3 ? "rd" : "th");
+    news::Post("GOLDEN ANTENNA NOMINATIONS", Format("The nominees for the %s Golden Antenna Awards", ordinal.c_str()),
+               body + "The winners are revealed on television's biggest night, in a month.");
+    AnnounceAwardsSoon();
+    Notify("Golden Antenna nominations",
+           mine ? Format("Your shows have %d nomination%s: %s. The awards are in a month.", mine, mine == 1 ? "" : "s",
+                         yours.c_str())
+                : std::string("None of your shows were nominated this year. The awards are in a month."),
+           mine ? kGold : kGrey);
+    AddTimeline(mine ? Format("Nominated: %s", yours.c_str()) : std::string("Golden Antenna nominations announced"));
+    mod::Log("tv: Golden Antenna nominations %d - %d yours", year, mine);
+}
+
 void HoldAwards(int year)
 {
     float today = Today();
     int edition = year - kAwardsFirstYear + 1;
     std::vector<std::string> wins, noms;
     std::string winnersText;
+    std::vector<CeremonyCategory> show = Programme(year, today);
     for (int c = 0; c < CategoryCount; c++) {
-        std::vector<Nominee> field;
-        for (Series& s : g_series) {
-            if (!InCategory(c, s.format) || s.totalAired == 0 || today - s.lastReleaseDay > kDaysPerYear)
-                continue;
-            if (c == BestLead && s.lead.empty())
-                continue;
-            float q = s.aired ? s.qualitySum / s.aired : (s.lastQuality > 0 ? s.lastQuality : s.pilotQuality);
-            float bonus = c == BestWriting ? 0.02f * s.writers.size() : c == BestLead ? 0.03f : 0.0f;
-            if (c == BestComedy && HasTech(TechLaughTrack))
-                bonus -= 0.03f;   // critics can hear the canned laughter
-            Nominee n;
-            n.title = c == BestLead ? Format("%s, '%s'", s.lead.c_str(), s.title.c_str()) : "'" + s.title + "'";
-            n.score = q * 0.75f + s.lastShare * 0.6f + bonus + Roll(year, s.id, c, -0.06f, 0.06f);
-            n.series = &s;
-            field.push_back(n);
-        }
-        for (const AiShow& a : g_aiShows) {
-            if (!InCategory(c, a.format) || a.weeks == 0)
-                continue;
-            Nominee n;
-            n.title = c == BestLead ? Format("%s %s, '%s'", kFirst[a.id % 10], kLast[(a.id / 10) % 10], a.title.c_str())
-                                    : "'" + a.title + "'";
-            n.score = a.quality * 0.75f + (a.shareSum / a.weeks) * 0.6f + Roll(year, 100000 + a.id, c, -0.06f, 0.06f);
-            field.push_back(n);
-        }
+        std::vector<Nominee> field = Field(c, year, today);
         if (field.empty())
             continue;
-        std::sort(field.begin(), field.end(), [](const Nominee& x, const Nominee& y) { return x.score > y.score; });
-        field.resize(std::min<size_t>(field.size(), 5));
         const Nominee& w = field[0];
-        g_trophies.push_back({ year, c, w.title, w.series != nullptr });
+        g_trophies.push_back({ year, c, w.title, w.series != nullptr, w.series ? w.series->network : w.network });
         winnersText += Format("%s: %s\n", kCategoryNames[c], w.title.c_str());
         for (size_t i = 0; i < field.size(); i++) {
             if (!field[i].series)
@@ -183,6 +303,21 @@ void HoldAwards(int year)
     bool contender = false;
     for (const Series& sr : g_series)
         contender |= InProduction(sr) || sr.status == RenewalOffered;
+    // On the awards stage the results wait for the envelopes; the paper comes after the show.
+    g_lastShow = show;
+    g_lastShowEdition = edition;
+    g_lastShowYear = year;
+    g_paperAfterShow = (!wins.empty() || !noms.empty()) && g_paperAuto;
+    if (QueueCeremony(edition, year, show, true, &PaperAfterShow)) {
+        Notify(Format("The %s Golden Antenna Awards", ordinal.c_str()),
+               !wins.empty() || !noms.empty() ? "Your shows are nominated! Television's biggest night is about to begin."
+                                              : "Television's biggest night is about to begin.",
+               kGold);
+        mod::Log("tv: awards %d - %d wins, %d other nominations (on stage)", year, static_cast<int>(wins.size()),
+                 static_cast<int>(noms.size()));
+        return;
+    }
+    g_paperAfterShow = false;
     Notify(Format("The %s Golden Antenna Awards", ordinal.c_str()),
            wins.empty() ? (!noms.empty() ? std::string("Nominated, but no wins this year.")
                            : contender  ? std::string("None of your shows were nominated this year.")
@@ -194,6 +329,7 @@ void HoldAwards(int year)
         g_paperOpen = static_cast<int>(g_papers.size()) - 1;
         overlay::Open();
     }
+    RefreshStudioRatings();
     mod::Log("tv: awards %d - %d wins, %d other nominations", year, static_cast<int>(wins.size()), static_cast<int>(noms.size()));
 }
 
@@ -258,6 +394,15 @@ void EventsDaily(float day)
 
     int y = static_cast<int>(year);
     float dayOfYear = day - y * kDaysPerYear;
+    // Nominations a month before (or at once, for a game loaded after that day).
+    if (y >= kAwardsFirstYear && y > g_lastAwards && y != g_nomYear && dayOfYear >= kNominationsDayOfYear &&
+        dayOfYear < kAwardsDayOfYear && Unlocked())
+        AnnounceNominations(y);
+    if (g_nomYear == y && y > g_lastAwards && g_eveYear != y && dayOfYear >= kAwardsDayOfYear - 1 &&
+        dayOfYear < kAwardsDayOfYear && Unlocked()) {
+        g_eveYear = y;
+        Notify("The Golden Antennas are tomorrow", "Television's biggest night: the winners are revealed tomorrow.", kGold);
+    }
     // The ceremony is held when May comes round; a game loaded later in the year waits for next May.
     if (y >= kAwardsFirstYear && y > g_lastAwards && dayOfYear >= kAwardsDayOfYear && Unlocked()) {
         if (dayOfYear < kAwardsDayOfYear + 30)
@@ -382,6 +527,18 @@ void DrawEmpire()
     }
     if (!shown)
         ImGui::TextDisabled("No Golden Antennas yet. The awards are held every May; good, popular shows win.");
+    if (CeremonyEnabled()) {
+        if (!g_lastShow.empty()) {
+            if (ImGui::Button(Format("Watch the %d Golden Antenna Awards again", g_lastShowYear).c_str()))
+                QueueCeremony(g_lastShowEdition, g_lastShowYear, g_lastShow, false, nullptr);
+        } else if (g_devTools && Unlocked()) {
+            // Nothing changes: the nominees as they stand, on stage.
+            if (ImGui::Button("Preview this year's Golden Antenna ceremony (developer)")) {
+                int y = static_cast<int>(Year());
+                QueueCeremony(std::max(1, y - kAwardsFirstYear + 1), y, Programme(y, Today()), false, nullptr);
+            }
+        }
+    }
 
     ImGui::SeparatorText("Television history");
     if (g_timeline.empty())
@@ -395,13 +552,24 @@ void DrawEmpire()
 // ---------------------------------------------------------------------------------
 // Save data
 
+std::vector<CeremonyNominee> LatestAntennaWinners()
+{
+    std::vector<CeremonyNominee> out;
+    for (const Trophy& t : g_trophies)
+        if (t.year == g_lastAwards)
+            out.push_back({ t.title, t.player, t.network, 0 });
+    return out;
+}
+
 void EventsSave(std::map<std::string, std::string>& out)
 {
     out["state"] = Format("%d,%d,%.3f,%.3f", g_lastAwards, g_fired, g_strikeUntil, g_wastelandUntil);
     out["trophies"] = std::to_string(g_trophies.size());
-    for (size_t i = 0; i < g_trophies.size(); i++)
+    for (size_t i = 0; i < g_trophies.size(); i++) {
         out[Format("t%zu", i)] = Format("%d|%d|%d|%s", g_trophies[i].year, g_trophies[i].category, g_trophies[i].player ? 1 : 0,
                                         g_trophies[i].title.c_str());
+        out[Format("t%zu.n", i)] = std::to_string(g_trophies[i].network);
+    }
     out["timeline"] = std::to_string(g_timeline.size());
     for (size_t i = 0; i < g_timeline.size(); i++)
         out[Format("e%zu", i)] = Format("%.3f|%s", g_timeline[i].first, g_timeline[i].second.c_str());
@@ -409,6 +577,23 @@ void EventsSave(std::map<std::string, std::string>& out)
     for (const auto& m : g_mevHistory)
         h += Format(h.empty() ? "%d:%.0f" : ",%d:%.0f", m.first, m.second);
     out["mev"] = h;
+    out["noms"] = Format("%d|%d", g_nomYear, g_eveYear);
+    for (int c = 0; c < CategoryCount; c++) {
+        std::string v;
+        for (const NomKey& k : g_nominated[c])
+            v += Format(v.empty() ? "%c%d" : ",%c%d", k.player ? 'p' : 'a', k.id);
+        out[Format("nom%d", c)] = v;
+    }
+    out["show"] = Format("%d|%d|%zu", g_lastShowEdition, g_lastShowYear, g_lastShow.size());
+    for (size_t i = 0; i < g_lastShow.size(); i++) {
+        const CeremonyCategory& c = g_lastShow[i];
+        out[Format("show%zu", i)] = Format("%zu|%s", c.nominees.size(), c.name.c_str());
+        out[Format("show%zu.blurb", i)] = c.blurb;
+        for (size_t k = 0; k < c.nominees.size(); k++) {
+            const CeremonyNominee& n = c.nominees[k];
+            out[Format("show%zu.%zu", i, k)] = Format("%d|%d|%.4f|%s", n.player ? 1 : 0, n.network, n.score, n.title.c_str());
+        }
+    }
 }
 
 void EventsReset()
@@ -420,6 +605,12 @@ void EventsReset()
     g_trophies.clear();
     g_timeline.clear();
     g_mevHistory.clear();
+    g_lastShow.clear();
+    g_lastShowEdition = g_lastShowYear = 0;
+    g_nomYear = g_eveYear = 0;
+    for (auto& n : g_nominated)
+        n.clear();
+    g_paperAfterShow = false;
 }
 
 void EventsLoad(const std::map<std::string, std::string>& in)
@@ -440,6 +631,7 @@ void EventsLoad(const std::map<std::string, std::string>& in)
             t.player = player != 0;
             t.category = std::clamp(t.category, 0, CategoryCount - 1);
             t.title = v.substr(consumed);
+            t.network = atoi(get(Format("t%d.n", i)).c_str());
             g_trophies.push_back(t);
         }
     }
@@ -458,6 +650,41 @@ void EventsLoad(const std::map<std::string, std::string>& in)
         if (colon != std::string::npos)
             g_mevHistory.push_back({ atoi(item.substr(0, colon).c_str()), atof(item.substr(colon + 1).c_str()) });
         pos = comma == std::string::npos ? h.size() : comma + 1;
+    }
+    sscanf_s(get("noms").c_str(), "%d|%d", &g_nomYear, &g_eveYear);
+    for (int c = 0; c < CategoryCount; c++) {
+        std::string v = get(Format("nom%d", c));
+        for (size_t pos = 0; pos < v.size();) {
+            size_t comma = v.find(',', pos);
+            std::string item = v.substr(pos, comma - pos);
+            if (item.size() > 1)
+                g_nominated[c].push_back({ item[0] == 'p', atoi(item.c_str() + 1) });
+            pos = comma == std::string::npos ? v.size() : comma + 1;
+        }
+    }
+    int shows = 0;
+    sscanf_s(get("show").c_str(), "%d|%d|%d", &g_lastShowEdition, &g_lastShowYear, &shows);
+    for (int i = 0; i < shows && i < 32; i++) {
+        std::string v = get(Format("show%d", i));
+        int count = 0, consumed = 0;
+        if (sscanf_s(v.c_str(), "%d|%n", &count, &consumed) < 1 || consumed == 0)
+            continue;
+        CeremonyCategory c;
+        c.name = v.substr(consumed);
+        c.blurb = get(Format("show%d.blurb", i));
+        for (int k = 0; k < count && k < 8; k++) {
+            std::string nv = get(Format("show%d.%d", i, k));
+            CeremonyNominee n;
+            int player = 0;
+            consumed = 0;
+            if (sscanf_s(nv.c_str(), "%d|%d|%f|%n", &player, &n.network, &n.score, &consumed) >= 3 && consumed > 0) {
+                n.player = player != 0;
+                n.title = nv.substr(consumed);
+                c.nominees.push_back(n);
+            }
+        }
+        if (!c.nominees.empty())
+            g_lastShow.push_back(c);
     }
 }
 
