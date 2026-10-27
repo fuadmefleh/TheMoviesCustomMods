@@ -495,6 +495,14 @@ void InstallCeremony(bool enabled);
 // The latest Golden Antenna winners (tv_events.cpp); they count toward the studio rankings
 // like the movie awards (tv_ceremony.cpp hooks the studio's awards factor).
 std::vector<CeremonyNominee> LatestAntennaWinners();
+bool WatchAntennas(int year);        // replays that year's ceremony; false if there's none
+std::vector<int> AntennaYears();     // the years a ceremony was held
+float AntennaDay(int year);          // its date (days), and the next one's
+bool AntennaYearHeld(int year);
+int NextAntennaYear();               // 0 before television
+// The Golden Antennas on the game's timeline: icons and the countdown (tv_timeline.cpp).
+void AwardsTimelineFrame();
+void InstallAwardsTimeline();
 void RefreshStudioRatings();
 
 // Research, challenges, live episodes (tv_research.cpp)

@@ -787,6 +787,7 @@ void ApplyCapacity()
 void Simulate()
 {
     CeremonyFrame();
+    AwardsTimelineFrame();
     if (!game::Ready())
         return;
     float today = Today();
@@ -1065,6 +1066,7 @@ void Install()
     rooms::SetLabeler(&ModObjectLabel);
     InstallAccounts();
     InstallCeremony(g_awardsCeremony);
+    InstallAwardsTimeline();
     // The bag and the briefcase get a group of their own on the HUD's project list.
     projectlist::SetCategory(&IsShareObject, &ShareObjectPicture, [](uintptr_t) { OpenSharesScreen(); });
 }

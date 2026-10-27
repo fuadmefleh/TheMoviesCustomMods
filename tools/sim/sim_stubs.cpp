@@ -356,4 +356,6 @@ void AnnounceAwardsSoon() {}
 void CeremonyFrame() {}
 void InstallCeremony(bool) {}
 void RefreshStudioRatings() {}
+void AwardsTimelineFrame() {}
+void InstallAwardsTimeline() {}
 } // namespace tv

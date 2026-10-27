@@ -180,9 +180,12 @@ std::vector<CeremonyCategory> Programme(int year, float today)
     return out;
 }
 
-// The last ceremony, to watch again from the Empire tab (this session only).
-std::vector<CeremonyCategory> g_lastShow;
-int g_lastShowEdition = 0, g_lastShowYear = 0;
+// Every ceremony held, to watch again (the Empire tab, the timeline's award icons).
+struct Show {
+    int edition = 0;
+    std::vector<CeremonyCategory> categories;
+};
+std::map<int, Show> g_shows;   // by year
 bool g_paperAfterShow = false;
 
 void PaperAfterShow()
@@ -304,9 +307,7 @@ void HoldAwards(int year)
     for (const Series& sr : g_series)
         contender |= InProduction(sr) || sr.status == RenewalOffered;
     // On the awards stage the results wait for the envelopes; the paper comes after the show.
-    g_lastShow = show;
-    g_lastShowEdition = edition;
-    g_lastShowYear = year;
+    g_shows[year] = { edition, show };
     g_paperAfterShow = (!wins.empty() || !noms.empty()) && g_paperAuto;
     if (QueueCeremony(edition, year, show, true, &PaperAfterShow)) {
         Notify(Format("The %s Golden Antenna Awards", ordinal.c_str()),
@@ -528,9 +529,10 @@ void DrawEmpire()
     if (!shown)
         ImGui::TextDisabled("No Golden Antennas yet. The awards are held every May; good, popular shows win.");
     if (CeremonyEnabled()) {
-        if (!g_lastShow.empty()) {
-            if (ImGui::Button(Format("Watch the %d Golden Antenna Awards again", g_lastShowYear).c_str()))
-                QueueCeremony(g_lastShowEdition, g_lastShowYear, g_lastShow, false, nullptr);
+        if (!g_shows.empty()) {
+            int last = g_shows.rbegin()->first;
+            if (ImGui::Button(Format("Watch the %d Golden Antenna Awards again", last).c_str()))
+                WatchAntennas(last);
         } else if (g_devTools && Unlocked()) {
             // Nothing changes: the nominees as they stand, on stage.
             if (ImGui::Button("Preview this year's Golden Antenna ceremony (developer)")) {
@@ -584,16 +586,21 @@ void EventsSave(std::map<std::string, std::string>& out)
             v += Format(v.empty() ? "%c%d" : ",%c%d", k.player ? 'p' : 'a', k.id);
         out[Format("nom%d", c)] = v;
     }
-    out["show"] = Format("%d|%d|%zu", g_lastShowEdition, g_lastShowYear, g_lastShow.size());
-    for (size_t i = 0; i < g_lastShow.size(); i++) {
-        const CeremonyCategory& c = g_lastShow[i];
-        out[Format("show%zu", i)] = Format("%zu|%s", c.nominees.size(), c.name.c_str());
-        out[Format("show%zu.blurb", i)] = c.blurb;
-        for (size_t k = 0; k < c.nominees.size(); k++) {
-            const CeremonyNominee& n = c.nominees[k];
-            out[Format("show%zu.%zu", i, k)] = Format("%d|%d|%.4f|%s", n.player ? 1 : 0, n.network, n.score, n.title.c_str());
+    std::string years;
+    for (const auto& [year, show] : g_shows) {
+        years += Format(years.empty() ? "%d" : ",%d", year);
+        out[Format("show%d", year)] = Format("%d|%zu", show.edition, show.categories.size());
+        for (size_t i = 0; i < show.categories.size(); i++) {
+            const CeremonyCategory& c = show.categories[i];
+            out[Format("show%d.%zu", year, i)] = Format("%zu|%s", c.nominees.size(), c.name.c_str());
+            for (size_t k = 0; k < c.nominees.size(); k++) {
+                const CeremonyNominee& n = c.nominees[k];
+                out[Format("show%d.%zu.%zu", year, i, k)] =
+                    Format("%d|%d|%.4f|%s", n.player ? 1 : 0, n.network, n.score, n.title.c_str());
+            }
         }
     }
+    out["shows"] = years;
 }
 
 void EventsReset()
@@ -605,8 +612,7 @@ void EventsReset()
     g_trophies.clear();
     g_timeline.clear();
     g_mevHistory.clear();
-    g_lastShow.clear();
-    g_lastShowEdition = g_lastShowYear = 0;
+    g_shows.clear();
     g_nomYear = g_eveYear = 0;
     for (auto& n : g_nominated)
         n.clear();
@@ -662,30 +668,70 @@ void EventsLoad(const std::map<std::string, std::string>& in)
             pos = comma == std::string::npos ? v.size() : comma + 1;
         }
     }
-    int shows = 0;
-    sscanf_s(get("show").c_str(), "%d|%d|%d", &g_lastShowEdition, &g_lastShowYear, &shows);
-    for (int i = 0; i < shows && i < 32; i++) {
-        std::string v = get(Format("show%d", i));
-        int count = 0, consumed = 0;
-        if (sscanf_s(v.c_str(), "%d|%n", &count, &consumed) < 1 || consumed == 0)
+    std::string years = get("shows");
+    for (size_t pos = 0; pos < years.size();) {
+        size_t comma = years.find(',', pos);
+        int year = atoi(years.substr(pos, comma - pos).c_str());
+        pos = comma == std::string::npos ? years.size() : comma + 1;
+        Show show;
+        int cats = 0;
+        if (sscanf_s(get(Format("show%d", year)).c_str(), "%d|%d", &show.edition, &cats) < 2)
             continue;
-        CeremonyCategory c;
-        c.name = v.substr(consumed);
-        c.blurb = get(Format("show%d.blurb", i));
-        for (int k = 0; k < count && k < 8; k++) {
-            std::string nv = get(Format("show%d.%d", i, k));
-            CeremonyNominee n;
-            int player = 0;
-            consumed = 0;
-            if (sscanf_s(nv.c_str(), "%d|%d|%f|%n", &player, &n.network, &n.score, &consumed) >= 3 && consumed > 0) {
-                n.player = player != 0;
-                n.title = nv.substr(consumed);
-                c.nominees.push_back(n);
+        for (int i = 0; i < cats && i < 32; i++) {
+            std::string v = get(Format("show%d.%d", year, i));
+            int count = 0, consumed = 0;
+            if (sscanf_s(v.c_str(), "%d|%n", &count, &consumed) < 1 || consumed == 0)
+                continue;
+            CeremonyCategory c;
+            c.name = v.substr(consumed);
+            for (int k = 0; k < CategoryCount; k++)
+                if (c.name == kCategoryNames[k])
+                    c.blurb = kCategoryBlurbs[k];
+            for (int k = 0; k < count && k < 8; k++) {
+                std::string nv = get(Format("show%d.%d.%d", year, i, k));
+                CeremonyNominee n;
+                int player = 0;
+                consumed = 0;
+                if (sscanf_s(nv.c_str(), "%d|%d|%f|%n", &player, &n.network, &n.score, &consumed) >= 3 && consumed > 0) {
+                    n.player = player != 0;
+                    n.title = nv.substr(consumed);
+                    c.nominees.push_back(n);
+                }
             }
+            if (!c.nominees.empty())
+                show.categories.push_back(c);
         }
-        if (!c.nominees.empty())
-            g_lastShow.push_back(c);
+        if (!show.categories.empty())
+            g_shows[year] = show;
     }
+}
+
+bool WatchAntennas(int year)
+{
+    auto it = g_shows.find(year);
+    return it != g_shows.end() && QueueCeremony(it->second.edition, year, it->second.categories, false, nullptr);
+}
+
+std::vector<int> AntennaYears()
+{
+    std::vector<int> out;
+    for (const auto& show : g_shows)
+        out.push_back(show.first);
+    return out;
+}
+
+float AntennaDay(int year) { return year * kDaysPerYear + kAwardsDayOfYear; }
+
+bool AntennaYearHeld(int year) { return g_shows.count(year) != 0 || year <= g_lastAwards; }
+
+int NextAntennaYear()
+{
+    if (!Unlocked())
+        return 0;
+    int y = std::max(static_cast<int>(Year()), kAwardsFirstYear);
+    // This May's, unless it's been held (or its day is long gone).
+    float dayOfYear = Today() - y * kDaysPerYear;
+    return y <= g_lastAwards || dayOfYear >= kAwardsDayOfYear + 30 ? y + 1 : y;
 }
 
 } // namespace tv
