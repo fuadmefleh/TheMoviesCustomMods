@@ -23,6 +23,10 @@ void Install();   // production.cpp: continuity makeup and the second unit
 bool FinishWithoutShoot(uintptr_t project);
 }
 
+namespace toon {
+void Install();   // toon.cpp: the cel-shading pass for animated films (Toon Studio spike)
+}
+
 namespace buildmenu {
 void Install();   // buildmenu.cpp: category buttons on the build menu's building list
 }

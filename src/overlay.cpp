@@ -123,6 +123,11 @@ struct Panel {
 std::vector<Panel> g_panels;
 std::vector<DrawFn> g_huds;
 std::vector<void (*)()> g_frameCallbacks;
+struct PostProcess {
+    void (*fn)(void* device);
+    void (*onReset)();
+};
+std::vector<PostProcess> g_postProcesses;
 
 ImVec4 Hex(unsigned rgb, float alpha = 1.0f)
 {
@@ -355,6 +360,8 @@ void Render(IDirect3DDevice9* device)
 {
     for (auto fn : g_frameCallbacks)
         fn();
+    for (const PostProcess& p : g_postProcesses)
+        p.fn(device);
     if (!g_imguiReady)
         InitImGui(device);
     if (!g_open && g_huds.empty())
@@ -395,6 +402,8 @@ HRESULT WINAPI HookReset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* pp)
 {
     if (g_imguiReady)
         ImGui_ImplDX9_InvalidateDeviceObjects();
+    for (const PostProcess& p : g_postProcesses)
+        p.onReset();
     HRESULT hr = g_origReset(device, pp);
     if (g_imguiReady && SUCCEEDED(hr))
         ImGui_ImplDX9_CreateDeviceObjects();
@@ -537,6 +546,8 @@ void AddPanel(const char* name, DrawFn draw) { g_panels.push_back({ name, draw }
 void AddHud(DrawFn draw) { g_huds.push_back(draw); }
 
 void AddFrameCallback(void (*fn)()) { g_frameCallbacks.push_back(fn); }
+
+void AddPostProcess(void (*fn)(void* device), void (*onReset)()) { g_postProcesses.push_back({ fn, onReset }); }
 
 void SetToggleHandler(bool (*fn)()) { g_toggleHandler = fn; }
 

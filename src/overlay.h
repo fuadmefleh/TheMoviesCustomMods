@@ -24,6 +24,10 @@ void AddHud(DrawFn draw);
 
 // Runs every frame, whether or not the overlay is open (game thread, before Present).
 void AddFrameCallback(void (*fn)());
+// Post-processes the game's finished frame before the mod's own windows are drawn (game thread,
+// inside Present; device is the IDirect3DDevice9*). onReset runs before the device is reset, to
+// release D3DPOOL_DEFAULT resources.
+void AddPostProcess(void (*fn)(void* device), void (*onReset)());
 // F8 with the overlay closed calls this first (Shift+F8 skips it); returning true means it
 // was handled (e.g. the native TV screen opened) and the overlay stays closed.
 void SetToggleHandler(bool (*fn)());

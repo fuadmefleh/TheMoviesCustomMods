@@ -196,6 +196,10 @@ A second production line next to live action, sized like an expansion pack. Cart
 **Spikes first**
 - [ ] **Spike 2, a film with no shoot**: can a `CProject` have all its scenes finished through `0x004EB900` without being shot on sets, then release and play back cleanly? Everything else depends on this.
 - [ ] **Spike 1, the cel-shading pass**: find where film playback renders and put a shader there. This decides whether the pack looks the part.
+  - [x] The look (`src/toon.cpp`): a two-pass post-process in Present. A Kuwahara filter flattens texture into paint, then ink is traced on the flattened image and brightness pulled into soft cel bands; the hand-drawn style adds paper grain and boiling lines. Tuned on screenshots with a Python copy of the shader. Ctrl+F9 previews it in game, Ctrl+Shift+F9 switches hand-drawn/CGI
+  - [ ] **In-game test** of the preview (look, speed, alt-tab/resolution change)
+  - [ ] When a film is playing: game-mode changes are logged (`toon: game mode`) to find the playback mode, then which film it is
+  - [ ] Keep the game's interface out of the pass (draw before the HUD, or only inside the film's viewport)
 - [ ] Animators as a role for existing staff (writers or crew), since new walking character types aren't feasible.
 
 ## Not feasible as a mod (or deferred)
