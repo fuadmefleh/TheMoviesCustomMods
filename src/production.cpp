@@ -271,6 +271,41 @@ void __fastcall HookComplete(uintptr_t shot)
 }
 
 // ---------------------------------------------------------------------------------
+// Toon Studio spike: a film finished without being shot. The game's unused debug "finish film"
+// (0x005B3B20) puts the project in project_phase_shoot, forces every scene complete and steps
+// the phases to 6 (shot). A film's scenes exist from the moment its script is written
+// (CProject::AddShot 0x005C0510), so no set or actor is needed for it.
+
+constexpr uintptr_t kFinishFilm = 0x005B3B20;   // void __fastcall(CProject*)
+
+void CountShots(uintptr_t project, int* total, int* done)
+{
+    *total = *done = 0;
+    __try {
+        uintptr_t sentinel = project + kProjShotsSentinel;
+        uintptr_t node = Rd<uintptr_t>(project + kProjShotsFirst);
+        for (int guard = 0; node && node != sentinel && guard < 2000; guard++, node = Rd<uintptr_t>(node + 4)) {
+            uintptr_t shot = Rd<uintptr_t>(node + 8);
+            ++*total;
+            if (shot && Rd<int>(shot + kShotState) == 4)
+                ++*done;
+        }
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        *total = *done = -1;
+    }
+}
+
+bool CallFinishFilm(uintptr_t project)
+{
+    __try {
+        reinterpret_cast<void(__fastcall*)(uintptr_t)>(kFinishFilm)(project);
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
+
+// ---------------------------------------------------------------------------------
 
 float g_lastDay = -1;
 
@@ -288,6 +323,32 @@ void Frame()
 }
 
 } // namespace
+
+bool FinishWithoutShoot(uintptr_t project)
+{
+    game::Project before = game::ReadProjectAt(project);
+    if (before.stage < 3 || before.stage > 5) {
+        mod::Log("toon spike: '%ls' is at stage %d - only films with a finished script (stages 3-5) can be finished",
+                 before.title.c_str(), before.stage);
+        return false;
+    }
+    int total = 0, done = 0;
+    CountShots(project, &total, &done);
+    uintptr_t cast[64];
+    int castCount = CastOf(project, cast, 64);
+    mod::Log("toon spike: finishing '%ls' without a shoot - stage %d, %d/%d scenes done, %d cast", before.title.c_str(),
+             before.stage, done, total, castCount);
+    if (total <= 0) {
+        mod::Log("toon spike: no scenes on '%ls' - not finished", before.title.c_str());
+        return false;
+    }
+    bool ok = CallFinishFilm(project);
+    game::Project after = game::ReadProjectAt(project);
+    CountShots(project, &total, &done);
+    mod::Log("toon spike: %s - '%ls' now stage %d, %d/%d scenes done, quality %.2f (raw %.3f)", ok ? "ok" : "FAILED",
+             after.title.c_str(), after.stage, done, total, after.quality, after.rawQuality);
+    return ok;
+}
 
 void Install()
 {

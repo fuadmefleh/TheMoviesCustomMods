@@ -194,6 +194,13 @@ void DrawInspector()
     ProjectTable("catalogue", catalogue);
     ImGui::SeparatorText(("In production (" + std::to_string(productions.size()) + ")").c_str());
     ProjectTable("production", productions);
+    // Toon Studio spike: finish a film without shooting it, then release and play it back.
+    for (const game::Project& p : productions) {
+        if (p.stage < 3 || p.stage > 5)
+            continue;
+        if (ImGui::Button(("Finish without shooting: " + Utf8(p.title) + "##toon" + std::to_string(p.address)).c_str()))
+            production::FinishWithoutShoot(p.address);
+    }
 
     for (const game::StudioFilms& s : game::AllStudios()) {
         std::string header = Utf8(s.name) + (s.isPlayer ? " (you)" : "") + " - " + std::to_string(s.films.size()) +

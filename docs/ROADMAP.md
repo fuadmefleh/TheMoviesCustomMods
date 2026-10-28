@@ -168,6 +168,36 @@ The full design covers:
 - [x] **High-resolution people**: 4,956 costume, face, hair, makeup and accessory textures upscaled 2x (`tools/make_hires_pack.py`, installed as links by `tools/hires_pack_install.py`) with `CharacterTextureSize = 1024`
 - [ ] **In-game test** of all of the above
 
+## Toon Studio: an animation expansion (planned)
+
+A second production line next to live action, sized like an expansion pack. Cartoons are made on the lot, the way everything else is: scripts, voice stars and animators are dragged onto buildings.
+
+**The pipeline**
+1. **Story Department**: writers at native script desks (the `CScriptRoom` route of the TV Writers' Office) write animation scripts, which come out on the lot as script objects.
+2. **Voice Booths**: drop the script on a booth, then drop stars on it to voice the roles. Voice work takes days, so stars can voice cartoons between films.
+3. **Animators' Desks**: the script goes onto the desks and the animators work through its scenes. More animators work faster, better ones work better. This replaces shooting on sets: the film is an ordinary `CProject` whose scenes are finished by the desks through the game's own path (`0x004EB900`, as the second unit does).
+4. **Ink & Paint**: the slow finishing step, until the **CGI Render Farm** (1995) replaces it.
+5. The finished canister goes through the game's own release.
+
+**It looks like a cartoon**: animated films are drawn with a cel-shading pass (flat colours, ink outlines, paper grain in early eras) wherever they play: premiere, Movie Maker, cinema. After 1995 the look changes to a clean CGI style.
+
+**The eras**
+- 1928-37, shorts: 7-minute cartoons shown before your features, a box-office bump, and the birth of your studio mascot.
+- 1937, the gamble: the first animated feature. It takes years and huge sums.
+- 1950s-80s, the slump: TV cartoons (feeding the TV system), cheap "limited animation", quality against cost.
+- 1989-99, the renaissance: musicals and Broadway-style songs.
+- 1995 onwards, CGI: the Render Farm, a new generation of animators, hand-drawn animation dying unless you keep it alive.
+
+**Different from live action**
+- Animated films don't age: re-release them from the vault every 7 years, and they earn again each time.
+- A studio mascot who grows from shorts to features to merchandise and TV, and can become an icon or go stale.
+- Voice fame as its own track: a faded actor can come back through voice work.
+
+**Spikes first**
+- [ ] **Spike 2, a film with no shoot**: can a `CProject` have all its scenes finished through `0x004EB900` without being shot on sets, then release and play back cleanly? Everything else depends on this.
+- [ ] **Spike 1, the cel-shading pass**: find where film playback renders and put a shader there. This decides whether the pack looks the part.
+- [ ] Animators as a role for existing staff (writers or crew), since new walking character types aren't feasible.
+
 ## Not feasible as a mod (or deferred)
 
 - **New animations** (little background scenes). These need the game's `.flm` animation format. New building models are now possible (see BUILDINGS.md); new film sets would use the same `.msh` format.
