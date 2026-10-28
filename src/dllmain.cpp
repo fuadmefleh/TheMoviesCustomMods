@@ -89,6 +89,7 @@ void OnAttach()
     text::Install();
     diag::Install();
     diag::InstallCrashLog();
+    diag::InstallHangWatch();
     g_hooksEnabled = true;
 }
 

@@ -16,6 +16,7 @@
 
 #include "MinHook.h"
 #include "mod.h"
+#include "overlay.h"
 
 namespace diag {
 namespace {
@@ -177,6 +178,112 @@ LONG WINAPI Unhandled(EXCEPTION_POINTERS* ep)
 }
 
 } // namespace
+
+// ---------------------------------------------------------------------------------
+// Hang watchdog. Every frame the game presents beats a heartbeat (from the Present hook). If
+// none comes for a while after the first, a watcher thread logs where the game's thread is:
+// its instruction address and the return addresses on its stack (as in a crash report), at
+// 30, 60 and 120 seconds, so a busy loop (the address moves) can be told from a wait. The
+// first report also writes MoviesMod_hang.dmp. It never stops the game; if frames come back
+// it logs how long the stall was.
+
+namespace {
+
+volatile LONG g_beat = 0;          // GetTickCount() of the last frame, 0 before the first
+volatile DWORD g_mainThread = 0;   // the thread that presents frames
+DWORD g_hangSeconds = 30;
+
+void Heartbeat()
+{
+    g_mainThread = GetCurrentThreadId();
+    InterlockedExchange(&g_beat, static_cast<LONG>(GetTickCount()));
+}
+
+void ReportHang(DWORD seconds, bool dump)
+{
+    HANDLE t = OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT | THREAD_QUERY_INFORMATION, FALSE, g_mainThread);
+    if (!t) {
+        mod::Log("HANG: no frame for %u s, and the game's thread can't be opened", static_cast<unsigned>(seconds));
+        return;
+    }
+    CONTEXT c{};
+    c.ContextFlags = CONTEXT_FULL;
+    bool got = SuspendThread(t) != static_cast<DWORD>(-1) && GetThreadContext(t, &c);
+    char at[32] = "?", stack[24 * 20] = "";
+    if (got) {
+        Describe(at, sizeof at, c.Eip);
+        StackText(c.Esp, stack, sizeof stack);
+    }
+    ResumeThread(t);
+    mod::Log("HANG: no frame for %u s - the game's thread is at %s", static_cast<unsigned>(seconds), at);
+    if (got) {
+        mod::Log("  eax %08X ebx %08X ecx %08X edx %08X esi %08X edi %08X ebp %08X esp %08X", c.Eax, c.Ebx, c.Ecx,
+                 c.Edx, c.Esi, c.Edi, c.Ebp, c.Esp);
+        mod::Log("  stack: %s", stack);
+    }
+    if (dump) {
+        wchar_t path[MAX_PATH];
+        swprintf_s(path, L"%s\\MoviesMod_hang.dmp", mod::GameDir());
+        HMODULE dbghelp = LoadLibraryW(L"dbghelp.dll");
+        using Write_t = BOOL(WINAPI*)(HANDLE, DWORD, HANDLE, int, void*, void*, void*);
+        auto write = dbghelp ? reinterpret_cast<Write_t>(GetProcAddress(dbghelp, "MiniDumpWriteDump")) : nullptr;
+        HANDLE file = CreateFileW(path, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+        bool ok = write && file != INVALID_HANDLE_VALUE &&
+                  write(GetCurrentProcess(), GetCurrentProcessId(), file, 0x1 | 0x4 /* data segments, handles */,
+                        nullptr, nullptr, nullptr);
+        if (file != INVALID_HANDLE_VALUE)
+            CloseHandle(file);
+        mod::Log("HANG: %s MoviesMod_hang.dmp", ok ? "wrote" : "FAILED to write");
+    }
+    CloseHandle(t);
+}
+
+DWORD WINAPI WatchThread(void*)
+{
+    const DWORD marks[] = { g_hangSeconds, g_hangSeconds * 2, g_hangSeconds * 4 };
+    int reported = 0;
+    for (;;) {
+        Sleep(1000);
+        LONG beat = g_beat;
+        if (!beat)
+            continue;   // no frame yet: still starting up
+        DWORD quiet = (GetTickCount() - static_cast<DWORD>(beat)) / 1000;
+        if (quiet < 2) {
+            if (reported)
+                mod::Log("HANG: frames are back (the game was stuck for at least %u s)",
+                         static_cast<unsigned>(marks[reported - 1]));
+            reported = 0;
+            continue;
+        }
+        if (reported < 3 && quiet >= marks[reported]) {
+            ReportHang(quiet, reported == 0);
+            reported++;
+        }
+    }
+}
+
+} // namespace
+
+void InstallHangWatch()
+{
+    wchar_t path[MAX_PATH];
+    swprintf_s(path, L"%s\\MoviesMod.ini", mod::GameDir());
+    g_hangSeconds = GetPrivateProfileIntW(L"MoviesMod", L"HangWatchSeconds", 30, path);
+    if (!g_hangSeconds)
+        return;
+    if (!g_exeBase) {   // the crash log is off: the stack reader still needs the module ranges
+        HMODULE self = nullptr;
+        GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                           reinterpret_cast<LPCWSTR>(&InstallHangWatch), &self);
+        ModuleRange(GetModuleHandleW(nullptr), &g_exeBase, &g_exeEnd);
+        ModuleRange(self, &g_dllBase, &g_dllEnd);
+    }
+    overlay::AddFrameCallback(&Heartbeat);
+    HANDLE t = CreateThread(nullptr, 0, &WatchThread, nullptr, 0, nullptr);
+    if (t)
+        CloseHandle(t);
+    mod::Log("hang watch on (%u s without a frame is logged, with MoviesMod_hang.dmp)", static_cast<unsigned>(g_hangSeconds));
+}
 
 void InstallCrashLog()
 {
