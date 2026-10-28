@@ -340,12 +340,18 @@ namespace projectlist {
 void SetCategory(ProjectTest, ProjectPicture, ProjectInfo) {}
 } // namespace projectlist
 
-// tv_accounts.cpp hooks the game's hiring; the simulator's studio has one accountant.
+// tv_staff.cpp hooks the game's hiring; the simulator's studio has one accountant.
 namespace tv {
 int Accountants() { return 1; }
-void AccountsReset() {}
-void InstallAccounts() {}
-bool AccountsDrop(const std::string&, uintptr_t, uintptr_t) { return false; }
+int Animators() { return 0; }
+int StaffWorkingIn(int, const char*) { return 0; }
+void StaffReset() {}
+void InstallStaff() {}
+bool StaffDrop(const std::string&, uintptr_t, uintptr_t) { return false; }
+bool AnimationDrop(const std::string&, uintptr_t, uintptr_t) { return false; }
+bool CartoonLabel(uintptr_t, std::wstring*, std::wstring*, std::wstring*) { return false; }
+bool IsCartoon(uintptr_t) { return false; }
+void InstallAnimation() {}
 } // namespace tv
 
 // tv_ceremony.cpp stages the game's awards show; the simulator has none (the papers report).

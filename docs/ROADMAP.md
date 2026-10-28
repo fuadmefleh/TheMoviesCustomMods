@@ -200,7 +200,10 @@ A second production line next to live action, sized like an expansion pack. Cart
   - [ ] **In-game test** of the preview (look, speed, alt-tab/resolution change)
   - [ ] When a film is playing: game-mode changes are logged (`toon: game mode`) to find the playback mode, then which film it is
   - [ ] Keep the game's interface out of the pass (draw before the HUD, or only inside the film's viewport)
-- [ ] Animators as a role for existing staff (writers or crew), since new walking character types aren't feasible.
+- [x] **Animators**: a new profession (career 18, `src/careers.cpp`), built like the accountants: hired at the Animation Studio's own desk from jobseekers who walk over and wait out front, dressed as writers, sent back to their desks when idle. Accountants and animators now share one profession table (`src/tv_staff.cpp`, was `tv_accounts.cpp`). Not on the HUD's people card yet (it has room for one extra page, the accountants')
+- [x] **The Animation Studio** (`facility_animation_studio`, `tools/make_tv_models.py`): a 1930s Spanish-revival studio with a CARTOONS sign and a mascot board; Story Room, Animators' Desks, Ink & Paint, a hiring desk and a jobseekers' spot
+- [x] **Animating a film** (`src/tv_animation.cpp`): a finished, uncast film script dropped in the Story Room becomes the cartoon; animators at the desks draw its scenes (20 animator-days each), animators in Ink & Paint colour them (8 each; computers from 1995); the script's bubble shows the count; when all are painted the film is finished through the spike-2 route and released as usual. One cartoon at a time, saved with the game
+- [ ] **In-game test** of the studio: placement, hiring, seating at both rooms, progress, finishing, a save and load mid-cartoon
 
 ## Not feasible as a mod (or deferred)
 

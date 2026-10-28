@@ -539,6 +539,7 @@ const char* ModObjectMesh(uintptr_t project)
 bool ModObjectLabel(uintptr_t project, rooms::ObjectLabel* l)
 {
     return ShareObjectLabel(project, &l->kind, &l->phase, &l->status) ||
+           CartoonLabel(project, &l->kind, &l->phase, &l->status) ||
            TvScriptLabel(project, &l->kind, &l->phase, &l->status);
 }
 
@@ -547,8 +548,11 @@ bool OnRoomDrop(const rooms::Drop& d)
     // Shares go to the Accounting Office; nothing else is dealt with there yet.
     if (d.project && SharesDrop(d.room, d.project))
         return true;
-    // People on the Accounts Floor: accountants sit down at the desks.
-    if (!d.project && d.person && AccountsDrop(d.room, d.roomObject, d.person))
+    // People on the Accounts Floor or the Animation Studio's desks: they sit down to work.
+    if (!d.project && d.person && StaffDrop(d.room, d.roomObject, d.person))
+        return true;
+    // The Animation Studio: a film's script in the Story Room becomes a cartoon.
+    if (AnimationDrop(d.room, d.project, d.person))
         return true;
     if (d.room.rfind("room_tvk_", 0) == 0) {
         if (d.project)
@@ -1064,7 +1068,8 @@ void Install()
     rooms::SetTvScriptTest(&IsModObject);
     rooms::SetMeshChooser(&ModObjectMesh);
     rooms::SetLabeler(&ModObjectLabel);
-    InstallAccounts();
+    InstallStaff();
+    InstallAnimation();
     InstallCeremony(g_awardsCeremony);
     InstallAwardsTimeline();
     // The bag and the briefcase get a group of their own on the HUD's project list.

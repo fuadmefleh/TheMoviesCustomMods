@@ -21,6 +21,7 @@ namespace production {
 void Install();   // production.cpp: continuity makeup and the second unit
 // Toon Studio spike: finishes a film (script done, stages 3-5) through the game's debug "finish film"
 bool FinishWithoutShoot(uintptr_t project);
+int  SceneCount(uintptr_t project);   // the film's scenes (its script's shots), -1 if unreadable
 }
 
 namespace toon {

@@ -634,7 +634,7 @@ void SharesReset()
 {
     g_fateShown = false;
     g_bag = g_case = 0;
-    AccountsReset();   // count the new game's accountants afresh
+    StaffReset();   // count the new game's accountants afresh
     g_sh = Shares{};
     g_lastDay = 0;
 }

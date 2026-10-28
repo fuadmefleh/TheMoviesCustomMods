@@ -11,6 +11,8 @@
 //   tv_events.cpp   the Golden Antenna Awards, TV history and scandals, Media Empire Value
 //   tv_research.cpp research, challenges, live episodes
 //   tv_writers.cpp  the TV Writers' Office: format desks, TV scripts, the script shelf
+//   tv_staff.cpp    new professions: accountants and animators
+//   tv_animation.cpp Toon Studio: the Animation Studio, cartoons drawn and painted by animators
 
 #include <cstdint>
 #include <deque>
@@ -331,12 +333,22 @@ bool IsShareObject(uintptr_t project);
 const char* ShareObjectMesh(uintptr_t project);
 bool SharesDrop(const std::string& zone, uintptr_t project);   // true if it was one of them
 void PlaceShareObjects();             // put them out at the Accounting Office if missing
-// Accountants (tv_accounts.cpp): the player's staff in career 1, hired at the Accounting Office.
+// New professions (tv_staff.cpp): accountants, hired at the Accounting Office, and animators,
+// hired at the Animation Studio (careers 17 and 18).
 int  Accountants();
-void AccountsReset();
-void InstallAccounts();
-// Someone dropped on the Accounts Floor (room_tvk_books); true if it was handled there.
-bool AccountsDrop(const std::string& zone, uintptr_t room, uintptr_t person);
+int  Animators();
+int  StaffWorkingIn(int career, const char* zone);   // the player's people of a career in a zone now
+void StaffReset();
+void InstallStaff();
+// Someone dropped on a profession's work zone (the Accounts Floor, the animators' desks, Ink &
+// Paint); true if it was handled there.
+bool StaffDrop(const std::string& zone, uintptr_t room, uintptr_t person);
+// Toon Studio (tv_animation.cpp): the Animation Studio's zones (room_tva_*); true if handled.
+bool AnimationDrop(const std::string& zone, uintptr_t project, uintptr_t person);
+// The cartoon's bubble on the lot: how many scenes are drawn and painted.
+bool CartoonLabel(uintptr_t project, std::wstring* kind, std::wstring* phase, std::wstring* status);
+bool IsCartoon(uintptr_t project);   // the film the animators are working on
+void InstallAnimation();
 // The lines of their hover bubble (kind, phase, status); false if it isn't one of them.
 // The right-hand HUD list's picture for one (ui/shares_*.dds), and the Studio shares screen.
 const char* ShareObjectPicture(uintptr_t project);

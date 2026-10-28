@@ -324,6 +324,13 @@ void Frame()
 
 } // namespace
 
+int SceneCount(uintptr_t project)
+{
+    int total = 0, done = 0;
+    CountShots(project, &total, &done);
+    return total;
+}
+
 bool FinishWithoutShoot(uintptr_t project)
 {
     game::Project before = game::ReadProjectAt(project);

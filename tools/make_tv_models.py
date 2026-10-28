@@ -216,6 +216,35 @@ BUILDINGS = [
             {'type': 'box', 'x': -8.0, 'y': 3.0, 'w': 1.6, 'd': 1.6, 'h': 1.0, 'texture': 'tvp_ac.png', 'min_roof': 1.0},
         ],
     },
+    {
+        # Toon Studio: the Animation Studio (src/tv_animation.cpp). Drop a film's script in the
+        # story room to animate it; animators (hired at room_tva_hire, a real hire room: src/rooms.cpp)
+        # draw its scenes at the desks and paint them in Ink & Paint. A 1930s Spanish-revival studio,
+        # cream stucco under red tiles, with tall north-light windows for the drawing boards.
+        'name': 'animation_studio', 'donor': 'customscriptoffice',
+        'style': {'wall': 'wall_ph54', 'base': 'wall_ph55', 'trim': 'wall_ph40', 'tiles': 'roof_ph04',
+                  'door': 'door_ph10'},
+        'blocks': [
+            {'x': 0.0, 'y': 0.5, 'w': 26.0, 'd': 12.0, 'h': 8.0, 'floors': 2, 'roof': 'hip', 'pitch': 3.0,
+             'windows': {'w': 1.8, 'h': 2.4, 'spacing': 2.6, 'sill': 0.6}},
+            {'x': 0.0, 'y': -6.3, 'w': 6.0, 'd': 2.0, 'h': 5.0, 'floors': 1, 'roof': 'flat', 'bands': False,
+             'windows': {'w': 0}, 'doors': [{'side': 'f', 'w': 2.0, 'h': 2.8}]},
+        ],
+        'rooms': {'room_cso_create': 'room_tva_desks', 'room_cso_canit': 'room_tva_ink',
+                  'room_cso_blank': 'room_tva_story', 'room_cso_hall': 'room_tva_hire'},
+        # Animators sit at the boards and work: the script office hall's sit-and-type scene, in
+        # both drawing rooms. The hiring desk takes the crew facility's hiring desk's scene.
+        'scenes': {'so_hall': 'tva_desks', 'cf_hire': 'tva_hire'},
+        'extra_scenes': {'so_hall': 'tva_ink'},
+        'zones': {'room_': [-12.7, -5.2, 12.7, 6.2], 'room_tva_hire': [-4.0, -5.2, 4.0, 0.8],
+                  'room_tva_story': [-12.7, -5.2, -4.2, 6.2], 'room_tva_desks': [-4.0, 1.0, 12.7, 6.2],
+                  'room_tva_ink': [4.2, -5.2, 12.7, 0.8], 'room_tva_wait': [2.2, -10.8, 6.6, -8.4]},
+        'stand_scenes': {'tva_wait': [(3.0, -9.4), (4.4, -9.8), (5.8, -9.3), (3.6, -10.4), (5.1, -10.5)]},
+        'props': [
+            {'type': 'sign', 'x': 0.0, 'y': -7.35, 'w': 5.6, 'h': 1.0, 'z': 3.5, 'legs': 0, 'texture': 'tvp_cartoons.png'},
+            {'type': 'sign', 'x': -5.5, 'y': -8.6, 'w': 2.0, 'h': 2.0, 'legs': 0.8, 'texture': 'tvp_mascot.png'},
+        ],
+    },
 ]
 
 
@@ -359,6 +388,35 @@ def make_textures(out):
     img = sign(512, 136, (40, 20, 70), (15, 5, 35), (255, 120, 220))
     centred_text(img, 'TV WRITERS', 64, (255, 200, 245), glow=(255, 90, 210, 255))
     img.save(os.path.join(out, 'tvp_writers.png'))
+
+    # The Animation Studio: CARTOONS in bouncing letters of every colour.
+    img = sign(1024, 184, (250, 236, 200), (235, 210, 160), (200, 40, 40))
+    colours = [(215, 45, 45), (240, 150, 20), (40, 140, 60), (30, 90, 200), (150, 50, 170)]
+    f = font(120)
+    d = ImageDraw.Draw(img)
+    x = (img.width - sum(int(d.textlength(ch, font=f)) + 6 for ch in 'CARTOONS') + 6) // 2
+    for i, ch in enumerate('CARTOONS'):
+        y = 22 + (14 if i % 2 else -6)
+        d.text((x + 5, y + 5), ch, font=f, fill=(90, 50, 30))
+        d.text((x, y), ch, font=f, fill=colours[i % len(colours)])
+        x += int(d.textlength(ch, font=f)) + 6
+    img.save(os.path.join(out, 'tvp_cartoons.png'))
+
+    # The studio mascot board: a beaming cartoon star with big eyes and white gloves.
+    img = sign(256, 256, (70, 160, 230), (30, 90, 170), (255, 255, 255))
+    d = ImageDraw.Draw(img)
+    cx, cy = 128, 132
+    pts = [(cx + (96 if k % 2 == 0 else 42) * math.cos(-math.pi / 2 + k * math.pi / 5),
+            cy + (96 if k % 2 == 0 else 42) * math.sin(-math.pi / 2 + k * math.pi / 5)) for k in range(10)]
+    d.polygon([(px + 5, py + 5) for px, py in pts], fill=(30, 40, 80))
+    d.polygon(pts, fill=(255, 210, 40), outline=(40, 30, 20))
+    for ex in (110, 146):
+        d.ellipse([ex - 13, 104, ex + 13, 140], fill=(255, 255, 255), outline=(40, 30, 20), width=3)
+        d.ellipse([ex - 5, 118, ex + 7, 136], fill=(30, 25, 25))
+    d.arc([100, 128, 156, 170], 20, 160, fill=(150, 30, 30), width=6)
+    for gx, gy in ((40, 108), (216, 108)):
+        d.ellipse([gx - 16, gy - 14, gx + 16, gy + 14], fill=(255, 255, 255), outline=(40, 30, 20), width=3)
+    img.save(os.path.join(out, 'tvp_mascot.png'))
 
     img = Image.new('RGBA', (64, 256), (240, 240, 240, 255))
     d = ImageDraw.Draw(img)

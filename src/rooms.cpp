@@ -386,13 +386,15 @@ struct ZoneScene {
     const char* zone;
     const char* scene;
 };
-// The jobseekers' spot in front of the Accounting Office: the extras' stand-and-wait scene.
-const ZoneScene kZoneScenes[] = { { "room_tvk_books", "ai_room_tvk_books" }, { "room_tvk_wait", "ai_room_tvk_wait" } };
+// The jobseekers' spots in front of the Accounting Office and the Animation Studio: the extras'
+// stand-and-wait scene. The animators' desks and Ink & Paint are sit-and-type, like the accounts.
+const ZoneScene kZoneScenes[] = { { "room_tvk_books", "ai_room_tvk_books" }, { "room_tvk_wait", "ai_room_tvk_wait" },
+                                  { "room_tva_desks", "ai_room_tva_desks" }, { "room_tva_ink", "ai_room_tva_ink" },
+                                  { "room_tva_wait", "ai_room_tva_wait" } };
 constexpr uintptr_t kRoomAdmit = 0x0093CFD0;   // void __thiscall(TMRoom*, TMMobile* who, int)
 constexpr int kRoomHasScene = 0x1C9;
 
-std::map<uintptr_t, std::string> g_workRooms;   // zones with a scene (and the hiring desk), as created or loaded
-const char* const kHireZone = "room_tvk_hire";
+std::map<uintptr_t, std::string> g_workRooms;   // zones with a scene (and the hiring desks), as created or loaded
 
 void GiveScene(uintptr_t room, const char* scene)
 {
@@ -408,11 +410,24 @@ void GiveScene(uintptr_t room, const char* scene)
     }
 }
 
-// The Accounting Office's hiring desk is the game's own hire room (CHireRoom, what the
-// Employment Office's builder and janitor desks are), for the accountant (career 17,
-// careers.cpp). Built like the crew facility's hire room: no scene of its own.
+// The hiring desks of the Accounting Office and the Animation Studio are the game's own hire
+// room (CHireRoom, what the Employment Office's builder and janitor desks are), for the
+// accountant and the animator (careers 17 and 18, careers.cpp). Built like the crew facility's
+// hire room: no scene of its own.
 constexpr uintptr_t kHireRoomCtor = 0x00924230;   // CHireRoom* __thiscall(void* mem, int career), 0x25C bytes
-constexpr int kAccountantCareer = careers::kAccountant;
+struct HireZone {
+    const char* zone;
+    int         career;
+};
+const HireZone kHireZones[] = { { "room_tvk_hire", careers::kAccountant }, { "room_tva_hire", careers::kAnimator } };
+
+bool IsHireZone(const std::string& zone)
+{
+    for (const HireZone& h : kHireZones)
+        if (zone == h.zone)
+            return true;
+    return false;
+}
 
 uintptr_t BuildHireRoom(int career)
 {
@@ -434,10 +449,12 @@ uintptr_t __cdecl HookFactory(uintptr_t mesh, int index, void* prefix, int sep)
         using Record_t = uintptr_t(__thiscall*)(uintptr_t, int);
         uintptr_t record = reinterpret_cast<Record_t>(0x0097EA00)(mesh, index);
         const char* name = record && Readable(record + 4, 24) ? reinterpret_cast<const char*>(record + 4) : "";
-        if (strcmp(name, "room_tvk_hire") == 0) {
-            if (uintptr_t room = BuildHireRoom(kAccountantCareer)) {
-                mod::Log("rooms: created hire room %s (accountants)", name);
-                g_workRooms[room] = "";   // where jobseekers wait (tv_accounts.cpp)
+        for (const HireZone& h : kHireZones) {
+            if (strcmp(name, h.zone) != 0)
+                continue;
+            if (uintptr_t room = BuildHireRoom(h.career)) {
+                mod::Log("rooms: created hire room %s (%ss)", name, careers::Name(h.career));
+                g_workRooms[room] = "";   // where jobseekers wait (tv_staff.cpp)
                 return room;
             }
             mod::Log("rooms: FAILED to build hire room %s (exception %08X) - using a plain one", name,
@@ -486,7 +503,7 @@ void __fastcall HookSerialize(uintptr_t base, void* edx)
     for (const ZoneScene& z : kZoneScenes)
         if (zone == z.zone)
             GiveScene(base - 0x64, z.scene);
-    if (zone == kHireZone)
+    if (IsHireZone(zone))
         g_workRooms[base - 0x64] = "";
 }
 

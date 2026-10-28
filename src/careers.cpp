@@ -1,17 +1,18 @@
 // New employee types: the game's careers (CStaff +0x814) extended past its fixed 17.
 //
 // The game knows 17 careers (0 unemployed ... 14 writer, 15 scientist, 16 stuntman; see
-// re/employees.md). Career 17 is the accountant (src/tv_accounts.cpp). Three things in the
+// re/employees.md). Career 17 is the accountant (src/tv_staff.cpp), 18 the animator
+// (src/tv_animation.cpp). Three things in the
 // game are sized for exactly 17 and indexed by career without a check:
 //   * the career names (0x00E54078, 17 game Strings; "SITT_DETAILS_CAREER_" + name is the job
 //     title, and data/tasks.ini sections are looked up by it) and the costume lists read
 //     from tasks.ini (0x0104D0C8 "costume", 0x0104D2E8 "vip"). There's nothing free after
-//     any of them, so the mod makes 18-entry copies and points every instruction that uses
+//     any of them, so the mod makes 19-entry copies and points every instruction that uses
 //     them at the copies, and raises the two loop bounds that count to 17;
 //   * the film-credit lists (0x00F87C80), filled only for film crew: accountants are kept out
 //     of the credits instead (FUN_0043B220 skips them).
 // Everything else that reads the career compares it with constants or checks a range, so 17
-// gets the defaults: no task desires, no home building, no credits.
+// and 18 get the defaults: no task desires, no home building, no credits.
 //
 // The HUD's people card (top left: stars, extras, writers, builders, crew, janitors,
 // scientists, one page each, flicked through with its arrows) gets a tenth page, the
@@ -101,7 +102,7 @@ constexpr uintptr_t kReadTasks = 0x00597F70;   // void __cdecl(): fills the cost
 const char* const kCareerNames[kCareers] = {
     "unemployed", "staff",   "actor", "director",   "extra",     "builder",   "janitor",
     "cameraman",  "soundman", "directorsassistant", "dollyop",   "setop",     "clapperman",
-    "assistant",  "writer",  "scientist", "stuntman", "accountant",
+    "assistant",  "writer",  "scientist", "stuntman", "accountant", "animator",
 };
 
 GameString g_names[kCareers], g_costumes[kCareers], g_vips[kCareers];
@@ -138,8 +139,9 @@ int RelocateTables()
         failed += !Relocate(at, 2, kVips, kOldTableSize, vips);
     failed += !Relocate(0x00598598, 1, kVips, kOldTableSize, vips);
     // The reader's loop (CMP ESI, 17 * 0x20) and the name lookup's (CMP EBP, 17).
-    failed += !Patch(0x00598210, "\x81\xFE\x20\x02\x00\x00", "\x81\xFE\x40\x02\x00\x00", 6, "tasks.ini loop");
-    failed += !Patch(0x0059851E, "\x83\xFD\x11", "\x83\xFD\x12", 3, "career name lookup");
+    static_assert(kCareers == 19, "the two bounds below are for 19 careers");
+    failed += !Patch(0x00598210, "\x81\xFE\x20\x02\x00\x00", "\x81\xFE\x60\x02\x00\x00", 6, "tasks.ini loop");
+    failed += !Patch(0x0059851E, "\x83\xFD\x11", "\x83\xFD\x13", 3, "career name lookup");
     return failed;
 }
 
@@ -164,8 +166,8 @@ void __cdecl HookCredits(uintptr_t credits, uintptr_t staff)
 }
 
 // The cursor while a person is carried (FUN_0091EE70): the game's switch has no case for
-// careers past 15, so accountants keep whatever cursor was showing. They get the builders'
-// and janitors' "staff" one.
+// careers past 15, so accountants and animators keep whatever cursor was showing. They get the
+// builders' and janitors' "staff" one.
 constexpr uintptr_t kPickCursor = 0x0091EE70;   // void __thiscall(cursors, person)
 constexpr uintptr_t kCursorByName = 0x0091E660; // cursor __thiscall(cursors, const char* name)
 constexpr int kCursorCurrent = 0x88;
@@ -184,7 +186,7 @@ void SetCursor(uintptr_t cursors, const char* name)
 void __fastcall HookPickCursor(uintptr_t cursors, void* edx, uintptr_t person)
 {
     g_origPickCursor(cursors, edx, person);
-    if (person && game::ClassName(person) == "CStaff" && CareerOf(person) == kAccountant)
+    if (person && game::ClassName(person) == "CStaff" && CareerOf(person) >= kAccountant)
         SetCursor(cursors, "staff");
 }
 
@@ -580,7 +582,7 @@ void Install()
     bool read = early || ReadTasks();
     g_origCredits = reinterpret_cast<Credits_t>(Hook(0x0043B220, reinterpret_cast<const void*>(&HookCredits), "film credits"));
     g_origPickCursor = reinterpret_cast<PickCursor_t>(Hook(kPickCursor, reinterpret_cast<const void*>(&HookPickCursor), "carried cursor"));
-    mod::Log("careers: %d careers (accountant = %d); costume lists %s", kCareers, kAccountant,
+    mod::Log("careers: %d careers (accountant = %d, animator = %d); costume lists %s", kCareers, kAccountant, kAnimator,
              early ? "will be read at game start" : read ? "read again" : "FAILED to read again");
     bool hud = InstallHudPage();
     mod::Log("careers: accountants' page on the people card %s", hud ? "installed" : "NOT installed");
