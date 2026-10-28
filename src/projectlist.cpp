@@ -47,7 +47,8 @@ constexpr uintptr_t kGetter       = 0x007EF840;
 constexpr uintptr_t kSingletonUse = 0x007F04B6;   // MOV EAX,[singleton] where EBX is the manager
 constexpr uintptr_t kIconUpdate   = 0x007EEC30;   // void __fastcall(icon)
 constexpr uintptr_t kIconPicture  = 0x007EE480;   // void __fastcall(icon): the card's picture by stage
-constexpr uintptr_t kIconNotify   = 0x007EC9B0;   // void __thiscall(icon, int stage): HUD_PROJECT_* messages
+constexpr uintptr_t kIconNotify   = 0x007EC9B0;   // void __thiscall(icon, int stage, Obj by value): HUD_PROJECT_* messages, RET 0x40
+constexpr uintptr_t kNotifyArgDtor = 0x00526BB0;  // void __fastcall(Obj*): what the callee runs on its by-value argument
 constexpr uintptr_t kIconRating   = 0x007EC650;   // void __thiscall(icon, a, b): rating up/down sounds
 constexpr uintptr_t kIconLeague   = 0x007EC8C0;   // void __fastcall(icon): chart position up/down
 constexpr uintptr_t kIconInfo     = 0x007EC510;   // void __fastcall(icon): a click (slot 75, message 0x4B2)
@@ -81,7 +82,6 @@ float g_setHeight = -1;     // what we last gave it
 int   g_shownCount = -1;
 
 using Fast_t = void(__fastcall*)(uintptr_t);
-using Notify_t = void(__fastcall*)(uintptr_t, void*, int);
 using Rating_t = void(__fastcall*)(uintptr_t, void*, uintptr_t, uintptr_t);
 Fast_t g_origEnumerate = nullptr, g_origIconUpdate = nullptr, g_origPicture = nullptr, g_origMgrUpdate = nullptr;
 Fast_t g_origLeague = nullptr, g_origInfo = nullptr, g_origMgrDtor = nullptr;
@@ -90,7 +90,7 @@ Test_t g_origHasStunts = nullptr;
 Fast_t g_origGenre = nullptr;
 using ScenePlay_t = void(__fastcall*)(uintptr_t scene, void* edx, const char* node, int frame);
 ScenePlay_t g_origScenePlay = nullptr;
-Notify_t g_origNotify = nullptr;
+void* g_origNotify = nullptr;
 Rating_t g_origRating = nullptr;
 
 bool Write(uintptr_t at, const void* bytes, size_t len)
@@ -266,10 +266,30 @@ void __fastcall HookPicture(uintptr_t icon)
         SetPicture(icon, tex);
 }
 
-void __fastcall HookNotify(uintptr_t icon, void* edx, int stage)
+// The notices take the stage and a 0x3C-byte object by value, which the callee destroys
+// (RET 0x40). Films go straight on with the stack as it is; for the mod's own cards the stub
+// destroys the object itself and returns as the original would.
+bool __cdecl NotifyIsOurs(uintptr_t icon) { return IsOurs(ProjectOf(icon)); }
+
+__declspec(naked) void HookNotify()
 {
-    if (!IsOurs(ProjectOf(icon)))
-        g_origNotify(icon, edx, stage);
+    __asm {
+        push ecx
+        push ecx
+        call NotifyIsOurs
+        add esp, 4
+        pop ecx
+        test al, al
+        jnz skip
+        jmp dword ptr [g_origNotify]
+    skip:
+        push ecx
+        lea ecx, [esp + 0xC]   // the by-value object: past our push, the return address and the stage
+        mov eax, 0x00526BB0   // kNotifyArgDtor
+        call eax
+        pop ecx
+        ret 0x40
+    }
 }
 
 void __fastcall HookRating(uintptr_t icon, void* edx, uintptr_t a, uintptr_t b)
@@ -474,7 +494,7 @@ void Install()
     g_origIconUpdate = reinterpret_cast<Fast_t>(Hook(kIconUpdate, reinterpret_cast<const void*>(&HookIconUpdate), "card"));
     g_origMgrUpdate = reinterpret_cast<Fast_t>(Hook(kMgrUpdate, reinterpret_cast<const void*>(&HookMgrUpdate), "list update"));
     g_origPicture = reinterpret_cast<Fast_t>(Hook(kIconPicture, reinterpret_cast<const void*>(&HookPicture), "card picture"));
-    g_origNotify = reinterpret_cast<Notify_t>(Hook(kIconNotify, reinterpret_cast<const void*>(&HookNotify), "card notices"));
+    g_origNotify = Hook(kIconNotify, reinterpret_cast<const void*>(&HookNotify), "card notices");
     g_origRating = reinterpret_cast<Rating_t>(Hook(kIconRating, reinterpret_cast<const void*>(&HookRating), "card rating"));
     g_origLeague = reinterpret_cast<Fast_t>(Hook(kIconLeague, reinterpret_cast<const void*>(&HookLeague), "card chart"));
     g_origInfo = reinterpret_cast<Fast_t>(Hook(kIconInfo, reinterpret_cast<const void*>(&HookInfo), "card info"));
