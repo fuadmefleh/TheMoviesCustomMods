@@ -645,6 +645,10 @@ bool __fastcall HookCanAccept(uintptr_t room, void*, uintptr_t who)
 // slot +0x18, 0x00938250): child 0 of the building's render object (0x0097E350), then it
 // waits for that mesh to load (0x009DC300) - with no null check. A building whose model has
 // no child node crashed the game there; skip the attach instead and say which building.
+// The attach is called from the load's resolve queue (0x0098BB60), which puts an item that
+// returns false back at the end and loops until the queue is empty: a model that never comes
+// must eventually count as resolved, or the load spins forever. A few retries first, in case
+// resolving another item gives the building its model.
 constexpr uintptr_t kFloorPlanAttach = 0x00938250;   // bool __fastcall(TMFloorPlan*)
 constexpr uintptr_t kRenderChild = 0x0097E350;       // Object* __thiscall(Object*, int index)
 constexpr int kPlanOwner = 0x1D4;
@@ -662,20 +666,29 @@ uintptr_t FloorPlanModel(uintptr_t plan, uintptr_t* owner)
     }
 }
 
+constexpr int kFloorPlanRetries = 1000;
+std::map<uintptr_t, int> g_planRetries;   // floor plan -> attaches refused so far
+
 bool __fastcall HookFloorPlanAttach(uintptr_t plan)
 {
     uintptr_t owner = 0;
-    if (FloorPlanModel(plan, &owner) || !owner)
+    if (FloorPlanModel(plan, &owner) || !owner) {
+        g_planRetries.erase(plan);
         return g_origFloorPlanAttach(plan);
+    }
+    int& tries = g_planRetries[plan];
+    if (++tries < kFloorPlanRetries)
+        return false;   // back in the queue: another item may still bring the model
+    g_planRetries.erase(plan);
     std::string what = game::ClassName(owner);
     for (const game::Facility& f : game::Facilities())
         if (f.address == owner)
             what = f.type;
     static int logged = 0;
     if (logged++ < 10)
-        mod::Log("rooms: a floor plan's building has no model loaded (%s @%08X) - not attached, game kept running",
+        mod::Log("rooms: a floor plan's building has no model loaded (%s @%08X) - not attached, the load goes on",
                  what.c_str(), static_cast<unsigned>(owner));
-    return false;
+    return true;   // resolved, without a floor plan
 }
 
 // The resource wait itself (0x009DC300, spins until a mesh has loaded) is called from
