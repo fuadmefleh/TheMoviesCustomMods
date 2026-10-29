@@ -353,8 +353,16 @@ bool CartoonLabel(uintptr_t project, std::wstring* kind, std::wstring* phase, st
 bool IsCartoon(uintptr_t project);   // the film the animators are working on
 bool IsFinishedCartoon(const std::wstring& title);   // a film the animators finished
 void InstallAnimation();
-// The studio mascot (tv_mascot.cpp): born with the first cartoon released, grows with each one.
+bool CartoonInProgress();   // the animators have a feature cartoon
+// The studio mascot (tv_mascot.cpp): born with the first short or cartoon, grows with each one.
 void  InstallMascot();
+std::string MascotName(bool create);   // "" before it's born; create: born now, for a short
+float MascotAppeal();                  // 0..1
+void  MascotShown(const std::string& shortTitle, float quality, float weight);   // a short played
+// Cartoon shorts (tv_shorts.cpp): made between features, shown before the player's films.
+void  InstallShorts();
+bool  ShortsVoiceDrop(uintptr_t room, uintptr_t person, const std::string& personName, float rating);
+std::string ShortsStatus();   // a sentence on the short in the works and the shelf
 // The lines of their hover bubble (kind, phase, status); false if it isn't one of them.
 // The right-hand HUD list's picture for one (ui/shares_*.dds), and the Studio shares screen.
 const char* ShareObjectPicture(uintptr_t project);

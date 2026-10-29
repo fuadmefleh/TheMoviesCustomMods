@@ -21,7 +21,8 @@
 // finished through the game's own "finish film" (production::FinishWithoutShoot) and
 // released like any other.
 //
-// One cartoon at a time. A film already being cast or shot can't be animated.
+// One cartoon at a time. A film already being cast or shot can't be animated. Between
+// cartoons the animators make shorts (tv_shorts.cpp), and the Voice Booth records the mascot.
 
 #define NOMINMAX
 #include <windows.h>
@@ -368,11 +369,8 @@ bool VoiceDrop(uintptr_t room, uintptr_t person, const std::string& personClass,
         Notify("The Voice Booth", "Only actors voice cartoons.", kYellow);
         return true;
     }
-    if (g_cartoon.title.empty()) {
-        Notify("The Voice Booth", "There's nothing to voice yet. Drop a film's script in the Story Room first.",
-               kYellow);
-        return true;
-    }
+    if (g_cartoon.title.empty())   // no feature: the voice of the mascot, for the shorts
+        return ShortsVoiceDrop(room, person, personName, rating);
     std::string name = personName.empty() ? Format("Star #%04X", static_cast<unsigned>(person & 0xFFFF)) : personName;
     for (Voice& v : g_cartoon.voices) {
         if (v.name != name)
@@ -435,7 +433,8 @@ bool AnimationDrop(const std::string& zone, uintptr_t room, uintptr_t project, u
         return VoiceDrop(room, person, personClass, personName, starRating);
     if (person && zone == kStory)
         Notify("The Animation Studio",
-               "Animators work at the desks and in Ink & Paint, stars in the Voice Booth. The Story Room takes scripts.",
+               "Animators work at the desks and in Ink & Paint, stars in the Voice Booth. The Story Room takes scripts. " +
+                   (g_cartoon.title.empty() ? ShortsStatus() : std::string()),
                kYellow);
     return person != 0;
 }
@@ -487,6 +486,8 @@ bool CartoonLabel(uintptr_t project, std::wstring* kind, std::wstring* phase, st
     *status = std::wstring(s.begin(), s.end());
     return true;
 }
+
+bool CartoonInProgress() { return !g_cartoon.title.empty(); }
 
 bool IsCartoon(uintptr_t project)
 {

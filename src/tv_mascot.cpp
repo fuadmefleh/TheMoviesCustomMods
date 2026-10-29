@@ -1,7 +1,9 @@
 // Toon Studio: the studio mascot.
 //
-// The first cartoon the studio releases introduces its mascot (the star on the Animation
-// Studio's mascot board), named from a list. Every cartoon released after that stars it:
+// The first short the animators start (tv_shorts.cpp), or else the first cartoon the studio
+// releases, introduces its mascot (the star on the Animation Studio's mascot board), named from
+// a list. Every cartoon released after that stars it, and every short shown before a film
+// counts too, less:
 //
 //  * appeal (0..1) grows with each release, more for a better cartoon and less the higher it
 //    already is, and fades over the years without one (half-life kFadeYears, or kIconFadeYears
@@ -80,11 +82,16 @@ int StageOf(float appeal)
     return s;
 }
 
+void Name(const std::string& origin, float today)
+{
+    g_mascot.name = kNames[(GetTickCount() / 7 + static_cast<unsigned>(origin.size())) % _countof(kNames)];
+    g_mascot.born = today;
+    mod::Log("tv: mascot %s born with '%s'", g_mascot.name.c_str(), origin.c_str());
+}
+
 void Born(const std::string& firstCartoon, float today)
 {
-    g_mascot.name = kNames[(GetTickCount() / 7 + static_cast<unsigned>(firstCartoon.size())) % _countof(kNames)];
-    g_mascot.born = today;
-    mod::Log("tv: mascot %s born with '%s'", g_mascot.name.c_str(), firstCartoon.c_str());
+    Name(firstCartoon, today);
     Notify(Format("Meet %s", g_mascot.name.c_str()),
            Format("\"%s\" introduces your studio's mascot. Every cartoon you release stars %s: give audiences a "
                   "good one now and then, but not too often, and %s could become an icon.",
@@ -92,8 +99,9 @@ void Born(const std::string& firstCartoon, float today)
            kGold);
 }
 
-// A cartoon came out: the mascot gains appeal (less when stale), and gets staler.
-void Released(const std::string& title, float quality, float today)
+// A cartoon came out (weight 1), or a short was shown (less): the mascot gains appeal (less
+// when stale), and gets staler.
+void Released(const std::string& title, float quality, float today, float weight = 1.0f)
 {
     if (g_mascot.name.empty())
         Born(title, today);
@@ -101,17 +109,17 @@ void Released(const std::string& title, float quality, float today)
     float before = g_mascot.appeal;
     bool tired = g_mascot.staleness >= kTiredAt;
     if (tired)
-        g_mascot.appeal = std::max(0.0f, g_mascot.appeal - kTiredLoss);
+        g_mascot.appeal = std::max(0.0f, g_mascot.appeal - kTiredLoss * weight);
     else
-        g_mascot.appeal += (0.08f + 0.30f * q) * (1 - g_mascot.appeal) * (1 - g_mascot.staleness);
-    g_mascot.staleness = std::min(1.0f, g_mascot.staleness + kStalePerRelease);
+        g_mascot.appeal += weight * (0.08f + 0.30f * q) * (1 - g_mascot.appeal) * (1 - g_mascot.staleness);
+    g_mascot.staleness = std::min(1.0f, g_mascot.staleness + kStalePerRelease * weight);
     g_mascot.lastRelease = today;
     g_mascot.cartoons++;
     mod::Log("tv: mascot %s - '%s' (quality %.2f): appeal %.2f -> %.2f, staleness %.2f%s", g_mascot.name.c_str(),
              title.c_str(), q, before, g_mascot.appeal, g_mascot.staleness, tired ? " (tired)" : "");
     if (tired)
         Notify(Format("Audiences are tired of %s", g_mascot.name.c_str()),
-               Format("\"%s\" came too soon after the last cartoon. Give %s a rest before the next one.", title.c_str(),
+               Format("\"%s\" came too soon after the last cartoon or short. Give %s a rest before the next one.", title.c_str(),
                       g_mascot.name.c_str()),
                kYellow);
 }
@@ -215,6 +223,23 @@ float MascotPull(uintptr_t project)
     if (g_mascot.name.empty() || !project || !CartoonStyle(project))
         return 1.0f;
     return 1.0f + kMaxPull * g_mascot.appeal;
+}
+
+std::string MascotName(bool create)
+{
+    if (g_mascot.name.empty() && create && game::Ready())
+        Name("the first short", game::DateDays());
+    return g_mascot.name;
+}
+
+float MascotAppeal() { return g_mascot.name.empty() ? 0.0f : g_mascot.appeal; }
+
+void MascotShown(const std::string& shortTitle, float quality, float weight)
+{
+    if (weight <= 0 || !game::Ready())
+        return;
+    Released(shortTitle, quality, game::DateDays(), weight);
+    CheckStage();
 }
 
 void InstallMascot()

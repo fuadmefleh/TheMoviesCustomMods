@@ -353,7 +353,8 @@ float CostumeBoredom(uintptr_t project, float now)
 }
 
 // How much audiences mark the film down for dated technology and tired costumes (1 = not at all),
-// times the studio mascot's pull for a cartoon (tv_mascot.cpp).
+// times the studio mascot's pull for a cartoon (tv_mascot.cpp) and the short shown before it
+// (tv_shorts.cpp).
 float Staleness(uintptr_t success)
 {
     uintptr_t project = At<uintptr_t>(success + kSProject);
@@ -377,13 +378,13 @@ float Staleness(uintptr_t success)
         if (bound > 0 && bound <= 1)
             factor *= (1 - boredom) * (1 - bound) + bound;
     }
-    float mascot = tv::MascotPull(project);
-    factor *= mascot;
+    float mascot = tv::MascotPull(project), short_ = tv::ShortPull(project);
+    factor *= mascot * short_;
     static int mascotLogs = 0;
-    if (!g_staleLogged || (mascot != 1 && mascotLogs++ < 20)) {
+    if (!g_staleLogged || ((mascot != 1 || short_ != 1) && mascotLogs++ < 20)) {
         g_staleLogged = true;
-        mod::Log("ratings: staleness: modern kit %.2f, costume boredom %.2f, mascot x%.2f -> x%.3f", tech, boredom,
-                 mascot, factor);
+        mod::Log("ratings: staleness: modern kit %.2f, costume boredom %.2f, mascot x%.2f, short x%.2f -> x%.3f", tech,
+                 boredom, mascot, short_, factor);
     }
     if (cache.size() > 500)
         cache.clear();

@@ -212,7 +212,9 @@ A second production line next to live action, sized like an expansion pack. Cart
 - [x] CGI cartoons played with the CGI look, hand-drawn ones with the hand-drawn look
 - [ ] Farms counted only once built (now under construction counts too)
 - [x] **The studio mascot** (`src/tv_mascot.cpp`): born with the first cartoon released, a star named from a list (the one on the studio's mascot board). Each released cartoon adds appeal (more for a better one, less when the mascot is stale); appeal fades over years without one (slowly once an icon). Stages Newcomer, Familiar Face, Star, Icon. Cartoons draw up to +30% at the box office (the success hook's factor), and from 1935 merchandise pays monthly, reported yearly. Saved with the game
-- [ ] Mascot: shorts (1928-37) shown before features, TV cartoons, the mascot on the lot (a statue, a costumed walkabout)
+- [x] **Shorts** (`src/tv_shorts.cpp`): with no feature cartoon, animators at the desks make seven-minute shorts starring the mascot (3 scenes, drawn and painted as a feature's; the first short brings the mascot to life). Finished shorts wait on a shelf (3 at most); the oldest plays before the player's next film past its shoot: up to +12% at the box office for a perfect short, twice that with an icon mascot, and half a cartoon's worth of mascot appeal. From 1928 a star dropped in the Voice Booth between features records the mascot's voice; without one a short is silent and worth less. Cinemas drop shorts from 1955 to 1970, after which none are started. Saved with the game
+- [ ] **In-game test** of shorts: one started by animators with no feature, the shelf, the booking notice and the box-office line in the log (`short x`), the mascot's voice
+- [ ] Mascot: TV cartoons, the mascot on the lot (a statue, a costumed walkabout)
 - [ ] **In-game test** of the booth: seating at the microphones, recording only while there, the role count, the quality it gives
 - [ ] Voice fame: voice work as its own track for a star (a faded actor's comeback)
 

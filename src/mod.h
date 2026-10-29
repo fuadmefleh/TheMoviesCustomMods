@@ -33,6 +33,9 @@ bool VoicePerformance(uintptr_t project, float* performance);
 int CartoonStyle(uintptr_t project);
 // The studio mascot's pull at the box office for one of the player's films (1 = none).
 float MascotPull(uintptr_t project);
+// The bump a cartoon short shown before one of the player's films gives it (1 = none); books
+// a short from the shelf for a new film past its shoot.
+float ShortPull(uintptr_t project);
 }
 
 namespace toon {
