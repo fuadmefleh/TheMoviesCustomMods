@@ -204,6 +204,11 @@ A second production line next to live action, sized like an expansion pack. Cart
 - [x] **The Animation Studio** (`facility_animation_studio`, `tools/make_tv_models.py`): a 1930s Spanish-revival studio with a CARTOONS sign and a mascot board; Story Room, Animators' Desks, Ink & Paint, a hiring desk and a jobseekers' spot
 - [x] **Animating a film** (`src/tv_animation.cpp`): a finished, uncast film script dropped in the Story Room becomes the cartoon; animators at the desks draw its scenes (20 animator-days each), animators in Ink & Paint colour them (8 each; computers from 1995); the script's bubble shows the count; when all are painted the film is finished through the spike-2 route and released as usual. One cartoon at a time, saved with the game
 - [ ] **In-game test** of the studio: placement, hiring, seating at both rooms, progress, finishing, a save and load mid-cartoon
+- [x] **The Voice Booth** (`room_tva_voice`, the back half of the Story Room; `src/tv_animation.cpp`): the cartoon's acting roles (`production::RoleCount`) need voices. A star dropped in the booth stands at a microphone and records one role in 3 days (time away from the booth doesn't count). The cartoon is finished only when every role is voiced. With no actors on screen, the voices' star ratings give the performance part of its quality (`CQuality+0xA4` via the quality hook; the film is `[+0x8C]`, or `[[+0x74]+0xB4]`), kept by title after release. Stars can voice between films
+- [x] **Guiding stream** to the Story Room for a finished, uncast script, as the casting office has (`tools/sitt_streams.py`: loose `streams.csv`, `fixedasset.ini`, `sitt.ini`)
+- [x] **Clearer flow**: the cartoon's bubble names the next step (Needs Animators / Needs Painters / Needs Voices), a notice when drawings wait with nobody in Ink & Paint, and dropping the cartoon's script on the studio again says where it stands
+- [ ] **In-game test** of the booth: seating at the microphones, recording only while there, the role count, the quality it gives
+- [ ] Voice fame: voice work as its own track for a star (a faded actor's comeback)
 
 ## Not feasible as a mod (or deferred)
 

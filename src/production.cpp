@@ -37,7 +37,8 @@ constexpr int kStageShoot = 5;
 constexpr int kProjShoot = 0xA0, kProjShotsFirst = 0xAC, kProjShotsSentinel = 0xB8, kProjCrewBegin = 0x134,
               kProjCrewEnd = 0x138, kProjCrewNeeded = 0x300, kProjCast = 0x1F8;
 // CCast / CRole / person
-constexpr int kCastRolesBegin = 0x64, kCastRolesEnd = 0x68, kRoleValue = 0x14, kRoleActor = 0xAC, kRoleDouble = 0xC4;
+constexpr int kCastRolesBegin = 0x64, kCastRolesEnd = 0x68, kRoleValue = 0x14, kRoleActor = 0xAC, kRoleDouble = 0xC4,
+              kRoleType = 0x88;   // 1-3 acting roles, others extras
 constexpr int kPersonRenderChar = 0x6FC, kVtGetAge = 0x1E0, kVtApplyAge = 0x220;
 // CShot / CShoot
 constexpr int kShotProject = 0xB4, kShotForced = 0x144, kShotState = 0x1C0, kShootCurrent = 0x10C;
@@ -323,6 +324,27 @@ void Frame()
 }
 
 } // namespace
+
+int RoleCount(uintptr_t project)
+{
+    int n = 0;
+    __try {
+        uintptr_t cast = Rd<uintptr_t>(project + kProjCast);
+        if (!cast)
+            return -1;
+        uintptr_t begin = Rd<uintptr_t>(cast + kCastRolesBegin), end = Rd<uintptr_t>(cast + kCastRolesEnd);
+        if (!begin || end < begin || end - begin > 64 * 0x18)
+            return -1;
+        for (uintptr_t e = begin; e < end; e += 0x18) {
+            uintptr_t role = Rd<uintptr_t>(e + kRoleValue);
+            int type = role ? Rd<int>(role + kRoleType) : 0;
+            n += type >= 1 && type <= 3;
+        }
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return -1;
+    }
+    return n;
+}
 
 int SceneCount(uintptr_t project)
 {

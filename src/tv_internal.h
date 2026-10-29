@@ -338,14 +338,17 @@ void PlaceShareObjects();             // put them out at the Accounting Office i
 int  Accountants();
 int  Animators();
 int  StaffWorkingIn(int career, const char* zone);   // the player's people of a career in a zone now
+std::string ZoneOf(uintptr_t person);                // the zone someone is in ("" outside)
 void StaffReset();
 void InstallStaff();
 // Someone dropped on a profession's work zone (the Accounts Floor, the animators' desks, Ink &
 // Paint); true if it was handled there.
 bool StaffDrop(const std::string& zone, uintptr_t room, uintptr_t person);
 // Toon Studio (tv_animation.cpp): the Animation Studio's zones (room_tva_*); true if handled.
-bool AnimationDrop(const std::string& zone, uintptr_t project, uintptr_t person);
-// The cartoon's bubble on the lot: how many scenes are drawn and painted.
+// Stars dropped in the Voice Booth voice the cartoon's roles.
+bool AnimationDrop(const std::string& zone, uintptr_t room, uintptr_t project, uintptr_t person,
+                   const std::string& personClass, const std::string& personName, float starRating);
+// The cartoon's bubble on the lot: how many scenes are drawn and painted, how many roles voiced.
 bool CartoonLabel(uintptr_t project, std::wstring* kind, std::wstring* phase, std::wstring* status);
 bool IsCartoon(uintptr_t project);   // the film the animators are working on
 void InstallAnimation();

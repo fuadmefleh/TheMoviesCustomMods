@@ -48,6 +48,14 @@ constexpr uintptr_t kSlice           = 0x00D16A78;  // 0.1
 // CQuality fields the original fills in before combining them.
 constexpr int kQPerformance = 0xA4, kQScript = 0xAC, kQCrew = 0xB0, kQRelations = 0xB4, kQSets = 0xB8,
               kQResult = 0x90;
+// The film: [+0x8C], or when +0x74 is set (a film being made), [[+0x74]+0xB4].
+constexpr int kQFilm = 0x8C, kQProduction = 0x74, kProductionFilm = 0xB4;
+
+uintptr_t QualityFilm(uintptr_t self)
+{
+    uintptr_t production = At<uintptr_t>(self + kQProduction);
+    return production ? At<uintptr_t>(production + kProductionFilm) : At<uintptr_t>(self + kQFilm);
+}
 
 float g_gainDecay = 0.9f;    // game: 0.8
 float g_lossScale = 0.75f;   // game: 1
@@ -71,6 +79,10 @@ void __fastcall HookQuality(uintptr_t self, void* edx, float* out)
 {
     g_origQuality(self, edx, out);
     __try {
+        // A cartoon has no actors on screen: its voice cast gives the performance.
+        float voices;
+        if (tv::VoicePerformance(QualityFilm(self), &voices))
+            At<float>(self + kQPerformance) = voices;
         float script = At<float>(self + kQScript);
         float product = At<float>(self + kQRelations) * At<float>(self + kQSets) * At<float>(self + kQCrew) *
                         At<float>(self + kQPerformance);

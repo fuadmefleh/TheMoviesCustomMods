@@ -552,7 +552,7 @@ bool OnRoomDrop(const rooms::Drop& d)
     if (!d.project && d.person && StaffDrop(d.room, d.roomObject, d.person))
         return true;
     // The Animation Studio: a film's script in the Story Room becomes a cartoon.
-    if (AnimationDrop(d.room, d.project, d.person))
+    if (AnimationDrop(d.room, d.roomObject, d.project, d.person, d.personClass, d.personName, StarRatingOf(d)))
         return true;
     if (d.room.rfind("room_tvk_", 0) == 0) {
         if (d.project)

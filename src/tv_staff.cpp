@@ -407,6 +407,12 @@ bool StaffDrop(const std::string& zone, uintptr_t room, uintptr_t person)
     return false;
 }
 
+std::string ZoneOf(uintptr_t person)
+{
+    uintptr_t room = RoomOf(person);
+    return room > 1 ? rooms::ZoneName(room) : std::string();
+}
+
 int Accountants() { return Count(IndexOfCareer(careers::kAccountant)); }
 int Animators() { return Count(IndexOfCareer(careers::kAnimator)); }
 

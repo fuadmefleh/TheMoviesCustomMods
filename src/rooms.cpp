@@ -387,10 +387,11 @@ struct ZoneScene {
     const char* scene;
 };
 // The jobseekers' spots in front of the Accounting Office and the Animation Studio: the extras'
-// stand-and-wait scene. The animators' desks and Ink & Paint are sit-and-type, like the accounts.
+// stand-and-wait scene. The animators' desks and Ink & Paint are sit-and-type, like the accounts;
+// the stars in the Voice Booth stand at the microphones (the same standing scene).
 const ZoneScene kZoneScenes[] = { { "room_tvk_books", "ai_room_tvk_books" }, { "room_tvk_wait", "ai_room_tvk_wait" },
                                   { "room_tva_desks", "ai_room_tva_desks" }, { "room_tva_ink", "ai_room_tva_ink" },
-                                  { "room_tva_wait", "ai_room_tva_wait" } };
+                                  { "room_tva_wait", "ai_room_tva_wait" }, { "room_tva_voice", "ai_room_tva_voice" } };
 constexpr uintptr_t kRoomAdmit = 0x0093CFD0;   // void __thiscall(TMRoom*, TMMobile* who, int)
 constexpr int kRoomHasScene = 0x1C9;
 

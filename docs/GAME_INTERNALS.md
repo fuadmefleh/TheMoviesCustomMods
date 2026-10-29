@@ -438,7 +438,7 @@ Several `-postScript` options can be chained in one run.
 
 Recovered from the code (details and decompiles in `re/rel_*.txt`). `lerp(a, b, t) = a + (b - a) t`.
 
-**Quality** (`FUN_005DCB10`, `__thiscall(CQuality*, float* out)`, result also at `CQuality+0x90`):
+**Quality** (`FUN_005DCB10`, `__thiscall(CQuality*, float* out)`, result also at `CQuality+0x90`; its film is `[CQuality+0x8C]`, or `[[CQuality+0x74]+0xB4]` when `+0x74` is set):
 `Q = clamp(script + shape(0.8 × ((sets × crew × relationships × performance − 1) − 0.2 × (script − 0.4))))`
 - script: the script's quality (1-5 script stars = 0.2 .. 1.0, `releasing_movies` `1_star`..`5_star`)
 - performance: cast average of genre experience `lerp(0.8,1.2)` × genre fit `lerp(0.9,1.1)` × mood `lerp(0.8,1.2)` (extras 0.8; stunt actors their own formula)
@@ -487,3 +487,14 @@ Scripts (`CProject+0x1E0`, `0x005B2130` makes it): work done `+0x124`, target `+
 
 The Television screen (`src/tv_native.cpp`) opens from a HUD button (`button_video.`); `[MoviesMod] NativeUI = 0` turns the native interface off.
 
+
+## Guiding streams
+
+The glowing trails from something held to the buildings it can go to (`CGuidingStream`, vtable `0x00D6F344`, made by `0x0094F580`) are data, not code:
+
+- `data/rule/streams.csv`: one rule per row: tooltip id (blank = same as the row above), action, `Stream`, weight formula, optional weight, then conditions on the held thing (`held.type=Project`, `held.phase=design`, `held.task=actor`...) and on the building (`self.name=facility_preproduction`, `=self.build_level>=1`...).
+- `data/sittsets/fixedasset.ini`: the rule ids buildings take part in (`[activators\global]`, `itemN=`).
+- `data/sitt.ini`: the actions, e.g. `[actions/a_stream_roomactivate]` with `stream_colour` and `room=activate`, the zone the stream ends at, by the end of its name (`room_preprod_activate`).
+- `SITTMaxActiveStreams = 2` streams show at a time, the highest weights.
+
+A finished, uncast script is phase `design`. Loose copies in `Data\` win over the paks; `tools/sitt_streams.py` writes ours (the Animation Studio's Story Room for such a script).

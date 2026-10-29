@@ -237,9 +237,12 @@ BUILDINGS = [
         'scenes': {'so_hall': 'tva_desks', 'cf_hire': 'tva_hire'},
         'extra_scenes': {'so_hall': 'tva_ink'},
         'zones': {'room_': [-12.7, -5.2, 12.7, 6.2], 'room_tva_hire': [-4.0, -5.2, 4.0, 0.8],
-                  'room_tva_story': [-12.7, -5.2, -4.2, 6.2], 'room_tva_desks': [-4.0, 1.0, 12.7, 6.2],
+                  'room_tva_story': [-12.7, -5.2, -4.2, 0.8], 'room_tva_voice': [-12.7, 1.0, -4.2, 6.2],
+                  'room_tva_desks': [-4.0, 1.0, 12.7, 6.2],
                   'room_tva_ink': [4.2, -5.2, 12.7, 0.8], 'room_tva_wait': [2.2, -10.8, 6.6, -8.4]},
-        'stand_scenes': {'tva_wait': [(3.0, -9.4), (4.4, -9.8), (5.8, -9.3), (3.6, -10.4), (5.1, -10.5)]},
+        # The Voice Booth, the back half of the Story Room: stars stand at five microphones.
+        'stand_scenes': {'tva_wait': [(3.0, -9.4), (4.4, -9.8), (5.8, -9.3), (3.6, -10.4), (5.1, -10.5)],
+                         'tva_voice': [(-11.2, 4.6), (-9.6, 5.0), (-8.0, 4.6), (-6.4, 5.0), (-4.9, 4.6)]},
         'props': [
             {'type': 'sign', 'x': 0.0, 'y': -7.35, 'w': 5.6, 'h': 1.0, 'z': 3.5, 'legs': 0, 'texture': 'tvp_cartoons.png'},
             {'type': 'sign', 'x': -5.5, 'y': -8.6, 'w': 2.0, 'h': 2.0, 'legs': 0.8, 'texture': 'tvp_mascot.png'},
