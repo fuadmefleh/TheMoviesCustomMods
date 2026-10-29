@@ -477,7 +477,13 @@ The UI is C++ widgets (W* classes) built in code; Flash `.mfl` movies only anima
 | `WImageButton` | 0x420 bytes, ctor `0x0069FB10(this, String* base, WString* tip, float w, float h, float u0, float v0, float u1, float v1)` (8 args, `RET 0x20`; the game passes the texture rectangle 0,0,1,1) | base like `"button_star."` (`data/textures/ui/button_*`) |
 | Yes/no | `ShowConfirm 0x00669B80(WString* title, cbOk, cbCancel, WString body by value)` | callbacks `void __stdcall(sender, dlg)`; singleton |
 | Close + release | `bool __stdcall 0x0071B530(sender, window)` | |
-| WWindow virtuals | `+0x0C` AddChild, `+0x10/+0x14` width/height, `+0x18` SetHandler(type, fn, ctx, name), `+0x50` Layout, `+0x54` SetText, `+0x5C/+0x60/+0x64/+0x68` anchors (mode, rel, offset), `+0x78/+0x7C` SetWidth/Height, `+0x8C` fit height, `+0xAC` AddPopup | handlers are `bool __stdcall(sender, ctx)`; type 0 = click, type 5 registered with `0x005F37F0` |
+| WWindow virtuals | `+0x0C` AddChild, `+0x10/+0x14` width/height, `+0x18` SetHandler(type, fn, ctx, name), `+0x50` Layout, `+0x54` SetText, `+0x5C/+0x60/+0x64/+0x68` anchors (mode, rel, offset), `+0x74` SetSize(w, h), `+0x78/+0x7C` SetWidth/Height, `+0x8C` fit height, `+0xAC` AddPopup | handlers are `bool __stdcall(sender, ctx)`; type 0 = click, type 5 registered with `0x005F37F0` |
+| `WWindow` | 0x344 bytes, ctor `0x007432F0(this)` | an empty container (the sandbox options' rows) |
+| `WImage` | 0x360 bytes, ctor `0x0069D820(this, String* path, u0, v0, u1, v1)` (`RET 0x14`) | `+0x100` SetTexture(String*, u0, v0, u1, v1); `+0x70(window, 0)` sizes it to a window |
+| `WSandboxOptions` | ctor `0x0070D020`, open one at `[0x0104DE3C]` | grid `+0x628` (row heights `0x0063F830(float)`, then `0x0063F890(1)`); one builder per row, e.g. instant shooting `0x0070AB20` with click handler `0x00704F00`; each row goes under the row before it (the next builder `0x0070AFD0` finds the instant-shooting row as the parent `+0x118` of its button `+0x3B8`); columns `+0x370` (labels) / `+0x358` (buttons); description panel `+0x658`; toggles `+0x77C..+0x781`, copied into the sandbox options by `0x006E1220` |
+| Sandbox options | `[0x0104A974] + 0x60 + i*4` (floats), set by `0x004AF4C0(i, value)` | 1 stars misbehave, 2 decay, 3 instant shooting, 5 instant building, 6 kind of game (1 story, 2 sandbox), 7/8 stunts |
+
+Scripts (`CProject+0x1E0`, `0x005B2130` makes it): work done `+0x124`, target `+0x128`; the writers add work through `AddWork 0x004BDBE0` (thiscall(script, float), clamped to the target) and the writing phase (`project_phase_writing`, vtable `0x00D29C14`) is over when done >= target.
 
 The Television screen (`src/tv_native.cpp`) opens from a HUD button (`button_video.`); `[MoviesMod] NativeUI = 0` turns the native interface off.
 

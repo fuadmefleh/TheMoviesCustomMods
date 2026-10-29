@@ -45,7 +45,9 @@ constexpr uintptr_t kImgButtonCtor = 0x0069FB10;
 constexpr uintptr_t kCloseHandler  = 0x0071B530;   // bool __stdcall(sender, window): hide and release
 constexpr uintptr_t kNoTutorialLock = 0x005F37F0;  // the game registers it as every button's type-5 handler
 constexpr uintptr_t kShowConfirm   = 0x00669B80;
-constexpr int kDialogSize = 0x3A8, kHtmlSize = 0x3FC, kImgButtonSize = 0x420;
+constexpr uintptr_t kWindowCtor    = 0x007432F0;
+constexpr uintptr_t kPictureCtor   = 0x0069D820;   // (this, String* path, u0, v0, u1, v1), RET 0x14
+constexpr int kDialogSize = 0x3A8, kHtmlSize = 0x3FC, kImgButtonSize = 0x420, kWindowSize = 0x344, kPictureSize = 0x360;
 constexpr int kDialogContent = 0x36C, kDialogClose = 0x384, kHtmlWrap = 0x354;
 
 struct WStr { wchar_t* text; int len; int cap; wchar_t inline_[10]; };   // cap 10 = inline
@@ -281,6 +283,16 @@ void* AddButtonTo(void* parent, const char* texture, const wchar_t* tooltip, flo
     }
 }
 
+bool SetClickGuarded(void* w, int index, const char* name)
+{
+    __try {
+        SetClick(w, &OnAddedButton, reinterpret_cast<void*>(static_cast<intptr_t>(index)), name);
+        return true;
+    } __except (Fault(GetExceptionInformation(), "click handler")) {
+        return false;
+    }
+}
+
 void* CallConfirm(const wchar_t* title, const wchar_t* body, ConfirmCb yes, ConfirmCb no)
 {
     __try {
@@ -489,6 +501,84 @@ void* AddButton(void* parent, const char* texture, const std::wstring& tooltip, 
         return nullptr;
     g_buttonActions.push_back(std::move(onClick));
     return AddButtonTo(parent, texture, tooltip.c_str(), x, y, size, static_cast<int>(g_buttonActions.size()) - 1);
+}
+
+void* NewContainer()
+{
+    __try {
+        void* w = GameNew(kWindowSize);
+        reinterpret_cast<void*(__thiscall*)(void*)>(kWindowCtor)(w);
+        return w;
+    } __except (Fault(GetExceptionInformation(), "container")) {
+        return nullptr;
+    }
+}
+
+bool SetText(void* html, const wchar_t* text)
+{
+    __try {
+        WStr s;
+        MakeW(s, text);
+        VCall(html, 0x54, &s);
+        VCall(html, 0x84, 0);
+        FreeW(s);
+        return true;
+    } __except (Fault(GetExceptionInformation(), "text")) {
+        return false;
+    }
+}
+
+void* NewText(const wchar_t* html)
+{
+    void* h = nullptr;
+    __try {
+        h = GameNew(kHtmlSize);
+        reinterpret_cast<void*(__thiscall*)(void*)>(kHtmlCtor)(h);
+    } __except (Fault(GetExceptionInformation(), "text panel")) {
+        return nullptr;
+    }
+    return SetText(h, html) ? h : nullptr;
+}
+
+void* NewIconButton(const char* texture, const wchar_t* tooltip, float size)
+{
+    return NewImageButton(texture, tooltip, size, size);
+}
+
+void* NewPicture(const char* path)
+{
+    __try {
+        NStr p;
+        MakeN(p, path);
+        void* w = GameNew(kPictureSize);
+        reinterpret_cast<void*(__thiscall*)(void*, NStr*, float, float, float, float)>(kPictureCtor)(w, &p, 0.0f, 0.0f,
+                                                                                                    1.0f, 1.0f);
+        FreeN(p);
+        return w;
+    } __except (Fault(GetExceptionInformation(), "picture")) {
+        return nullptr;
+    }
+}
+
+bool SetPicture(void* picture, const char* path)
+{
+    __try {
+        NStr p;
+        MakeN(p, path);
+        VCall(picture, 0x100, &p, 0.0f, 0.0f, 1.0f, 1.0f);   // RET 0x14, like the constructor
+        FreeN(p);
+        return true;
+    } __except (Fault(GetExceptionInformation(), "picture change")) {
+        return false;
+    }
+}
+
+bool OnClick(void* widget, const char* name, std::function<void()> fn)
+{
+    if (!widget)
+        return false;
+    g_buttonActions.push_back(std::move(fn));
+    return SetClickGuarded(widget, static_cast<int>(g_buttonActions.size()) - 1, name);
 }
 
 bool ReadRect(void* w, float r[4])

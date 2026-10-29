@@ -22,6 +22,10 @@ void Install();
 // Call every frame: detects when a different game has been loaded and applies its data.
 void Tick();
 
+// A new game is being started from the menus: forget the saves the menus read (the main
+// menu reads the autosave), so the game that follows is not taken for a load.
+void NewGameStarting();
+
 // The save file the current game came from ("" for a new game).
 const std::wstring& CurrentSave();
 

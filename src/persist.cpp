@@ -297,6 +297,13 @@ void Tick()
     }
 }
 
+void NewGameStarting()
+{
+    EnterCriticalSection(&g_lock);
+    g_lastReadJad.clear();
+    LeaveCriticalSection(&g_lock);
+}
+
 const std::wstring& CurrentSave() { return g_currentSave; }
 
 } // namespace persist

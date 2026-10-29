@@ -40,6 +40,10 @@ namespace moviemaker {
 void Install();   // moviemaker.cpp: HD/30 fps export, sharper presets, character texture size, instant shoot
 }
 
+namespace sandbox {
+void Install();   // sandbox.cpp: Instant Script-writing in the sandbox game's options
+}
+
 namespace selfcheck {
 void Install();   // selfcheck.cpp: logs PASS/FAIL for the game structures the mod relies on
 }

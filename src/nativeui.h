@@ -51,6 +51,16 @@ void AddHudButton(const char* texture, const std::wstring& tooltip, std::functio
 void* AddButton(void* parent, const char* texture, const std::wstring& tooltip, float x, float y, float size,
                 std::function<void()> onClick);
 
+// Pieces for building into a game window while its constructor runs (sandbox.cpp lays them
+// out itself). Each guards the game's calls and returns nullptr / false if one faults.
+void* NewContainer();                                   // an empty WWindow (0x344, ctor 0x007432F0)
+void* NewText(const wchar_t* html);                     // a WHTML with this rich text
+bool  SetText(void* html, const wchar_t* text);         // the way the game's own windows do it
+void* NewIconButton(const char* texture, const wchar_t* tooltip, float size);
+void* NewPicture(const char* path);                     // a WImage (0x360, ctor 0x0069D820)
+bool  SetPicture(void* picture, const char* path);      // e.g. "ui/button_toggleon.dds"
+bool  OnClick(void* widget, const char* name, std::function<void()> fn);
+
 // Logs a game window's on-screen rectangle (for placing mod widgets).
 void LogRect(const char* what, void* window);
 // Saves one screenshot of the game (MoviesMod\shots\<name>.bmp) delayMs from now, once per session.
