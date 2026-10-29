@@ -29,6 +29,8 @@ namespace tv {
 // Toon Studio: the performance part of a cartoon's quality (CQuality+0xA4), from its voice
 // cast; false for any other film.
 bool VoicePerformance(uintptr_t project, float* performance);
+// The look a film plays with: 0 not a cartoon, 1 hand-drawn, 2 CGI.
+int CartoonStyle(uintptr_t project);
 }
 
 namespace toon {

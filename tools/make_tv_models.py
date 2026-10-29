@@ -248,6 +248,29 @@ BUILDINGS = [
             {'type': 'sign', 'x': -5.5, 'y': -8.6, 'w': 2.0, 'h': 2.0, 'legs': 0.8, 'texture': 'tvp_mascot.png'},
         ],
     },
+    {
+        # Toon Studio's CGI Render Farm (1995): a cartoon's script dropped anywhere in it is made
+        # in CGI, and every farm on the lot renders its animated scenes (src/tv_animation.cpp).
+        # A low machine hall with a strip of high windows, a cooling plant at the back and air
+        # handlers on the roof.
+        'name': 'render_farm', 'donor': 'sell',
+        'style': {'wall': 'wall_ph55c', 'base': 'wall_ph55', 'trim': 'steel_ph16', 'frame': 'steel_ph17',
+                  'door': 'steel_ph16'},
+        'blocks': [
+            {'x': 0.0, 'y': -1.0, 'w': 18.0, 'd': 11.0, 'h': 5.5, 'floors': 1, 'roof': 'flat', 'bands': False,
+             'windows': {'w': 3.2, 'h': 0.6, 'spacing': 3.8, 'sill': 4.2},
+             'doors': [{'side': 'f', 'w': 1.6, 'h': 2.4}]},
+            {'x': -5.5, 'y': 6.0, 'w': 5.0, 'd': 3.0, 'h': 3.2, 'floors': 1, 'roof': 'flat', 'bands': False,
+             'cornice': False, 'windows': {'w': 0}, 'roles': {'wall': 'steel_ph24b'}},
+        ],
+        'rooms': {'room_sell_sell': 'room_tvr_racks', 'room_sell_window': 'room_tvr_desk', 'room_hall': 'room_tvr_hall'},
+        'zones': {'room_': [-9.0, -6.5, 9.0, 4.5], 'room_tvr_hall': [-3.0, -6.5, 3.0, -3.0],
+                  'room_tvr_desk': [3.2, -6.5, 9.0, -3.0], 'room_tvr_racks': [-9.0, -2.8, 9.0, 4.5]},
+        'props': [{'type': 'box', 'x': x, 'y': 0.5, 'w': 1.8, 'd': 1.8, 'h': 1.1, 'texture': 'tvp_ac.png'}
+                  for x in (-5.5, -1.8, 1.9, 5.6)] + [
+            {'type': 'sign', 'x': 0.0, 'y': -6.9, 'w': 5.0, 'h': 0.8, 'z': 3.2, 'legs': 0, 'texture': 'tvp_renderfarm.png'},
+        ],
+    },
 ]
 
 
@@ -420,6 +443,16 @@ def make_textures(out):
     for gx, gy in ((40, 108), (216, 108)):
         d.ellipse([gx - 16, gy - 14, gx + 16, gy + 14], fill=(255, 255, 255), outline=(40, 30, 20), width=3)
     img.save(os.path.join(out, 'tvp_mascot.png'))
+
+    # The CGI Render Farm: RENDER FARM over a wireframe floor, in 1990s computer cyan.
+    img = sign(1024, 160, (10, 18, 45), (2, 4, 16), (60, 230, 255))
+    d = ImageDraw.Draw(img)
+    for i in range(-12, 13):   # floor lines running to a vanishing point
+        d.line([(512 + i * 90, 160), (512 + i * 18, 92)], fill=(30, 110, 170), width=2)
+    for k, y in enumerate((96, 104, 116, 134, 158)):
+        d.line([(0, y), (1024, y)], fill=(30, 110, 170), width=2)
+    centred_text(img, 'RENDER FARM', 96, (190, 250, 255), glow=(60, 230, 255, 255))
+    img.save(os.path.join(out, 'tvp_renderfarm.png'))
 
     img = Image.new('RGBA', (64, 256), (240, 240, 240, 255))
     d = ImageDraw.Draw(img)

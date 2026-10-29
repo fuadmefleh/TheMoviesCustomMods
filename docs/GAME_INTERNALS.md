@@ -498,3 +498,9 @@ The glowing trails from something held to the buildings it can go to (`CGuidingS
 - `SITTMaxActiveStreams = 2` streams show at a time, the highest weights.
 
 A finished, uncast script is phase `design`. Loose copies in `Data\` win over the paks; `tools/sitt_streams.py` writes ours (the Animation Studio's Story Room for such a script).
+
+## Watching a film
+
+`0x007843B0(CProject* film, ...)` opens the film viewer, a `WTrailerEditorLite` (0x80C bytes, vtable `0x00D4F0AC`, ctor `0x00783AE0`) sized to the screen: the films list's VIEWMOVIE button (handler `0x006E62F0`: the window's film at `+0x358`), premieres and the cinema rooms (`MovieViewerRoom`) all go through it. The open viewer is `[0x0104E478]` (a smart pointer at `0x0104E464`), its film `[0x0104E490]`. `WMoviePlayer` is something else: it plays `.wmv` files (credits, the frontend).
+
+Windows keep their children in a list: the head is at `+0x120` (last at `+0x124`), each child linked at its `+0x150`; a child's parent is at `+0x118`. Popups (AddChild mode 2) are in a second list at `+0x130`.

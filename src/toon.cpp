@@ -1,7 +1,7 @@
-// Toon Studio spike: the cel-shading pass. Settings: [Toon] in MoviesMod.ini.
+// Toon Studio: the cel-shading pass. Settings: [Toon] in MoviesMod.ini.
 //
-// Animated films are to be drawn as cartoons wherever they play. This is the look on its own:
-// a post-process on the finished frame (inside Present, before the mod's windows), so it works
+// Cartoons (tv_animation.cpp) are drawn as cartoons when they play. The look is a
+// post-process on the finished frame (inside Present, before the mod's windows), so it works
 // without knowing how the game renders a film. The frame is copied to a texture and drawn back
 // in two passes: a Kuwahara filter flattens texture detail into paint, then ink is traced on
 // the flattened image and its brightness is pulled into soft cel bands. The hand-drawn style
@@ -9,15 +9,22 @@
 // like cel animation; the CGI style is softer. Sample spacing grows with the screen height, so
 // lines look the same at any resolution.
 //
-// For now it is a preview: Ctrl+F9 turns it on over anything (and saves a screenshot),
-// Ctrl+Shift+F9 switches style. The game's own interface is part of the frame, so it is
-// toon-shaded too. To find when a film is playing, changes of the game-mode stack's top
-// (0x00F87B04, 0 = the lot) are logged: watch a film with the log open and note its mode.
+// A film plays in the film viewer (WTrailerEditorLite, vtable 0x00D4F0AC), opened by
+// 0x007843B0(CProject*, ...) from the films list, the premiere and the cinema rooms: the open
+// viewer is [0x0104E478] and its film [0x0104E490]. While a cartoon is playing there, the pass
+// runs in its style (hand-drawn, or CGI for a cartoon from the Render Farm), only inside the
+// viewer's picture: the largest WViewport* among the viewer's windows (children are a list
+// from +0x120, linked at the child's +0x150; a child's parent is at +0x118). The rest of the
+// viewer (its buttons, the timeline) stays as it is. Without a picture found, the whole screen.
+//
+// Ctrl+F9 still previews the look over anything (and saves a screenshot), Ctrl+Shift+F9
+// switches the preview's style.
 
 #include <windows.h>
 #include <d3d9.h>
 #include <d3dcompiler.h>
 #include <cstdint>
+#include <string>
 
 #include "game.h"
 #include "mod.h"
@@ -28,8 +35,23 @@ namespace {
 
 template <typename T> T Rd(uintptr_t a) { return *reinterpret_cast<const T*>(a); }
 
-constexpr uintptr_t kModes   = 0x00F87B04;   // the game-mode stack
-constexpr uintptr_t kModeTop = 0x00423320;   // int __thiscall(modes)
+constexpr uintptr_t kViewer = 0x0104E478;          // the open film viewer, or 0
+constexpr uintptr_t kViewerFilm = 0x0104E490;      // its CProject
+constexpr uintptr_t kViewerVtable = 0x00D4F0AC;    // WTrailerEditorLite
+constexpr uintptr_t kScreenWindow = 0x0071B2A0;    // the root window: cdecl() -> WWindow*
+constexpr int kChildren = 0x120, kChildLink = 0x150, kParent = 0x118;
+constexpr int kLeft = 0xC0, kTop = 0x9C, kRight = 0x108, kBottom = 0xE4;
+
+// The cartoon playing now (none if film is 0), and where its picture is on the screen.
+struct Playing {
+    uintptr_t viewer = 0, film = 0;
+    int       style = 0;          // 1 hand-drawn, 2 CGI
+    bool      hasPicture = false;
+    float     picture[4] = {};    // left, top, right, bottom, in interface units
+    float     screen[2] = {};     // the interface's width and height
+    DWORD     looked = 0;         // when the picture was last looked for
+};
+Playing g_playing;
 
 bool  g_enabled = true;
 bool  g_preview = false;
@@ -223,7 +245,22 @@ void SetCommonState(IDirect3DDevice9* device)
     }
 }
 
-void DrawQuad(IDirect3DDevice9* device, IDirect3DSurface9* target, float w, float h)
+// The picture's rectangle on the back buffer, if a cartoon is playing in a known picture.
+bool PictureRect(float w, float h, RECT* r)
+{
+    if (!g_playing.film || !g_playing.hasPicture || g_playing.screen[0] <= 0 || g_playing.screen[1] <= 0)
+        return false;
+    float sx = w / g_playing.screen[0], sy = h / g_playing.screen[1];
+    r->left = static_cast<LONG>(g_playing.picture[0] * sx);
+    r->top = static_cast<LONG>(g_playing.picture[1] * sy);
+    r->right = static_cast<LONG>(g_playing.picture[2] * sx + 0.5f);
+    r->bottom = static_cast<LONG>(g_playing.picture[3] * sy + 0.5f);
+    return r->right > r->left && r->bottom > r->top;
+}
+
+// Draws the full-screen quad into target; with clip, only inside it (SetRenderTarget resets the
+// scissor rectangle, so it is set after).
+void DrawQuad(IDirect3DDevice9* device, IDirect3DSurface9* target, float w, float h, const RECT* clip)
 {
     struct Vertex {
         float x, y, z, rhw, u, v;
@@ -235,6 +272,9 @@ void DrawQuad(IDirect3DDevice9* device, IDirect3DSurface9* target, float w, floa
     device->SetRenderTarget(0, target);
     D3DVIEWPORT9 vp = { 0, 0, static_cast<DWORD>(w), static_cast<DWORD>(h), 0.0f, 1.0f };
     device->SetViewport(&vp);
+    device->SetRenderState(D3DRS_SCISSORTESTENABLE, clip ? TRUE : FALSE);
+    if (clip)
+        device->SetScissorRect(clip);
     device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(Vertex));
 }
 
@@ -272,22 +312,26 @@ void Draw(IDirect3DDevice9* device)
     SetCommonState(device);
 
     float w = static_cast<float>(desc.Width), h = static_cast<float>(desc.Height);
+    // A playing cartoon: only its picture, in its style. The preview: everything, as chosen.
+    RECT picture;
+    bool clip = !g_preview && PictureRect(w, h, &picture);
+    bool handDrawn = g_preview ? g_handDrawn : g_playing.style != 2;
     float spacing = h / 600.0f;   // the look was tuned on 800x600 screenshots
     float drawing = static_cast<float>((GetTickCount() / 83) % 1000);   // 12 drawings a second
     const float constants[12] = {
         1.0f / w, 1.0f / h, w, h,
-        g_handDrawn ? 1.0f : 0.0f, drawing, static_cast<float>(g_bands), g_strength,
+        handDrawn ? 1.0f : 0.0f, drawing, static_cast<float>(g_bands), g_strength,
         spacing < 1 ? 1 : spacing, spacing * 0.75f < 1 ? 1 : spacing * 0.75f, 0, 0,
     };
     if (SUCCEEDED(device->BeginScene())) {
         device->SetPixelShaderConstantF(0, constants, 3);
         device->SetPixelShader(g_flatten);
         device->SetTexture(0, g_copy);
-        DrawQuad(device, flat, w, h);
+        DrawQuad(device, flat, w, h, clip ? &picture : nullptr);
         device->SetPixelShader(g_ink);
         device->SetTexture(0, g_flat);
         device->SetTexture(1, g_copy);
-        DrawQuad(device, back, w, h);
+        DrawQuad(device, back, w, h, clip ? &picture : nullptr);
         device->EndScene();
     }
 
@@ -306,7 +350,7 @@ void Draw(IDirect3DDevice9* device)
 
 void PostProcess(void* device)
 {
-    if (g_enabled && g_preview && !g_failed)
+    if (g_enabled && !g_failed && (g_preview || g_playing.film))
         Draw(static_cast<IDirect3DDevice9*>(device));
 }
 
@@ -317,14 +361,115 @@ bool OurWindowFocused()
     return pid == GetCurrentProcessId();
 }
 
-int ModeTop()
+bool ReadPtr(uintptr_t at, uintptr_t* out)
 {
     __try {
-        uintptr_t modes = Rd<uintptr_t>(kModes);
-        return modes ? reinterpret_cast<int(__thiscall*)(uintptr_t)>(kModeTop)(modes) : -1;
+        *out = Rd<uintptr_t>(at);
+        return true;
     } __except (EXCEPTION_EXECUTE_HANDLER) {
-        return -2;
+        return false;
     }
+}
+
+bool ReadRect(uintptr_t window, float r[4])
+{
+    __try {
+        r[0] = Rd<float>(window + kLeft);
+        r[1] = Rd<float>(window + kTop);
+        r[2] = Rd<float>(window + kRight);
+        r[3] = Rd<float>(window + kBottom);
+        return r[2] > r[0] && r[3] > r[1];
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
+
+uintptr_t ScreenWindow()
+{
+    __try {
+        return reinterpret_cast<uintptr_t(__cdecl*)()>(kScreenWindow)();
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return 0;
+    }
+}
+
+// The film viewer if one is open and showing on the screen, and its film.
+uintptr_t OpenViewer(uintptr_t* film)
+{
+    uintptr_t viewer = 0, vtable = 0, parent = 0;
+    if (!ReadPtr(kViewer, &viewer) || !viewer || !ReadPtr(viewer, &vtable) || vtable != kViewerVtable ||
+        !ReadPtr(viewer + kParent, &parent) || !parent || !ReadPtr(kViewerFilm, film) || !*film)
+        return 0;
+    return game::ClassName(*film) == "CProject" ? viewer : 0;
+}
+
+// The largest WViewport* under a window (the film's picture), searched a few levels deep.
+void FindPicture(uintptr_t window, int depth, uintptr_t* best, float* bestArea, std::string* seen)
+{
+    uintptr_t head = window + kChildren, node = 0;
+    if (!ReadPtr(head, &node))
+        return;
+    for (int n = 0; node && node != head && n < 200; n++) {
+        uintptr_t child = node - kChildLink;
+        std::string name = game::ClassName(child);
+        if (depth == 0 && seen->size() < 600)
+            *seen += (seen->empty() ? "" : ", ") + name;
+        float r[4];
+        if (name.rfind("WViewport", 0) == 0 && ReadRect(child, r) && (r[2] - r[0]) * (r[3] - r[1]) > *bestArea) {
+            *bestArea = (r[2] - r[0]) * (r[3] - r[1]);
+            *best = child;
+        }
+        if (depth < 5)
+            FindPicture(child, depth + 1, best, bestArea, seen);
+        if (!ReadPtr(node, &node))
+            break;
+    }
+}
+
+void LookForPicture()
+{
+    uintptr_t picture = 0;
+    float area = 0;
+    std::string seen;
+    FindPicture(g_playing.viewer, 0, &picture, &area, &seen);
+    float screen[4];
+    uintptr_t root = ScreenWindow();
+    bool had = g_playing.hasPicture;
+    g_playing.hasPicture = picture && ReadRect(picture, g_playing.picture) && root && ReadRect(root, screen);
+    if (g_playing.hasPicture) {
+        g_playing.screen[0] = screen[2] - screen[0];
+        g_playing.screen[1] = screen[3] - screen[1];
+    }
+    if (g_playing.hasPicture != had || !g_playing.looked)
+        mod::Log(g_playing.hasPicture ? "toon: the picture is %s at %.0f,%.0f - %.0f,%.0f of %.0fx%.0f"
+                                      : "toon: no picture in the viewer yet (%s) - the whole screen",
+                 g_playing.hasPicture ? game::ClassName(picture).c_str() : seen.c_str(), g_playing.picture[0],
+                 g_playing.picture[1], g_playing.picture[2], g_playing.picture[3], g_playing.screen[0],
+                 g_playing.screen[1]);
+    g_playing.looked = GetTickCount();
+}
+
+// Is a cartoon playing? Checked every frame; the picture looked for twice a second.
+void WatchViewer()
+{
+    uintptr_t film = 0;
+    uintptr_t viewer = game::Ready() ? OpenViewer(&film) : 0;
+    if (viewer != g_playing.viewer || film != g_playing.film) {
+        int style = viewer ? tv::CartoonStyle(film) : 0;
+        if (viewer)
+            mod::Log("toon: the film viewer shows '%ls' - %s", game::ReadProjectAt(film).title.c_str(),
+                     style == 2 ? "a CGI cartoon" : style == 1 ? "a hand-drawn cartoon" : "not a cartoon");
+        else if (g_playing.film)
+            mod::Log("toon: the film viewer closed");
+        g_playing = Playing{};
+        g_playing.viewer = viewer;
+        if (style) {
+            g_playing.film = film;
+            g_playing.style = style;
+        }
+    }
+    if (g_playing.film && GetTickCount() - g_playing.looked > 500)
+        LookForPicture();
 }
 
 void Frame()
@@ -342,13 +487,7 @@ void Frame()
             overlay::RequestScreenshot(g_handDrawn ? "toon_handdrawn" : "toon_cgi");
     }
     keyDown = down;
-
-    static int lastMode = -100;
-    int mode = game::Ready() ? ModeTop() : -1;
-    if (mode != lastMode) {
-        mod::Log("toon: game mode %d -> %d (day %.1f)", lastMode, mode, game::Ready() ? game::DateDays() : 0.0f);
-        lastMode = mode;
-    }
+    WatchViewer();
 }
 
 } // namespace

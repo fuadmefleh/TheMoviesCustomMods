@@ -20,14 +20,19 @@ import building  # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # A finished script that hasn't been cast (phase design) can go to the Animation Studio's
-# Story Room to be made into a cartoon, as well as to the casting office.
+# Story Room to be made into a cartoon, or to a CGI Render Farm for a CGI one, as well as to
+# the casting office. Only two streams show at a time, the highest weights: the casting
+# office's (1), then the Story Room's, then the farm's.
 RULES = [
     'gs_prj_go_toon,a_stream_roomtoonstory,Stream,=0.8,,!system.mode.tutorial,,held.type=Project,'
     'self.name=facility_animation_studio,held.phase=design,,,=self.build_level>=1,!self.is_knackered,,',
+    ',a_stream_roomtoonrender,Stream,=0.7,,!system.mode.tutorial,,held.type=Project,'
+    'self.name=facility_render_farm,held.phase=design,,,=self.build_level>=1,!self.is_knackered,,',
 ]
 ITEMS = ['gs_prj_go_toon']
 ACTIONS = [
     ('a_stream_roomtoonstory', ['stream_colour=#90ffff', 'room=story']),
+    ('a_stream_roomtoonrender', ['stream_colour=#90ffff', 'room=racks']),
 ]
 
 AFTER_RULE = 'gs_prj_go_shoot,'           # our rules go before this one (after the casting office's)
@@ -90,7 +95,7 @@ def main():
             path = os.path.join(base, *rel.split('/'))
             os.makedirs(os.path.dirname(path), exist_ok=True)
             open(path, 'wb').write(t.encode('latin1'))
-        print('  data/%s: %d streams added' % (rel, len(ITEMS)))
+        print('  data/%s: written' % rel)
     if install:
         print('  installed to', os.path.join(building.GAME, 'Data'))
 

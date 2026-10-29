@@ -2,11 +2,16 @@
 //
 // Drop a film's script in the Story Room and it becomes the studio's cartoon: it is never shot.
 // Animators (career 18, hired at the studio's own desk: tv_staff.cpp) draw its scenes at the
-// desks, and colour the drawings in Ink & Paint; from 1995 computers do the painting. Each
-// animator draws a scene in kDrawDays and paints one in kPaintDays, so ten animators get
-// through a thirty-scene film in a few months. The script's bubble on the lot shows how far
-// they are, and its phase line the next thing to do (animators at the desks, animators in
-// Ink & Paint, voices).
+// desks, and colour the drawings in Ink & Paint. Each animator draws a scene in kDrawDays and
+// paints one in kPaintDays, so ten animators get through a thirty-scene film in a few months.
+// The script's bubble on the lot shows how far they are, and its phase line the next thing to
+// do (animators at the desks, animators in Ink & Paint, a render farm, voices).
+//
+// From 1995 the CGI Render Farm (facility_render_farm) can be built. A script dropped on a farm
+// instead of in the Story Room becomes a CGI cartoon, and the cartoon's own script dropped on a
+// farm turns it into one: the animators at the desks animate its scenes as before, and there's
+// no Ink & Paint: every farm on the lot renders an animated scene in kRenderDays, at a running
+// cost per scene. Hand-drawn cartoons can still be made after 1995, through Ink & Paint.
 //
 // The roles are voiced in the Voice Booth: a star dropped there stands at a microphone and
 // records one role in kVoiceDays (time spent away from the booth doesn't count). A cartoon
@@ -39,10 +44,13 @@ const char* const kDesks = "room_tva_desks";
 const char* const kInk = "room_tva_ink";
 const char* const kStory = "room_tva_story";
 const char* const kVoice = "room_tva_voice";
+const char* const kFarmZones = "room_tvr_";   // any zone of a render farm
+const char* const kFarm = "facility_render_farm";
 constexpr float kDrawDays = 20.0f;   // one animator, one scene
 constexpr float kPaintDays = 8.0f;
 constexpr float kVoiceDays = 3.0f;   // one star, one role
-constexpr int kComputerPaintYear = 1995;
+constexpr float kRenderDays = 3.0f;  // one farm, one scene
+constexpr double kRenderCost1950 = 2500;   // per scene rendered, in 1950 dollars
 constexpr int kStageScriptDone = 3, kStageShoot = 5;
 constexpr int kDefaultRoles = 2, kMaxRoles = 12;   // when the script's roles can't be read; a cap
 // The performance part of quality (about 0.8 to 1.2 for a cast on screen): 0-star voices give
@@ -62,7 +70,8 @@ struct Cartoon {
     int                scenes = 0;
     int                roles = 0;
     std::vector<Voice> voices;
-    float              drawn = 0, painted = 0;
+    bool               cgi = false;   // rendered on the farms instead of painted
+    float              drawn = 0, painted = 0;   // CGI: animated, rendered
     float              started = 0;
     bool               waitNoticed = false;    // "the drawings are done, the voices aren't" was shown
     bool               paintNoticed = false;   // "the drawings are waiting for painters" was shown
@@ -70,7 +79,12 @@ struct Cartoon {
 };
 Cartoon g_cartoon;
 float g_lastDay = -1;
-std::map<std::string, float> g_voiced;   // finished cartoons (title) -> their voices' performance
+// Finished cartoons, by title: their voices' performance (for quality) and their look.
+struct Done {
+    float performance = kVoiceLow;
+    bool  cgi = false;
+};
+std::map<std::string, Done> g_done;
 
 std::string Narrow(const std::wstring& w)
 {
@@ -92,7 +106,11 @@ void Relink()
 
 void Clear() { g_cartoon = Cartoon{}; }
 
-bool PaintedByComputer() { return Year() >= kComputerPaintYear; }
+int Farms() { return game::CountFacilities(kFarm); }
+
+// The words for the cartoon's two steps: drawn and painted, or animated and rendered.
+const char* Drawn() { return g_cartoon.cgi ? "animated" : "drawn"; }
+const char* Painted() { return g_cartoon.cgi ? "rendered" : "painted"; }
 
 int VoicedRoles()
 {
@@ -145,33 +163,49 @@ const char* NextPhase()
     float scenes = static_cast<float>(g_cartoon.scenes);
     if (g_cartoon.drawn < scenes && g_cartoon.drawing == 0)
         return "Needs Animators";
-    if (!PaintedByComputer() && g_cartoon.painted < g_cartoon.drawn - 0.999f && g_cartoon.painting == 0)
+    if (g_cartoon.cgi && g_cartoon.painted < scenes - 0.001f && Farms() == 0)
+        return "Needs a Render Farm";
+    if (!g_cartoon.cgi && g_cartoon.painted < g_cartoon.drawn - 0.999f && g_cartoon.painting == 0)
         return "Needs Painters";
     if (g_cartoon.painted >= scenes - 0.001f && VoicedRoles() < g_cartoon.roles)
         return "Needs Voices";
-    return "Being Animated";
+    return g_cartoon.cgi ? "Being Rendered" : "Being Animated";
 }
 
 std::string NextStep()
 {
     std::string phase = NextPhase();
     if (phase == "Needs Animators")
-        return Animators() ? "Drop animators on the Animators' Desks to draw its scenes."
+        return Animators() ? Format("Drop animators on the Animators' Desks to %s its scenes.",
+                                    g_cartoon.cgi ? "animate" : "draw")
                            : "Hire animators at the Animation Studio's desk, then drop them on the Animators' Desks.";
+    if (phase == "Needs a Render Farm")
+        return "Build a CGI Render Farm to render the animated scenes.";
     if (phase == "Needs Painters")
         return "The drawings are waiting to be coloured: drop an animator in Ink & Paint.";
     if (phase == "Needs Voices")
         return "Drop stars in the Voice Booth to voice the roles.";
-    return "The animators are at work.";
+    return g_cartoon.cgi ? "The animators and the render farms are at work." : "The animators are at work.";
+}
+
+// The farms render animated scenes, at a running cost.
+void Render(float days)
+{
+    int farms = Farms();
+    float before = g_cartoon.painted;
+    g_cartoon.painted = std::min(g_cartoon.drawn, g_cartoon.painted + farms * days / kRenderDays);
+    double cost = (g_cartoon.painted - before) * kRenderCost1950 * EraFactor(Year());
+    if (cost > 0 && !game::AddMoney(-cost))
+        mod::Log("tv: render farm cost $%.0f NOT charged", cost);
 }
 
 void Finish()
 {
     std::string title = g_cartoon.title;
-    g_voiced[title] = Performance();
+    g_done[title] = { Performance(), g_cartoon.cgi };
     bool ok = production::FinishWithoutShoot(g_cartoon.project);
     mod::Log("tv: cartoon '%s' %s after %.0f days (voice performance %.2f)", title.c_str(),
-             ok ? "finished" : "FAILED to finish", game::DateDays() - g_cartoon.started, g_voiced[title]);
+             ok ? "finished" : "FAILED to finish", game::DateDays() - g_cartoon.started, g_done[title].performance);
     if (ok)
         Notify("A cartoon is finished",
                Format("The animators have finished every scene of \"%s\". Release it like any other film.", title.c_str()),
@@ -202,15 +236,16 @@ void Daily(float days)
     g_cartoon.painting = painting;
     float scenes = static_cast<float>(g_cartoon.scenes);
     g_cartoon.drawn = std::min(scenes, g_cartoon.drawn + drawing * days / kDrawDays);
-    if (PaintedByComputer())
-        g_cartoon.painted = g_cartoon.drawn;
+    if (g_cartoon.cgi)
+        Render(days);
     else
         g_cartoon.painted = std::min(g_cartoon.drawn, g_cartoon.painted + painting * days / kPaintDays);
     static int logged = 0;
     if (logged++ < 40)
-        mod::Log("tv: cartoon '%s' - %d drawing, %d painting: %.1f drawn, %.1f painted of %d, %d of %d voiced",
-                 g_cartoon.title.c_str(), drawing, painting, g_cartoon.drawn, g_cartoon.painted, g_cartoon.scenes,
-                 VoicedRoles(), g_cartoon.roles);
+        mod::Log("tv: cartoon '%s'%s - %d at the desks, %d %s: %.1f %s, %.1f %s of %d, %d of %d voiced",
+                 g_cartoon.title.c_str(), g_cartoon.cgi ? " (CGI)" : "", drawing,
+                 g_cartoon.cgi ? Farms() : painting, g_cartoon.cgi ? "farms" : "painting", g_cartoon.drawn, Drawn(),
+                 g_cartoon.painted, Painted(), g_cartoon.scenes, VoicedRoles(), g_cartoon.roles);
     // Drawings piling up with nobody in Ink & Paint: say so once (again after someone painted).
     if (painting > 0)
         g_cartoon.paintNoticed = false;
@@ -228,7 +263,7 @@ void Daily(float days)
     if (left > 0) {
         if (!g_cartoon.waitNoticed) {
             g_cartoon.waitNoticed = true;
-            Notify("The drawings are done",
+            Notify(g_cartoon.cgi ? "The rendering is done" : "The drawings are done",
                    Format("\"%s\" is waiting for its voices: %d role%s left. Drop stars in the Voice Booth.",
                           g_cartoon.title.c_str(), left, left == 1 ? "" : "s"),
                    kYellow);
@@ -256,34 +291,35 @@ void Frame()
     Daily(days);
 }
 
-bool StartCartoon(uintptr_t project)
+bool StartCartoon(uintptr_t project, bool cgi)
 {
     game::Project p = game::ReadProjectAt(project);
     std::string title = Narrow(p.title);
+    const char* where = cgi ? "The Render Farm" : "The Story Room";
     if (IsTvScriptProject(project) || IsShareObject(project) || IsPilotReel(project)) {
-        Notify("The Story Room", "Only a film's script can be made into a cartoon here.", kYellow);
+        Notify(where, "Only a film's script can be made into a cartoon here.", kYellow);
         return true;
     }
     if (p.stage < kStageScriptDone) {
-        Notify("The Story Room", "That script isn't finished yet. Bring it back when the writers are done.", kYellow);
+        Notify(where, "That script isn't finished yet. Bring it back when the writers are done.", kYellow);
         return true;
     }
     if (p.stage > kStageScriptDone) {
-        Notify("The Story Room",
+        Notify(where,
                Format("\"%s\" is already being made with actors. Only a script that hasn't been cast can be animated.",
                       title.c_str()),
                kYellow);
         return true;
     }
     if (!g_cartoon.title.empty()) {
-        Notify("The Story Room",
-               Format("The animators are busy with \"%s\". One cartoon at a time.", g_cartoon.title.c_str()), kYellow);
+        Notify(where, Format("The animators are busy with \"%s\". One cartoon at a time.", g_cartoon.title.c_str()),
+               kYellow);
         return true;
     }
     int scenes = production::SceneCount(project);
     if (scenes <= 0) {
         mod::Log("tv: cartoon '%s' has no scenes (%d) - refused", title.c_str(), scenes);
-        Notify("The Story Room", "That script has no scenes to draw.", kYellow);
+        Notify(where, "That script has no scenes to draw.", kYellow);
         return true;
     }
     int roles = production::RoleCount(project);
@@ -292,19 +328,37 @@ bool StartCartoon(uintptr_t project)
     g_cartoon.project = project;
     g_cartoon.scenes = scenes;
     g_cartoon.roles = roles > 0 ? std::min(roles, kMaxRoles) : kDefaultRoles;
+    g_cartoon.cgi = cgi;
     g_cartoon.started = game::DateDays();
-    mod::Log("tv: cartoon '%s' started - %d scenes, %d roles (the script has %d)", title.c_str(), scenes,
-             g_cartoon.roles, roles);
+    mod::Log("tv: %s '%s' started - %d scenes, %d roles (the script has %d)", cgi ? "CGI cartoon" : "cartoon",
+             title.c_str(), scenes, g_cartoon.roles, roles);
     int animators = Animators();
-    Notify("A new cartoon",
-           Format("\"%s\" will be animated: %d scenes to draw%s, %d role%s to voice. %s Drop stars in the Voice Booth "
-                  "to voice the roles.",
-                  title.c_str(), scenes, PaintedByComputer() ? "" : " and paint", g_cartoon.roles,
-                  g_cartoon.roles == 1 ? "" : "s",
-                  animators ? "Put animators at the desks to draw and in Ink & Paint to colour the drawings in."
-                            : "Hire animators at the Animation Studio's desk to start."),
+    std::string work = !animators ? "Hire animators at the Animation Studio's desk to start."
+                       : cgi      ? "Put animators at the Animation Studio's desks to animate; the render farms do the rest."
+                                  : "Put animators at the desks to draw and in Ink & Paint to colour the drawings in.";
+    Notify(cgi ? "A new CGI cartoon" : "A new cartoon",
+           Format("\"%s\" will be %s: %d scenes to %s, %d role%s to voice. %s Drop stars in the Voice Booth to "
+                  "voice the roles.",
+                  title.c_str(), cgi ? "made in CGI" : "animated", scenes, cgi ? "animate and render" : "draw and paint",
+                  g_cartoon.roles, g_cartoon.roles == 1 ? "" : "s", work.c_str()),
            kGreen);
     return true;
+}
+
+// The cartoon's own script dropped on a render farm: it's finished in CGI from now on. The
+// scenes already painted count as rendered; the drawn ones still to paint go to the farms.
+void SwitchToCgi()
+{
+    if (g_cartoon.cgi) {
+        Notify("The Render Farm", Format("\"%s\" is already being rendered here.", g_cartoon.title.c_str()), kYellow);
+        return;
+    }
+    g_cartoon.cgi = true;
+    g_cartoon.paintNoticed = false;
+    mod::Log("tv: cartoon '%s' switched to CGI - %.1f drawn, %.1f painted", g_cartoon.title.c_str(), g_cartoon.drawn,
+             g_cartoon.painted);
+    Notify(Format("\"%s\" goes CGI", g_cartoon.title.c_str()),
+           "Ink & Paint is done with it: the render farms render its scenes as the animators finish them.", kGreen);
 }
 
 bool VoiceDrop(uintptr_t room, uintptr_t person, const std::string& personClass, const std::string& personName,
@@ -352,17 +406,25 @@ bool VoiceDrop(uintptr_t room, uintptr_t person, const std::string& personClass,
 bool AnimationDrop(const std::string& zone, uintptr_t room, uintptr_t project, uintptr_t person,
                    const std::string& personClass, const std::string& personName, float starRating)
 {
+    if (zone.rfind(kFarmZones, 0) == 0) {
+        if (project && IsCartoon(project))
+            SwitchToCgi();
+        else if (project)
+            StartCartoon(project, true);
+        else if (person)
+            Notify("The Render Farm", "The farm runs itself. Animators work at the Animation Studio's desks.", kYellow);
+        return project || person;
+    }
     if (zone.rfind("room_tva_", 0) != 0)
         return false;
     if (project) {
         if (zone == kStory && !IsCartoon(project))
-            return StartCartoon(project);
+            return StartCartoon(project, false);
         if (IsCartoon(project)) {   // the cartoon itself, dropped again: where it stands, what's next
             Notify(Format("\"%s\"", g_cartoon.title.c_str()),
-                   Format("%d of %d scenes drawn%s, %d of %d roles voiced. %s", static_cast<int>(g_cartoon.drawn),
-                          g_cartoon.scenes,
-                          PaintedByComputer() ? "" : Format(", %d painted", static_cast<int>(g_cartoon.painted)).c_str(),
-                          VoicedRoles(), g_cartoon.roles, NextStep().c_str()),
+                   Format("%d of %d scenes %s, %d %s, %d of %d roles voiced. %s", static_cast<int>(g_cartoon.drawn),
+                          g_cartoon.scenes, Drawn(), static_cast<int>(g_cartoon.painted), Painted(), VoicedRoles(),
+                          g_cartoon.roles, NextStep().c_str()),
                    kYellow);
             return true;
         }
@@ -387,13 +449,26 @@ bool VoicePerformance(uintptr_t project, float* performance)
         *performance = Performance();
         return true;
     }
-    if (g_voiced.empty())
+    if (g_done.empty())
         return false;
-    auto it = g_voiced.find(Narrow(game::ReadProjectAt(project).title));
-    if (it == g_voiced.end())
+    auto it = g_done.find(Narrow(game::ReadProjectAt(project).title));
+    if (it == g_done.end())
         return false;
-    *performance = it->second;
+    *performance = it->second.performance;
     return true;
+}
+
+int CartoonStyle(uintptr_t project)
+{
+    if (!project)
+        return 0;
+    Relink();
+    if (project == g_cartoon.project && !g_cartoon.title.empty())
+        return g_cartoon.cgi ? 2 : 1;
+    if (g_done.empty())
+        return 0;
+    auto it = g_done.find(Narrow(game::ReadProjectAt(project).title));
+    return it == g_done.end() ? 0 : it->second.cgi ? 2 : 1;
 }
 
 bool CartoonLabel(uintptr_t project, std::wstring* kind, std::wstring* phase, std::wstring* status)
@@ -401,13 +476,11 @@ bool CartoonLabel(uintptr_t project, std::wstring* kind, std::wstring* phase, st
     Relink();
     if (g_cartoon.title.empty() || project != g_cartoon.project)
         return false;
-    *kind = L"Cartoon";
+    *kind = g_cartoon.cgi ? L"CGI Cartoon" : L"Cartoon";
     std::string next = NextPhase();
     *phase = std::wstring(next.begin(), next.end());
-    std::string s = PaintedByComputer()
-                        ? Format("%d of %d scenes drawn", static_cast<int>(g_cartoon.drawn), g_cartoon.scenes)
-                        : Format("%d of %d scenes drawn, %d painted", static_cast<int>(g_cartoon.drawn), g_cartoon.scenes,
-                                 static_cast<int>(g_cartoon.painted));
+    std::string s = Format("%d of %d scenes %s, %d %s", static_cast<int>(g_cartoon.drawn), g_cartoon.scenes, Drawn(),
+                           static_cast<int>(g_cartoon.painted), Painted());
     s += Format(", %d of %d roles voiced", VoicedRoles(), g_cartoon.roles);
     *status = std::wstring(s.begin(), s.end());
     return true;
@@ -426,8 +499,8 @@ void InstallAnimation()
         "toon",
         [](persist::Section& out) {
             int i = 0;
-            for (const auto& [title, performance] : g_voiced)
-                out[Format("voiced%d", i++)] = Format("%.3f|%s", performance, title.c_str());
+            for (const auto& [title, done] : g_done)
+                out[Format("voiced%d", i++)] = Format("%.3f|%d|%s", done.performance, done.cgi ? 1 : 0, title.c_str());
             if (g_cartoon.title.empty())
                 return;
             out["title"] = g_cartoon.title;
@@ -437,6 +510,7 @@ void InstallAnimation()
             out["painted"] = Format("%.3f", g_cartoon.painted);
             out["started"] = Format("%.1f", g_cartoon.started);
             out["waited"] = g_cartoon.waitNoticed ? "1" : "0";
+            out["cgi"] = g_cartoon.cgi ? "1" : "0";
             for (size_t v = 0; v < g_cartoon.voices.size(); v++) {
                 const Voice& voice = g_cartoon.voices[v];
                 out[Format("voice%d", static_cast<int>(v))] =
@@ -445,19 +519,23 @@ void InstallAnimation()
         },
         [](const persist::Section& in) {
             Clear();
-            g_voiced.clear();
+            g_done.clear();
             g_lastDay = -1;
             auto get = [&](const char* k) {
                 auto it = in.find(k);
                 return it == in.end() ? std::string() : it->second;
             };
-            // "voiced<n>" = performance|title, "voice<n>" = rating|days|name
+            // "voiced<n>" = performance|cgi|title (saved before CGI: performance|title),
+            // "voice<n>" = rating|days|name
             for (const auto& [key, value] : in) {
                 float a = 0, b = 0;
                 int used = 0;
                 if (key.rfind("voiced", 0) == 0) {
-                    if (sscanf_s(value.c_str(), "%f|%n", &a, &used) == 1 && used > 0)
-                        g_voiced[value.substr(used)] = a;
+                    int cgi = 0;
+                    if (sscanf_s(value.c_str(), "%f|%d|%n", &a, &cgi, &used) == 2 && used > 0 && (cgi == 0 || cgi == 1))
+                        g_done[value.substr(used)] = { a, cgi == 1 };
+                    else if (sscanf_s(value.c_str(), "%f|%n", &a, &used) == 1 && used > 0)
+                        g_done[value.substr(used)] = { a, false };
                 } else if (key.rfind("voice", 0) == 0) {
                     if (sscanf_s(value.c_str(), "%f|%f|%n", &a, &b, &used) == 2 && used > 0)
                         g_cartoon.voices.push_back({ value.substr(used), 0, a, b });
@@ -476,13 +554,14 @@ void InstallAnimation()
             g_cartoon.painted = static_cast<float>(atof(get("painted").c_str()));
             g_cartoon.started = static_cast<float>(atof(get("started").c_str()));
             g_cartoon.waitNoticed = get("waited") == "1";
-            mod::Log("tv: cartoon '%s' restored - %.1f drawn, %.1f painted of %d, %d of %d voiced",
-                     g_cartoon.title.c_str(), g_cartoon.drawn, g_cartoon.painted, g_cartoon.scenes, VoicedRoles(),
-                     g_cartoon.roles);
+            g_cartoon.cgi = get("cgi") == "1";
+            mod::Log("tv: %s '%s' restored - %.1f %s, %.1f %s of %d, %d of %d voiced",
+                     g_cartoon.cgi ? "CGI cartoon" : "cartoon", g_cartoon.title.c_str(), g_cartoon.drawn, Drawn(),
+                     g_cartoon.painted, Painted(), g_cartoon.scenes, VoicedRoles(), g_cartoon.roles);
         },
         [] {
             Clear();
-            g_voiced.clear();
+            g_done.clear();
             g_lastDay = -1;
         });
 }
