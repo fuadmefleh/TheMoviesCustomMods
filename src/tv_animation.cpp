@@ -458,6 +458,8 @@ bool VoicePerformance(uintptr_t project, float* performance)
     return true;
 }
 
+bool IsFinishedCartoon(const std::wstring& title) { return g_done.count(Narrow(title)) != 0; }
+
 int CartoonStyle(uintptr_t project)
 {
     if (!project)

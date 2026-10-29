@@ -31,6 +31,8 @@ namespace tv {
 bool VoicePerformance(uintptr_t project, float* performance);
 // The look a film plays with: 0 not a cartoon, 1 hand-drawn, 2 CGI.
 int CartoonStyle(uintptr_t project);
+// The studio mascot's pull at the box office for one of the player's films (1 = none).
+float MascotPull(uintptr_t project);
 }
 
 namespace toon {

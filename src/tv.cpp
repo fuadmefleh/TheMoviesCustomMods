@@ -1070,6 +1070,7 @@ void Install()
     rooms::SetLabeler(&ModObjectLabel);
     InstallStaff();
     InstallAnimation();
+    InstallMascot();
     InstallCeremony(g_awardsCeremony);
     InstallAwardsTimeline();
     // The bag and the briefcase get a group of their own on the HUD's project list.

@@ -351,7 +351,10 @@ bool AnimationDrop(const std::string& zone, uintptr_t room, uintptr_t project, u
 // The cartoon's bubble on the lot: how many scenes are drawn and painted, how many roles voiced.
 bool CartoonLabel(uintptr_t project, std::wstring* kind, std::wstring* phase, std::wstring* status);
 bool IsCartoon(uintptr_t project);   // the film the animators are working on
+bool IsFinishedCartoon(const std::wstring& title);   // a film the animators finished
 void InstallAnimation();
+// The studio mascot (tv_mascot.cpp): born with the first cartoon released, grows with each one.
+void  InstallMascot();
 // The lines of their hover bubble (kind, phase, status); false if it isn't one of them.
 // The right-hand HUD list's picture for one (ui/shares_*.dds), and the Studio shares screen.
 const char* ShareObjectPicture(uintptr_t project);

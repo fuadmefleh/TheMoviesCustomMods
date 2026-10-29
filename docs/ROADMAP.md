@@ -211,6 +211,8 @@ A second production line next to live action, sized like an expansion pack. Cart
 - [x] **The CGI Render Farm** (`facility_render_farm`, 1995, $300,000, any number; `tools/make_tv_models.py`): a script dropped on a farm instead of the Story Room becomes a CGI cartoon, and the cartoon's own script dropped there switches it to CGI. The animators animate at the desks as before, there's no Ink & Paint, and every farm renders an animated scene in 3 days for a running cost per scene. Hand-drawn cartoons can still be made after 1995 (they no longer switch to computer painting by themselves). A stream leads a finished script to the farm too
 - [x] CGI cartoons played with the CGI look, hand-drawn ones with the hand-drawn look
 - [ ] Farms counted only once built (now under construction counts too)
+- [x] **The studio mascot** (`src/tv_mascot.cpp`): born with the first cartoon released, a star named from a list (the one on the studio's mascot board). Each released cartoon adds appeal (more for a better one, less when the mascot is stale); appeal fades over years without one (slowly once an icon). Stages Newcomer, Familiar Face, Star, Icon. Cartoons draw up to +30% at the box office (the success hook's factor), and from 1935 merchandise pays monthly, reported yearly. Saved with the game
+- [ ] Mascot: shorts (1928-37) shown before features, TV cartoons, the mascot on the lot (a statue, a costumed walkabout)
 - [ ] **In-game test** of the booth: seating at the microphones, recording only while there, the role count, the quality it gives
 - [ ] Voice fame: voice work as its own track for a star (a faded actor's comeback)
 
