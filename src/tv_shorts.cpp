@@ -289,7 +289,7 @@ float ShortPull(uintptr_t project)
     float year = Year();
     if (auto it = g_shorts.shown.find(title); it != g_shorts.shown.end())
         return 1.0f + Bump(it->second, year);
-    if (g_shorts.shelf.empty() || g_oldFilms.count(title) || IsTvScriptProject(project) || IsShareObject(project) ||
+    if (g_shorts.shelf.empty() || g_oldFilms.count(title) || IsTvScriptProject(project) || IsShareObject(project) || IsVaultObject(project) ||
         IsPilotReel(project))
         return 1.0f;
     // A new film of the player's, past its shoot: the oldest short on the shelf plays before it.

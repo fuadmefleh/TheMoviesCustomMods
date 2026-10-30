@@ -298,7 +298,8 @@ bool StartCartoon(uintptr_t project, bool cgi)
     game::Project p = game::ReadProjectAt(project);
     std::string title = Narrow(p.title);
     const char* where = cgi ? "The Render Farm" : "The Story Room";
-    if (IsTvScriptProject(project) || IsShareObject(project) || IsPilotReel(project)) {
+    if (IsTvScriptProject(project) || IsShareObject(project) || IsVaultObject(project) ||
+        IsPilotReel(project)) {
         Notify(where, "Only a film's script can be made into a cartoon here.", kYellow);
         return true;
     }

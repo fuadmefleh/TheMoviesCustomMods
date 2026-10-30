@@ -6,9 +6,11 @@ a pale silhouette with a dark teal outline, details cut in the outline colour).
 job_acct.dds     the accountants' page of the people card (src/careers.cpp): a calculator
 shares_bag.dds   the studio's shares on the right-hand list (src/projectlist.cpp): a money bag
 shares_case.dds  the investors' shares there: a briefcase
+vault.dds        the cartoon vault there (src/tv_vault.cpp): a film reel with a star on its hub
 awards_tv.dds    the Golden Antenna trophy at the awards ceremony (src/tv_ceremony.cpp): the game's
                  own award cup (from awards_film.dds), pale gold, holding a TV set
 """
+import math
 import os
 import sys
 
@@ -82,6 +84,26 @@ def case():
     return shape, cut
 
 
+def vault():
+    shape = Image.new('L', (S, S), 0)
+    d = ImageDraw.Draw(shape)
+    d.ellipse([24, 24, 232, 232], fill=255)                         # the reel
+    cut = Image.new('L', (S, S), 0)
+    c = ImageDraw.Draw(cut)
+    c.ellipse([40, 40, 216, 216], width=7, outline=255)             # its rim
+    for k in range(5):                                              # five windows round the hub
+        a = math.radians(90 + 72 * k + 36)
+        x, y = 128 + 60 * math.cos(a), 128 - 60 * math.sin(a)
+        c.ellipse([x - 25, y - 25, x + 25, y + 25], fill=255)
+    pts = []                                                        # a star on the hub
+    for k in range(10):
+        a = math.radians(90 + 36 * k)
+        r = 30 if k % 2 == 0 else 13
+        pts.append((128 + r * math.cos(a), 128 - r * math.sin(a)))
+    c.polygon(pts, fill=255)
+    return shape, cut
+
+
 def render(parts, fill, card=False):
     shape, cut = parts
     outline = shape.filter(ImageFilter.MaxFilter(23))
@@ -147,7 +169,7 @@ def award_tv():
 
 def draw():
     return {'awards_tv': award_tv(), 'job_acct': render(silhouette(), WHITE), 'shares_bag': render(bag(), CARD, card=True),
-            'shares_case': render(case(), CARD, card=True)}
+            'shares_case': render(case(), CARD, card=True), 'vault': render(vault(), CARD, card=True)}
 
 
 def main():

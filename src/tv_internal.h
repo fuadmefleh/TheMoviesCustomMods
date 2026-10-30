@@ -369,6 +369,15 @@ void  MascotShown(const std::string& shortTitle, float quality, float weight);  
 void  InstallShorts();
 bool  ShortsVoiceDrop(uintptr_t room, uintptr_t person, const std::string& personName, float rating);
 std::string ShortsStatus();   // a sentence on the short in the works and the shelf
+// The vault (tv_vault.cpp): cartoons re-released every 7 years. A film can on the lot, dropped
+// on the Animation Studio.
+void  InstallVault();
+bool  IsVaultObject(uintptr_t project);
+const char* VaultMesh(uintptr_t project);
+const char* VaultPicture(uintptr_t project);
+bool  VaultLabel(uintptr_t project, std::wstring* kind, std::wstring* phase, std::wstring* status);
+bool  VaultDrop(const std::string& zone, uintptr_t project);   // true if it was the vault
+void  VaultInfo();   // its card on the HUD list was clicked
 // The lines of their hover bubble (kind, phase, status); false if it isn't one of them.
 // The right-hand HUD list's picture for one (ui/shares_*.dds), and the Studio shares screen.
 const char* ShareObjectPicture(uintptr_t project);

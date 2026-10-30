@@ -537,11 +537,24 @@ float StarRatingOf(const rooms::Drop& d)
 }
 
 // TV scripts, pilot reels and the bags of shares: only the mod's buildings take them.
-bool IsModObject(uintptr_t project) { return IsTvScriptProject(project) || IsShareObject(project); }
+bool IsModObject(uintptr_t project)
+{
+    return IsTvScriptProject(project) || IsShareObject(project) || IsVaultObject(project);
+}
+
+// The HUD's group of the mod's own things: the shares and the vault.
+bool IsListedObject(uintptr_t project) { return IsShareObject(project) || IsVaultObject(project); }
+const char* ListedPicture(uintptr_t project)
+{
+    const char* p = ShareObjectPicture(project);
+    return p ? p : VaultPicture(project);
+}
 
 const char* ModObjectMesh(uintptr_t project)
 {
     if (const char* m = ShareObjectMesh(project))
+        return m;
+    if (const char* m = VaultMesh(project))
         return m;
     return PilotReelMesh(project);
 }
@@ -550,6 +563,7 @@ const char* ModObjectMesh(uintptr_t project)
 bool ModObjectLabel(uintptr_t project, rooms::ObjectLabel* l)
 {
     return ShareObjectLabel(project, &l->kind, &l->phase, &l->status) ||
+           VaultLabel(project, &l->kind, &l->phase, &l->status) ||
            CartoonLabel(project, &l->kind, &l->phase, &l->status) ||
            TvScriptLabel(project, &l->kind, &l->phase, &l->status);
 }
@@ -561,6 +575,9 @@ bool OnRoomDrop(const rooms::Drop& d)
         return true;
     // People on the Accounts Floor or the Animation Studio's desks: they sit down to work.
     if (!d.project && d.person && StaffDrop(d.room, d.roomObject, d.person))
+        return true;
+    // The vault: dropped on the Animation Studio, a cartoon goes back into cinemas.
+    if (d.project && VaultDrop(d.room, d.project))
         return true;
     // The Animation Studio: a film's script in the Story Room becomes a cartoon.
     if (AnimationDrop(d.room, d.roomObject, d.project, d.person, d.personClass, d.personName, StarRatingOf(d)))
@@ -1090,10 +1107,16 @@ void Install()
     InstallAnimation();
     InstallMascot();
     InstallShorts();
+    InstallVault();
     InstallCeremony(g_awardsCeremony);
     InstallAwardsTimeline();
-    // The bag and the briefcase get a group of their own on the HUD's project list.
-    projectlist::SetCategory(&IsShareObject, &ShareObjectPicture, [](uintptr_t) { OpenSharesScreen(); });
+    // The bag, the briefcase and the vault get a group of their own on the HUD's project list.
+    projectlist::SetCategory(&IsListedObject, &ListedPicture, [](uintptr_t p) {
+        if (IsVaultObject(p))
+            VaultInfo();
+        else
+            OpenSharesScreen();
+    });
 }
 
 } // namespace tv

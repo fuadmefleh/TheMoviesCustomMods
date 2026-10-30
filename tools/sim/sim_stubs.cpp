@@ -360,6 +360,13 @@ bool CartoonInProgress() { return false; }
 void InstallAnimation() {}
 void InstallMascot() {}
 void InstallShorts() {}
+void InstallVault() {}
+bool IsVaultObject(uintptr_t) { return false; }
+const char* VaultMesh(uintptr_t) { return nullptr; }
+const char* VaultPicture(uintptr_t) { return nullptr; }
+bool VaultLabel(uintptr_t, std::wstring*, std::wstring*, std::wstring*) { return false; }
+bool VaultDrop(const std::string&, uintptr_t) { return false; }
+void VaultInfo() {}
 } // namespace tv
 
 // tv_ceremony.cpp stages the game's awards show; the simulator has none (the papers report).
