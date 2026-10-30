@@ -134,7 +134,7 @@ void DrawPendingDrop()
                 g_pendingDrop.active = false;
             }
             ImGui::SameLine();
-            ImGui::TextDisabled("%s - %s", kFormats[s.format].name, current.c_str());
+            ImGui::TextDisabled("%s - %s", FormatLabel(s).c_str(), current.c_str());
         }
         if (!shown)
             ImGui::TextColored(kYellow, "You have no shows in development or on air yet.");
@@ -291,7 +291,7 @@ void DrawSpinoff(Series& s)
 void DrawSeriesDetail(Series& s)
 {
     ImGui::SeparatorText(s.title.c_str());
-    ImGui::Text("%s on %s", kFormats[s.format].name, NetworkName(s.network));
+    ImGui::Text("%s on %s", FormatLabel(s).c_str(), NetworkName(s.network));
     ImGui::SameLine(0, 20);
     ImGui::TextColored(StatusColour(s.status), "%s", kStatusNames[s.status]);
     if (InProduction(s) || s.status == RenewalOffered)
@@ -436,7 +436,7 @@ void DrawShows()
             if (ImGui::Selectable(Format("%s##row%d", s.title.c_str(), s.id).c_str(), g_selected == i,
                                   ImGuiSelectableFlags_SpanAllColumns))
                 g_selected = i;
-            ImGui::TableNextColumn(); ImGui::TextUnformatted(kFormats[s.format].name);
+            ImGui::TableNextColumn(); ImGui::TextUnformatted(FormatLabel(s).c_str());
             ImGui::TableNextColumn(); ImGui::TextColored(NetworkColour(s.network), "%s", NetworkShort(s.network));
             ImGui::TableNextColumn();
             if (s.slot >= 0) ImGui::Text("%.3s %s", kNightNames[s.slot / kHours], kHourNames[s.slot % kHours]);

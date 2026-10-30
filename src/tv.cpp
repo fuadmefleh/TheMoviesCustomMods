@@ -247,6 +247,11 @@ int  Capacity() { return g_detectionWorks ? g_offices * kShowsPerOffice + g_stag
 
 bool InProduction(const Series& s) { return s.status == Ordered || s.status == OnAir || s.status == OnHold; }
 
+std::string FormatLabel(const Series& s)
+{
+    return Format("%s%s", s.animated ? "Animated " : "", kFormats[s.format].name);
+}
+
 Series* FindSeries(int id)
 {
     for (Series& s : g_series)
@@ -441,8 +446,14 @@ void Verdict(Series& s)
 float EpisodeQuality(const Series& s, int episode)
 {
     float crew = 0.45f + kBudgetQuality[s.budget];
-    if (g_stages > 0)
+    if (s.animated) {
+        // A TV cartoon is drawn at the Animation Studio: the more animators, the less limited
+        // the animation. With none, the studio farms it out cheaply.
+        int animators = Animators();
+        crew += animators ? 0.02f * std::min(animators, 5) - 0.02f : -0.06f;
+    } else if (g_stages > 0) {
         crew += kFormats[s.format].multiCamera ? 0.08f : 0.03f;
+    }
     // People assigned through the TV Production Office's drop zones.
     float staff = (s.lead.empty() ? 0.0f : 0.06f) + 0.025f * std::min<int>(kMaxWriters, static_cast<int>(s.writers.size())) +
                   (s.showrunner.empty() ? 0.0f : 0.05f);
@@ -611,7 +622,9 @@ void RecordAiring(Series& s, float quality, float rating, float share)
     const FormatInfo& f = kFormats[s.format];
     int ep = s.aired + 1;
 
-    double cost = (f.cost1950 * kBudgetCost[s.budget] * PlanCostMul(s) * TechCostMul() * (s.livePending ? 1.5 : 1.0) +
+    // A cartoon has no sets or crew on the floor: cheaper to make (kAnimatedCost).
+    double cost = (f.cost1950 * kBudgetCost[s.budget] * PlanCostMul(s) * TechCostMul() * (s.livePending ? 1.5 : 1.0) *
+                       (s.animated ? kAnimatedCost : 1.0) +
                    StaffPay1950(s)) * era * g_costScale;
     double income;
     if (s.network == kStreamingNetwork) {
@@ -768,11 +781,13 @@ void ApplyCapacity()
 {
     int capacity = HasOffice() ? Capacity() : 0;
     int used = 0;
+    // TV cartoons are made at the Animation Studio, outside the offices' and stages' capacity.
+    bool studio = !g_detectionWorks || game::CountFacilities(kAnimationStudioType) > 0;
     for (Series& s : g_series) {
         if (!InProduction(s))
             continue;
-        if (used < capacity) {
-            used++;
+        if (s.animated ? studio : used < capacity) {
+            used += !s.animated;
             if (s.status == OnHold) {
                 s.status = s.aired ? OnAir : Ordered;
                 s.nextAirDay = std::max(s.nextAirDay, Today() + 1.0f);
@@ -781,7 +796,8 @@ void ApplyCapacity()
         } else if (s.status != OnHold) {
             s.status = OnHold;
             Notify(Format("'%s' on hold", s.title.c_str()),
-                   HasOffice() ? "Not enough production capacity. Build another TV Production Office or a Multi-Camera Soundstage."
+                   s.animated  ? "TV cartoons are made at the Animation Studio, and you have none."
+                   : HasOffice() ? "Not enough production capacity. Build another TV Production Office or a Multi-Camera Soundstage."
                                : "You need a TV Production Office to make shows.",
                    kYellow);
         }
@@ -926,6 +942,7 @@ void Save(persist::Section& out)
         num("scandal", s.scandal);
         num("live_pending", s.livePending);
         num("live_season", s.liveSeason);
+        num("animated", s.animated);
     }
 }
 
@@ -1026,6 +1043,7 @@ void Load(const persist::Section& in)
         s.scandal = num(p + "scandal") != 0;
         s.livePending = num(p + "live_pending") != 0;
         s.liveSeason = has(p + "live_season") ? static_cast<int>(num(p + "live_season")) : -1;
+        s.animated = num(p + "animated") != 0;
         g_series.push_back(s);
     }
     mod::Log("tv: loaded %zu series (level %s)", g_series.size(), kLevelNames[g_level]);

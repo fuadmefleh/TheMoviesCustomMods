@@ -22,7 +22,8 @@
 // released like any other.
 //
 // One cartoon at a time. A film already being cast or shot can't be animated. Between
-// cartoons the animators make shorts (tv_shorts.cpp), and the Voice Booth records the mascot.
+// cartoons the animators draw TV cartoons' pilots (tv_writers.cpp), then shorts (tv_shorts.cpp),
+// and the Voice Booth records the TV cartoon's lead, or else the mascot.
 
 #define NOMINMAX
 #include <windows.h>
@@ -369,8 +370,8 @@ bool VoiceDrop(uintptr_t room, uintptr_t person, const std::string& personClass,
         Notify("The Voice Booth", "Only actors voice cartoons.", kYellow);
         return true;
     }
-    if (g_cartoon.title.empty())   // no feature: the voice of the mascot, for the shorts
-        return ShortsVoiceDrop(room, person, personName, rating);
+    if (g_cartoon.title.empty())   // no feature: a TV cartoon's lead, or the mascot for the shorts
+        return PilotVoiceDrop(room, person, personName, rating) || ShortsVoiceDrop(room, person, personName, rating);
     std::string name = personName.empty() ? Format("Star #%04X", static_cast<unsigned>(person & 0xFFFF)) : personName;
     for (Voice& v : g_cartoon.voices) {
         if (v.name != name)
@@ -416,6 +417,8 @@ bool AnimationDrop(const std::string& zone, uintptr_t room, uintptr_t project, u
     if (zone.rfind("room_tva_", 0) != 0)
         return false;
     if (project) {
+        if (zone == kStory && AnimatePilot(project))   // a TV script: a TV cartoon
+            return true;
         if (zone == kStory && !IsCartoon(project))
             return StartCartoon(project, false);
         if (IsCartoon(project)) {   // the cartoon itself, dropped again: where it stands, what's next

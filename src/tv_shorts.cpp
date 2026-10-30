@@ -170,8 +170,8 @@ void KnowOldFilms()
 void Daily(float days)
 {
     KnowOldFilms();
-    if (CartoonInProgress())
-        return;   // the animators are on the feature; the voice in the booth is the feature's
+    if (CartoonInProgress() || AnimatedPilotInProgress())
+        return;   // the animators are on the feature or a TV pilot, and so is the Voice Booth
     Record(days);
     int drawing = StaffWorkingIn(careers::kAnimator, kDesks);
     int painting = StaffWorkingIn(careers::kAnimator, kInk);

@@ -38,6 +38,8 @@ constexpr int   kLimitedOrder    = 8;
 constexpr int   kShowsPerOffice  = 2;
 constexpr int   kShowsPerStage   = 1;
 constexpr float kMinFreshness    = 0.3f;    // how tired an audience can get of a show
+constexpr float kAnimatedCost    = 0.7f;    // a TV cartoon's episode costs, against a live-action one's
+constexpr float kAnimatedReruns  = 1.25f;   // ...and how much better it reruns: cartoons don't date
 
 // Building file names (they must start with "facility" or the build menu ignores them).
 extern const char* const kOfficeType;
@@ -186,6 +188,9 @@ struct Series {
     bool        scandal = false;       // the star is in trouble, awaiting your decision
     bool        livePending = false;   // the next episode goes out live
     int         liveSeason = -1;       // season of the last live episode
+    // Toon Studio: a TV cartoon, its pilot drawn at the Animation Studio (tv_writers.cpp) and its
+    // episodes made there: no soundstage, cheaper, better with more animators.
+    bool        animated = false;
 };
 
 constexpr int kMaxWriters = 4;
@@ -354,6 +359,7 @@ bool IsCartoon(uintptr_t project);   // the film the animators are working on
 bool IsFinishedCartoon(const std::wstring& title);   // a film the animators finished
 void InstallAnimation();
 bool CartoonInProgress();   // the animators have a feature cartoon
+constexpr const char* kAnimationStudioType = "facility_animation_studio";
 // The studio mascot (tv_mascot.cpp): born with the first short or cartoon, grows with each one.
 void  InstallMascot();
 std::string MascotName(bool create);   // "" before it's born; create: born now, for a short
@@ -398,6 +404,7 @@ void SharesReset();
 bool HasOffice();
 int  Capacity();
 bool InProduction(const Series& s);
+std::string FormatLabel(const Series& s);   // "Sitcom", or "Animated Sitcom" for a TV cartoon
 Series* FindSeries(int id);
 
 // Series actions (tv.cpp)
@@ -571,6 +578,11 @@ bool   DropReel(const std::string& zone, uintptr_t project);   // true if it was
 // The hover bubble of a finished TV script or reel (kind, phase, status); false to keep the game's.
 bool   TvScriptLabel(uintptr_t project, std::wstring* kind, std::wstring* phase, std::wstring* status);
 bool   CastPilot(const std::string& name, float stars, bool director);   // a person dropped on a soundstage
+// TV cartoons: a TV script dropped in the Animation Studio's Story Room has its pilot drawn by
+// the animators (after any feature cartoon) and its lead voiced in the Voice Booth.
+bool   AnimatePilot(uintptr_t project);           // false if it isn't a TV script
+bool   AnimatedPilotInProgress();
+bool   PilotVoiceDrop(uintptr_t room, uintptr_t person, const std::string& personName, float rating);
 void   AutoPilots(bool castStandIns);             // shoot the best scripts on free soundstages
 // The script shelf for display (native screen): one entry per script not yet pitched.
 struct ShelfEntry {
@@ -580,6 +592,7 @@ struct ShelfEntry {
     float       quality = 0;        // the script
     float       pilotQuality = 0;
     float       wrapDay = 0;        // shooting: 0 = waiting for a lead
+    bool        animated = false;   // the pilot is drawn at the Animation Studio
 };
 std::vector<ShelfEntry> ShelfSummary();
 int    FreeSoundstages();

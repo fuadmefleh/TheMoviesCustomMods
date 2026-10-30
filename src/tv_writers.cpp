@@ -5,6 +5,11 @@
 // script they finish. Finished scripts go on the shelf and can be pitched as pilots in
 // place of a film.
 //
+// A TV script dropped in the Animation Studio's Story Room instead becomes a TV cartoon: its
+// pilot is drawn by the animators (kAnimPilotScenes scenes, at a feature's speeds, once the
+// studio has no feature cartoon) and its lead voiced by a star dropped in the Voice Booth. The
+// reel is pitched like any other, and the series is made at the Animation Studio.
+//
 // Offices built with this version are real script offices (see rooms.cpp): the game sits
 // the writers down and writes the script, and this file renames it for TV as it starts and
 // shelves it when the office puts it outside. Offices from older saves have plain rooms
@@ -15,6 +20,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include "careers.h"
 #include "mod.h"
 #include "rooms.h"
 #include "tv_internal.h"
@@ -78,6 +84,13 @@ struct TvScript {
     float       leadStars = 0;  // the star's rating, 0..1
     float       shootStart = 0, shootEnd = 0;   // shootEnd 0 = waiting for a lead
     float       pilotQuality = 0;
+    // A TV cartoon: the pilot is drawn at the Animation Studio, the lead voiced in its booth.
+    bool        animated = false;
+    float       drawn = 0, painted = 0;   // scenes
+    float       voiced = 0;               // days the lead has recorded
+    uintptr_t   voicePerson = 0;          // this session: time away from the booth doesn't count
+    bool        waitNoticed = false;      // "the pilot needs animators" was shown
+    bool        voiceNoticed = false;     // "the pilot is waiting for its voice" was shown
 };
 
 Desk g_desks[kDeskCount];
@@ -88,6 +101,11 @@ int g_nextScript = 1;
 constexpr float kDaysPerScript = 75.0f;    // one writer, one script
 constexpr float kWriterWeekly1950 = 350.0f;
 constexpr int   kShelfLimit = 4;           // unpitched scripts before the writers wait
+constexpr int   kAnimPilotScenes = 2;
+constexpr float kAnimDrawDays = 20.0f, kAnimPaintDays = 8.0f, kAnimVoiceDays = 3.0f;   // as a feature cartoon
+const char* const kAnimDesks = "room_tva_desks";
+const char* const kAnimInk = "room_tva_ink";
+const char* const kAnimVoice = "room_tva_voice";
 bool g_relinked = false;                    // shelf scripts matched to their objects after a load
 
 bool Pitched(const TvScript& s);
@@ -334,7 +352,7 @@ int ShootingPilots()
 {
     int n = 0;
     for (const TvScript& t : g_shelf)
-        n += t.pilot == PilotShooting;
+        n += t.pilot == PilotShooting && !t.animated;   // animated ones are at the Animation Studio
     return n;
 }
 
@@ -392,10 +410,82 @@ void FinishPilot(TvScript& t)
              t.lead.c_str(), t.leadStars, t.director.c_str(), t.pilotQuality);
 }
 
+// --- Animated pilots ---------------------------------------------------------------------
+
+TvScript* AnimatedPilot()
+{
+    for (TvScript& t : g_shelf)
+        if (t.animated && t.pilot == PilotShooting)
+            return &t;
+    return nullptr;
+}
+
+bool LeadVoiced(const TvScript& t) { return !t.lead.empty() && t.voiced >= kAnimVoiceDays; }
+
+void FinishAnimatedPilot(TvScript& t)
+{
+    int animators = Animators();
+    float noise = Roll(static_cast<uint32_t>(t.id), static_cast<uint32_t>(t.shootStart), 7u, -0.05f, 0.05f);
+    t.pilotQuality = std::clamp(0.55f * t.quality + 0.30f * t.leadStars + 0.02f * std::min(animators, 4) + noise, 0.05f,
+                                1.0f);
+    t.pilot = PilotShot;
+    rooms::RefreshScriptLook(t.project);   // the script becomes a reel
+    Notify(Format("The pilot of '%s' is drawn", t.title.c_str()),
+           Format("%s voices the lead. Quality %.0f%%. Drag its reel to the Network HQ to pitch it to the networks.",
+                  t.lead.c_str(), t.pilotQuality * 100),
+           kGold);
+    mod::Log("tv: animated pilot '%s' finished after %.0f days - script %.2f, %s %.2f, %d animators -> %.2f",
+             t.title.c_str(), Today() - t.shootStart, t.quality, t.lead.c_str(), t.leadStars, animators,
+             t.pilotQuality);
+}
+
+// One day of the animators' work on the TV pilot; a feature cartoon comes first.
+void AnimatedPilotDaily()
+{
+    TvScript* t = AnimatedPilot();
+    if (!t || CartoonInProgress())
+        return;
+    if (!t->lead.empty() && t->voiced < kAnimVoiceDays && (!t->voicePerson || ZoneOf(t->voicePerson) == kAnimVoice)) {
+        t->voiced = std::min(kAnimVoiceDays, t->voiced + 1.0f);
+        if (t->voiced >= kAnimVoiceDays)
+            Notify(Format("%s has voiced '%s'", t->lead.c_str(), t->title.c_str()), "The pilot's lead is recorded.",
+                   kGreen);
+    }
+    if (t->lead.empty() && g_level == Casual && Today() - t->shootStart > 7) {
+        t->lead = "a voice actor";   // casual players get a stand-in
+        t->leadStars = 0.35f;
+        t->voiced = kAnimVoiceDays;
+    }
+    int drawing = StaffWorkingIn(careers::kAnimator, kAnimDesks);
+    int painting = StaffWorkingIn(careers::kAnimator, kAnimInk);
+    float scenes = static_cast<float>(kAnimPilotScenes);
+    t->drawn = std::min(scenes, t->drawn + drawing / kAnimDrawDays);
+    t->painted = std::min(t->drawn, t->painted + painting / kAnimPaintDays);
+    if (drawing == 0 && t->drawn < scenes && !t->waitNoticed) {
+        t->waitNoticed = true;
+        Notify(Format("'%s' needs animators", t->title.c_str()),
+               Animators() ? "Drop animators on the Animators' Desks to draw the pilot, and in Ink & Paint to colour it."
+                           : "Hire animators at the Animation Studio's desk, then drop them on the Animators' Desks.",
+               kYellow);
+    }
+    if (t->painted < scenes - 0.001f)
+        return;
+    if (!LeadVoiced(*t)) {
+        if (!t->voiceNoticed) {
+            t->voiceNoticed = true;
+            Notify(Format("The pilot of '%s' is drawn", t->title.c_str()),
+                   "It's waiting for its lead's voice: drop a star in the Animation Studio's Voice Booth.", kYellow);
+        }
+        return;
+    }
+    FinishAnimatedPilot(*t);
+}
+
 void PilotsDaily()
 {
+    AnimatedPilotDaily();
     for (TvScript& t : g_shelf) {
-        if (t.pilot != PilotShooting)
+        if (t.pilot != PilotShooting || t.animated)
             continue;
         if (t.shootEnd == 0 && g_level == Casual && Today() - t.shootStart > 7)
             CastLead(t, "a TV actor", 0.35f);   // casual players get a stand-in
@@ -563,9 +653,13 @@ void ApplyPilot(Series& s, const game::Project& p)
     if (p.stage != -2)
         return;
     int id = static_cast<int>(-p.startDate - 1000.0f + 0.5f);
-    for (const TvScript& t : g_shelf)
-        if (t.id == id && t.pilot == PilotShot && !t.lead.empty() && t.lead != "a TV actor")
+    for (const TvScript& t : g_shelf) {
+        if (t.id != id)
+            continue;
+        s.animated = t.animated;
+        if (t.pilot == PilotShot && !t.lead.empty() && t.lead != "a TV actor" && t.lead != "a voice actor")
             s.lead = t.lead;   // the pilot's star stays on for the series
+    }
 }
 
 bool StartPilotForProject(uintptr_t project)
@@ -587,7 +681,7 @@ bool IsUnshotScript(uintptr_t project)
 bool CastPilot(const std::string& name, float stars, bool director)
 {
     for (TvScript& t : g_shelf) {
-        if (t.pilot != PilotShooting)
+        if (t.pilot != PilotShooting || t.animated)
             continue;
         if (director) {
             if (!t.director.empty())
@@ -622,12 +716,95 @@ std::vector<ShelfEntry> ShelfSummary()
         e.quality = t.quality;
         e.pilotQuality = t.pilotQuality;
         e.wrapDay = t.shootEnd;
+        e.animated = t.animated;
         out.push_back(e);
     }
     return out;
 }
 
 int FreeSoundstages() { return FreeStages(); }
+
+bool AnimatePilot(uintptr_t project)
+{
+    TvScript* t = nullptr;
+    for (TvScript& s : g_shelf)
+        if (project && s.project == project)
+            t = &s;
+    if (!t)
+        return false;
+    if (t->pilot == PilotShot || Pitched(*t)) {
+        Notify("The Story Room", Format("The pilot of '%s' is finished: take its reel to the Network HQ.", t->title.c_str()),
+               kYellow);
+        return true;
+    }
+    if (t->pilot == PilotShooting && !t->animated) {
+        Notify("The Story Room", Format("'%s' is being shot on a soundstage.", t->title.c_str()), kYellow);
+        return true;
+    }
+    if (t->animated) {   // dropped again: where it stands
+        Notify(Format("'%s'", t->title.c_str()),
+               Format("%d of %d scenes drawn, %d painted. %s", static_cast<int>(t->drawn), kAnimPilotScenes,
+                      static_cast<int>(t->painted),
+                      t->lead.empty()          ? "The lead needs a voice: drop a star in the Voice Booth."
+                      : LeadVoiced(*t)         ? Format("%s has voiced the lead.", t->lead.c_str()).c_str()
+                                               : Format("%s is recording the lead.", t->lead.c_str()).c_str()),
+               kYellow);
+        return true;
+    }
+    if (TvScript* other = AnimatedPilot()) {
+        Notify("The Story Room",
+               Format("The animators are drawing the pilot of '%s'. One TV pilot at a time.", other->title.c_str()),
+               kYellow);
+        return true;
+    }
+    double cost = PilotCost(*t) * 0.75;
+    game::AddMoney(-cost);
+    t->pilot = PilotShooting;
+    t->animated = true;
+    t->shootStart = Today();
+    t->shootEnd = 0;
+    t->drawn = t->painted = t->voiced = 0;
+    t->lead.clear();
+    t->director.clear();
+    rooms::RefreshScriptLook(t->project);
+    mod::Log("tv: '%s' becomes a TV cartoon - pilot cost %.0f", t->title.c_str(), cost);
+    Notify(Format("'%s' will be a cartoon", t->title.c_str()),
+           Format("%s for the pilot. The animators draw its %d scenes %s, and a star dropped in the Voice Booth voices "
+                  "the lead.",
+                  Dollars(cost).c_str(), kAnimPilotScenes,
+                  CartoonInProgress() ? "once the feature cartoon is finished" : "at the desks and in Ink & Paint"),
+           kGreen);
+    return true;
+}
+
+bool AnimatedPilotInProgress() { return AnimatedPilot() != nullptr; }
+
+bool PilotVoiceDrop(uintptr_t room, uintptr_t person, const std::string& personName, float rating)
+{
+    TvScript* t = AnimatedPilot();
+    if (!t)
+        return false;
+    std::string name = personName.empty() ? Format("Star #%04X", static_cast<unsigned>(person & 0xFFFF)) : personName;
+    if (LeadVoiced(*t)) {
+        Notify("The Voice Booth", Format("%s has already voiced the lead of '%s'.", t->lead.c_str(), t->title.c_str()),
+               kYellow);
+        return true;
+    }
+    if (t->lead != name) {
+        t->lead = name;
+        t->leadStars = std::clamp(rating, 0.0f, 1.0f);
+        t->voiced = 0;
+    }
+    t->voicePerson = person;
+    bool seated = rooms::SeatInScene(room, person);
+    mod::Log("tv: %s voices the lead of '%s' (rating %.2f, %s)", name.c_str(), t->title.c_str(), rating,
+             seated ? "seated" : "FAILED to seat");
+    Notify(Format("%s voices '%s'", name.c_str(), t->title.c_str()),
+           Format("Recording the lead takes %.0f days in the booth, and %s stays on as the voice of the series.",
+                  kAnimVoiceDays, name.c_str()),
+           kGold);
+    return true;
+}
 
 namespace {
 
@@ -694,21 +871,31 @@ bool TvScriptLabel(uintptr_t project, std::wstring* kind, std::wstring* phase, s
             t = &s;
     if (!t)
         return false;   // still being written: the game's "Scriptwriting" is right
-    const char* format = t->format >= 0 && t->format < FormatCount ? kFormats[t->format].name : "TV";
+    std::string format = Format("%s%s", t->animated ? "Animated " : "",
+                                t->format >= 0 && t->format < FormatCount ? kFormats[t->format].name : "TV");
+    if (t->animated && t->pilot == PilotShooting) {
+        *kind = html::Text(Format("%s script", format.c_str()));
+        *phase = L"Pilot being animated";
+        std::string st = Format("%d of %d scenes drawn, %d painted, ", static_cast<int>(t->drawn), kAnimPilotScenes,
+                                static_cast<int>(t->painted));
+        st += LeadVoiced(*t) ? "lead voiced" : t->lead.empty() ? "lead needs a voice" : "lead recording";
+        *status = html::Text(st);
+        return true;
+    }
     if (Pitched(*t)) {
-        *kind = html::Text(Format("%s pilot", format));
+        *kind = html::Text(Format("%s pilot", format.c_str()));
         *phase = L"Pitched";
         *status = L"See the TV screen";
     } else if (t->pilot == PilotShot) {
-        *kind = html::Text(Format("%s pilot", format));
+        *kind = html::Text(Format("%s pilot", format.c_str()));
         *phase = html::Text(Format("Pilot shot - %.0f%%", t->pilotQuality * 100));
         *status = L"Take it to the Network HQ";
     } else if (t->pilot == PilotShooting) {
-        *kind = html::Text(Format("%s script", format));
+        *kind = html::Text(Format("%s script", format.c_str()));
         *phase = L"Pilot in production";
         *status = t->shootEnd == 0 ? L"Needs a star on the soundstage" : L"Shooting on the soundstage";
     } else {
-        *kind = html::Text(Format("%s script", format));
+        *kind = html::Text(Format("%s script", format.c_str()));
         *phase = L"Script Complete";
         *status = L"Ready to shoot a pilot";
     }
@@ -747,7 +934,7 @@ bool DropReel(const std::string& zone, uintptr_t project)
 void AutoPilots(bool castStandIns)
 {
     for (TvScript& t : g_shelf)
-        if (castStandIns && t.pilot == PilotShooting && t.shootEnd == 0)
+        if (castStandIns && t.pilot == PilotShooting && t.shootEnd == 0 && !t.animated)
             CastLead(t, "a TV actor", 0.35f);
     while (FreeStages() > 0) {
         TvScript* best = nullptr;
@@ -920,6 +1107,8 @@ void WritersSave(std::map<std::string, std::string>& out)
             out[Format("s%zu.lead", i)] = s.lead;
             out[Format("s%zu.director", i)] = s.director;
         }
+        if (s.animated)
+            out[Format("s%zu.anim", i)] = Format("%.3f|%.3f|%.3f", s.drawn, s.painted, s.voiced);
     }
     std::string xp;
     for (const auto& e : g_experience)
@@ -1007,6 +1196,13 @@ void WritersLoad(const std::map<std::string, std::string>& in)
             s.pilotQuality = static_cast<float>(atof(pp[4].c_str()));
             s.lead = get(Format("s%d.lead", i));
             s.director = get(Format("s%d.director", i));
+        }
+        std::vector<std::string> pa = split(get(Format("s%d.anim", i)));
+        if (pa.size() >= 3) {
+            s.animated = true;
+            s.drawn = static_cast<float>(atof(pa[0].c_str()));
+            s.painted = static_cast<float>(atof(pa[1].c_str()));
+            s.voiced = static_cast<float>(atof(pa[2].c_str()));
         }
         g_shelf.push_back(s);
     }

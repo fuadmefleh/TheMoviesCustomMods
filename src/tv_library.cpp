@@ -86,7 +86,7 @@ float PackageSize(const Series& s)
 // A title's pull on a cable channel.
 float CableAppeal(const Series& s)
 {
-    return Evergreen(s.format) * Popularity(s) * PackageSize(s) * (1.0f - s.wear);
+    return Evergreen(s.format) * (s.animated ? kAnimatedReruns : 1.0f) * Popularity(s) * PackageSize(s) * (1.0f - s.wear);
 }
 
 bool FirstRunOnAir(const Series& s) { return InProduction(s) || s.status == RenewalOffered; }
@@ -128,7 +128,7 @@ double LocalWeekly(const Series& s)
 {
     float year = Year();
     double perAiring = kFormats[s.format].fee1950 * 0.06;
-    double v = perAiring * 5 * Evergreen(s.format) * Popularity(s) * PackageSize(s) * (1.0f - s.wear) *
+    double v = perAiring * 5 * Evergreen(s.format) * (s.animated ? kAnimatedReruns : 1.0f) * Popularity(s) * PackageSize(s) * (1.0f - s.wear) *
                (g_archives > 0 ? 1.25 : 1.0) * (HasTech(TechSalesTeam) ? 1.15 : 1.0) * RerunMarket(year);
     // Stations only have so many afternoon slots: the more of your shows they already run,
     // the less they pay for another.

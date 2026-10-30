@@ -152,7 +152,7 @@ std::wstring ShowsPage()
             continue;
         listed++;
         const wchar_t* fresh = s.freshness < 0.3f ? html::Bad : s.freshness < 0.5f ? html::Warn : nullptr;
-        table += Row({ Bold(W(s.title)), W(NetworkShort(s.network)), W(kFormats[s.format].name),
+        table += Row({ Bold(W(s.title)), W(NetworkShort(s.network)), W(FormatLabel(s).c_str()),
                        s.season ? W(Format("%d  (%d of %d)", s.season, s.aired, s.order)) : L"-", StatusText(s),
                        s.lastRating > 0 ? W(Format("%.1f", s.lastRating)) : L"-",
                        s.lastShare > 0 ? W(Format("%.0f%%", s.lastShare * 100)) : L"-",
@@ -203,7 +203,7 @@ std::wstring PilotsPage()
         else
             state = html::Colour(L"Script only", html::Dim);
         const wchar_t* script = e.quality >= 0.7f ? html::Good : e.quality < 0.4f ? html::Warn : nullptr;
-        h += Row({ Bold(W(e.title)), W(kFormats[e.format].name), html::Colour(W(Format("%.0f%%", e.quality * 100)), script),
+        h += Row({ Bold(W(e.title)), W(Format("%s%s", e.animated ? "Animated " : "", kFormats[e.format].name).c_str()), html::Colour(W(Format("%.0f%%", e.quality * 100)), script),
                    state });
     }
     h += html::EndTable();

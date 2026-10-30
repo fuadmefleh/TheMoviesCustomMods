@@ -244,6 +244,7 @@ void RefreshScriptLook(uintptr_t) {}
 void SetMeshChooser(ProjectMesh) {}
 void SetLabeler(ProjectLabel) {}
 std::string ZoneName(uintptr_t) { return ""; }
+bool SeatInScene(uintptr_t, uintptr_t) { return false; }
 
 } // namespace rooms
 
@@ -348,10 +349,17 @@ int StaffWorkingIn(int, const char*) { return 0; }
 void StaffReset() {}
 void InstallStaff() {}
 bool StaffDrop(const std::string&, uintptr_t, uintptr_t) { return false; }
-bool AnimationDrop(const std::string&, uintptr_t, uintptr_t) { return false; }
+std::string ZoneOf(uintptr_t) { return ""; }
+bool AnimationDrop(const std::string&, uintptr_t, uintptr_t, uintptr_t, const std::string&, const std::string&, float)
+{
+    return false;
+}
 bool CartoonLabel(uintptr_t, std::wstring*, std::wstring*, std::wstring*) { return false; }
 bool IsCartoon(uintptr_t) { return false; }
+bool CartoonInProgress() { return false; }
 void InstallAnimation() {}
+void InstallMascot() {}
+void InstallShorts() {}
 } // namespace tv
 
 // tv_ceremony.cpp stages the game's awards show; the simulator has none (the papers report).
