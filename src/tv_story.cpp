@@ -313,6 +313,8 @@ void SeasonFinale(Series& s, float avgShare, float needed)
 
     if (s.animated && !s.lead.empty())   // the lead's voice gets known, hit or not
         VoiceSeason(s.lead, s.title, needed > 0 ? avgShare / needed : 1.0f);
+    if (s.mascot)   // a season on television counts for the mascot, as a cartoon less
+        MascotShown(s.title, s.lastQuality, 0.6f);
     if (continues && !s.lead.empty()) {
         s.leadSeasons++;
         // Stars of hits want more money; a star who has carried a show for years may move on.

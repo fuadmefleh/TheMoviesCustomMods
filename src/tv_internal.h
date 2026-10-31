@@ -191,6 +191,7 @@ struct Series {
     // Toon Studio: a TV cartoon, its pilot drawn at the Animation Studio (tv_writers.cpp) and its
     // episodes made there: no soundstage, cheaper, better with more animators.
     bool        animated = false;
+    bool        mascot = false;   // the studio mascot's own show: draws on its appeal, and adds to it
 };
 
 constexpr int kMaxWriters = 4;
@@ -369,6 +370,8 @@ void  MascotShown(const std::string& shortTitle, float quality, float weight);  
 void  InstallShorts();
 bool  ShortsVoiceDrop(uintptr_t room, uintptr_t person, const std::string& personName, float rating);
 std::string ShortsStatus();   // a sentence on the short in the works and the shelf
+std::string MascotVoice(float* rating);   // the star who voices the mascot ("" = none yet) and their rating
+bool  MascotShowOnAir();   // the mascot's TV cartoon is on the air (tv.cpp)
 // The vault (tv_vault.cpp): cartoons re-released every 7 years. A film can on the lot, dropped
 // on the Animation Studio.
 void  InstallVault();

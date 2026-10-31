@@ -458,6 +458,8 @@ float EpisodeQuality(const Series& s, int episode)
     float staff = (s.lead.empty() ? 0.0f : 0.06f) + 0.025f * std::min<int>(kMaxWriters, static_cast<int>(s.writers.size())) +
                   (s.showrunner.empty() ? 0.0f : 0.05f);
     float q = 0.55f * s.pilotQuality + 0.45f * crew + staff + PlanQuality(s, episode) + TechQualityBonus(s.format) + Roll(s.id, s.season * 1000 + episode, 7, -0.07f, 0.07f);
+    if (s.mascot)   // children tune in for the studio's star
+        q += 0.08f * MascotAppeal();
     return std::clamp(q, 0.05f, 1.0f);
 }
 
@@ -960,6 +962,7 @@ void Save(persist::Section& out)
         num("live_pending", s.livePending);
         num("live_season", s.liveSeason);
         num("animated", s.animated);
+        num("mascot", s.mascot);
     }
 }
 
@@ -1061,6 +1064,7 @@ void Load(const persist::Section& in)
         s.livePending = num(p + "live_pending") != 0;
         s.liveSeason = has(p + "live_season") ? static_cast<int>(num(p + "live_season")) : -1;
         s.animated = num(p + "animated") != 0;
+        s.mascot = num(p + "mascot") != 0;
         g_series.push_back(s);
     }
     mod::Log("tv: loaded %zu series (level %s)", g_series.size(), kLevelNames[g_level]);

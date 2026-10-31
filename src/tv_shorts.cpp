@@ -260,6 +260,14 @@ bool ShortsVoiceDrop(uintptr_t room, uintptr_t person, const std::string& person
     return true;
 }
 
+std::string MascotVoice(float* rating)
+{
+    if (!Voiced())
+        return "";
+    *rating = VoiceRating(g_shorts.voice, g_shorts.voiceRating);
+    return g_shorts.voice;
+}
+
 std::string ShortsStatus()
 {
     std::string s;

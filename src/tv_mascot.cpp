@@ -15,7 +15,8 @@
 //
 // What it does: the player's cartoons draw more at the box office (MascotPull, used by the
 // success hook in ratings.cpp), up to +kMaxPull at full appeal, and from kMerchYear the mascot
-// sells merchandise: income every month, reported once a year.
+// sells merchandise: income every month, reported once a year, more while its own TV cartoon
+// (tv_writers.cpp) is on the air.
 
 #define NOMINMAX
 #include <windows.h>
@@ -36,6 +37,7 @@ constexpr float kStalePerRelease = 0.35f, kTiredAt = 0.75f, kTiredLoss = 0.06f;
 constexpr float kMaxPull = 0.30f;
 constexpr int kMerchYear = 1935;
 constexpr double kMerchMonthly1950 = 30000;   // at full appeal, in 1950 dollars
+constexpr double kShowMerch = 1.5;            // while the mascot's TV cartoon is on the air
 constexpr float kDaysPerYear = 365.25f;
 
 // The mascot board on the Animation Studio shows a beaming yellow star in white gloves.
@@ -166,7 +168,8 @@ void Merchandise(float today)
     if (today - g_mascot.lastMerch < kDaysPerYear / 12)
         return;
     g_mascot.lastMerch = today;
-    double income = kMerchMonthly1950 * g_mascot.appeal * g_mascot.appeal * EraFactor(Year());
+    double income = kMerchMonthly1950 * g_mascot.appeal * g_mascot.appeal * EraFactor(Year()) *
+                    (MascotShowOnAir() ? kShowMerch : 1.0);
     int year = static_cast<int>(Year());
     if (year != g_mascot.merchYearNo) {
         if (g_mascot.merchYearNo && g_mascot.merchYear >= 1000)

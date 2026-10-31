@@ -368,6 +368,10 @@ bool VaultLabel(uintptr_t, std::wstring*, std::wstring*, std::wstring*) { return
 bool VaultDrop(const std::string&, uintptr_t) { return false; }
 void VaultInfo() {}
 void InstallVoices() {}
+std::string MascotName(bool) { return ""; }
+float MascotAppeal() { return 0; }
+void MascotShown(const std::string&, float, float) {}
+std::string MascotVoice(float*) { return ""; }
 void VoiceSeason(const std::string&, const std::string&, float) {}
 } // namespace tv
 

@@ -10,6 +10,11 @@
 // studio has no feature cartoon) and its lead voiced by a star dropped in the Voice Booth. The
 // reel is pitched like any other, and the series is made at the Animation Studio.
 //
+// Once the studio mascot is a Star, the Animation Studio offers its own TV cartoon: a script
+// ("The <Mascot> Show") put outside the studio, which only the Story Room takes. Its pilot is
+// voiced by the mascot's voice from the shorts, if it has one. Another is offered
+// kMascotShowYears after the last one is off the air.
+//
 // Offices built with this version are real script offices (see rooms.cpp): the game sits
 // the writers down and writes the script, and this file renames it for TV as it starts and
 // shelves it when the office puts it outside. Offices from older saves have plain rooms
@@ -91,6 +96,7 @@ struct TvScript {
     uintptr_t   voicePerson = 0;          // this session: time away from the booth doesn't count
     bool        waitNoticed = false;      // "the pilot needs animators" was shown
     bool        voiceNoticed = false;     // "the pilot is waiting for its voice" was shown
+    bool        mascot = false;           // the studio mascot's own show (only ever a cartoon)
 };
 
 Desk g_desks[kDeskCount];
@@ -107,6 +113,9 @@ const char* const kAnimDesks = "room_tva_desks";
 const char* const kAnimInk = "room_tva_ink";
 const char* const kAnimVoice = "room_tva_voice";
 bool g_relinked = false;                    // shelf scripts matched to their objects after a load
+constexpr float kMascotShowAppeal = 0.5f;   // the mascot is a Star
+constexpr float kMascotShowYears = 5;       // after a mascot show is off the air, before the next
+float g_mascotOffered = -1;                 // day the last mascot show was offered, -1 = never
 
 bool Pitched(const TvScript& s);
 
@@ -532,6 +541,14 @@ void KeepTvBusy(float day)
 
 bool IsWritersZone(const std::string& zone) { return DeskOf(zone) >= 0; }
 
+bool MascotShowOnAir()
+{
+    for (const Series& s : g_series)
+        if (s.mascot && s.status == OnAir)
+            return true;
+    return false;
+}
+
 bool IsTvScriptProject(uintptr_t project)
 {
     if (!project)
@@ -591,15 +608,93 @@ void AssignWriterToDesk(const std::string& zone, const std::string& person, uint
            kGreen);
 }
 
+namespace {
+
+// A mascot show not yet pitched, or pitched and not off the air.
+bool MascotShowRunning()
+{
+    for (const TvScript& t : g_shelf)
+        if (t.mascot && !Pitched(t))
+            return true;
+    for (const Series& s : g_series)
+        if (s.mascot && s.status != PassedOn && s.status != Cancelled && s.status != Ended)
+            return true;
+    return false;
+}
+
+// Puts the script outside the Animation Studio (the other side of the door from the vault).
+uintptr_t PlaceAtAnimationStudio(const std::string& title)
+{
+    for (const game::Facility& f : game::Facilities()) {
+        if (f.type != kAnimationStudioType)
+            continue;
+        float pos[3], angle;
+        if (!game::FacilityPlacement(f.address, pos, &angle))
+            continue;
+        float fx = std::sin(angle), fy = -std::cos(angle);
+        return game::SpawnScript(std::wstring(title.begin(), title.end()), pos[0] + fx * 12.0f - fy * 3.0f,
+                                 pos[1] + fy * 12.0f + fx * 3.0f);
+    }
+    return 0;
+}
+
+void MascotShowDaily()
+{
+    std::string mascot = MascotName(false);
+    float appeal = MascotAppeal();
+    if (mascot.empty() || appeal < kMascotShowAppeal || MascotShowRunning())
+        return;
+    if (g_mascotOffered >= 0 && Today() - g_mascotOffered < kMascotShowYears * kDaysPerYear)
+        return;
+    const char* const titles[] = { "The %s Show", "The New %s Show", "%s and Friends", "The %s Hour", "%s's Funhouse",
+                                   "The All-New %s Show" };
+    std::string title;
+    for (const char* t : titles)
+        if (!TitleTaken(Format(t, mascot.c_str()))) {
+            title = Format(t, mascot.c_str());
+            break;
+        }
+    if (title.empty())
+        return;
+    TvScript s;
+    s.title = title;
+    s.project = PlaceAtAnimationStudio(title);
+    if (!s.project)
+        return;   // no Animation Studio
+    s.id = g_nextScript++;
+    s.format = Sitcom;
+    s.quality = std::clamp(0.45f + 0.4f * appeal, 0.1f, 0.95f);
+    s.written = Today();
+    s.writers = "the Animation Studio";
+    s.mascot = true;
+    g_shelf.push_back(s);
+    g_mascotOffered = Today();
+    rooms::RefreshScriptLook(s.project);
+    float rating = 0;
+    std::string voice = MascotVoice(&rating);
+    mod::Log("tv: mascot show '%s' offered (appeal %.2f, quality %.2f, voice '%s')", title.c_str(), appeal, s.quality,
+             voice.c_str());
+    Notify(Format("%s gets a show", mascot.c_str()),
+           Format("The networks want %s on television. \"%s\" is waiting outside the Animation Studio: drop it in the "
+                  "Story Room to draw its pilot%s.",
+                  mascot.c_str(), title.c_str(),
+                  voice.empty() ? ", and a star in the Voice Booth to voice it"
+                                : Format(", with %s as the voice", voice.c_str()).c_str()),
+           kGold);
+}
+
+} // namespace
+
 void WritersDaily(float day)
 {
     PilotsDaily();
+    if (!g_relinked)
+        Relink();
+    MascotShowDaily();
     if (static_cast<int>(day) % kNights == 0)
         KeepTvBusy(day);
     if (g_writerOffices == 0 && g_detectionWorks)
         return;
-    if (!g_relinked)
-        Relink();
     WatchNativeDesks();
     bool idle = WritersOnStrike() || WaitingScripts() >= kShelfLimit;
     for (int i = 0; i < kDeskCount; i++) {
@@ -656,7 +751,8 @@ void ApplyPilot(Series& s, const game::Project& p)
     for (const TvScript& t : g_shelf) {
         if (t.id != id)
             continue;
-        s.animated = t.animated;
+        s.animated = t.animated || t.mascot;
+        s.mascot = t.mascot;
         if (t.pilot == PilotShot && !t.lead.empty() && t.lead != "a TV actor" && t.lead != "a voice actor")
             s.lead = t.lead;   // the pilot's star stays on for the series
     }
@@ -664,9 +760,16 @@ void ApplyPilot(Series& s, const game::Project& p)
 
 bool StartPilotForProject(uintptr_t project)
 {
-    for (TvScript& t : g_shelf)
-        if (project && t.project == project)
-            return t.pilot == PilotNone && StartPilot(t);
+    for (TvScript& t : g_shelf) {
+        if (!project || t.project != project)
+            continue;
+        if (t.mascot && t.pilot == PilotNone) {
+            Notify(Format("'%s'", t.title.c_str()),
+                   "The mascot's show is a cartoon: drop the script in the Animation Studio's Story Room.", kYellow);
+            return true;
+        }
+        return t.pilot == PilotNone && StartPilot(t);
+    }
     return false;
 }
 
@@ -766,13 +869,22 @@ bool AnimatePilot(uintptr_t project)
     t->drawn = t->painted = t->voiced = 0;
     t->lead.clear();
     t->director.clear();
+    float voiceRating = 0;
+    std::string voice = t->mascot ? MascotVoice(&voiceRating) : "";
+    if (!voice.empty()) {   // the mascot's voice from the shorts
+        t->lead = voice;
+        t->leadStars = std::clamp(voiceRating, 0.0f, 1.0f);
+        t->voiced = kAnimVoiceDays;
+    }
     rooms::RefreshScriptLook(t->project);
-    mod::Log("tv: '%s' becomes a TV cartoon - pilot cost %.0f", t->title.c_str(), cost);
+    mod::Log("tv: '%s' becomes a TV cartoon - pilot cost %.0f%s", t->title.c_str(), cost,
+             voice.empty() ? "" : Format(", voiced by %s", voice.c_str()).c_str());
     Notify(Format("'%s' will be a cartoon", t->title.c_str()),
-           Format("%s for the pilot. The animators draw its %d scenes %s, and a star dropped in the Voice Booth voices "
-                  "the lead.",
-                  Dollars(cost).c_str(), kAnimPilotScenes,
-                  CartoonInProgress() ? "once the feature cartoon is finished" : "at the desks and in Ink & Paint"),
+           Format("%s for the pilot. The animators draw its %d scenes %s, and %s.", Dollars(cost).c_str(),
+                  kAnimPilotScenes,
+                  CartoonInProgress() ? "once the feature cartoon is finished" : "at the desks and in Ink & Paint",
+                  voice.empty() ? "a star dropped in the Voice Booth voices the lead"
+                                : Format("%s voices the mascot, as in the shorts", voice.c_str()).c_str()),
            kGreen);
     return true;
 }
@@ -897,7 +1009,7 @@ bool TvScriptLabel(uintptr_t project, std::wstring* kind, std::wstring* phase, s
     } else {
         *kind = html::Text(Format("%s script", format.c_str()));
         *phase = L"Script Complete";
-        *status = L"Ready to shoot a pilot";
+        *status = t->mascot ? L"Drop in the Animation Studio's Story Room" : L"Ready to shoot a pilot";
     }
     return true;
 }
@@ -939,7 +1051,7 @@ void AutoPilots(bool castStandIns)
     while (FreeStages() > 0) {
         TvScript* best = nullptr;
         for (TvScript& t : g_shelf)
-            if (t.pilot == PilotNone && !Pitched(t) && (!best || t.quality > best->quality))
+            if (t.pilot == PilotNone && !t.mascot && !Pitched(t) && (!best || t.quality > best->quality))
                 best = &t;
         if (!best || !StartPilot(*best))
             return;
@@ -1109,7 +1221,10 @@ void WritersSave(std::map<std::string, std::string>& out)
         }
         if (s.animated)
             out[Format("s%zu.anim", i)] = Format("%.3f|%.3f|%.3f", s.drawn, s.painted, s.voiced);
+        if (s.mascot)
+            out[Format("s%zu.mascot", i)] = "1";
     }
+    out["mascot_offered"] = Format("%.1f", g_mascotOffered);
     std::string xp;
     for (const auto& e : g_experience)
         xp += Format(xp.empty() ? "%s=%d" : "|%s=%d", e.first.c_str(), e.second);
@@ -1127,6 +1242,7 @@ void WritersReset()
     g_experience.clear();
     g_nextScript = 1;
     g_relinked = false;
+    g_mascotOffered = -1;
 }
 
 void WritersLoad(const std::map<std::string, std::string>& in)
@@ -1136,6 +1252,8 @@ void WritersLoad(const std::map<std::string, std::string>& in)
         auto it = in.find(k);
         return it == in.end() ? std::string() : it->second;
     };
+    if (std::string offered = get("mascot_offered"); !offered.empty())
+        g_mascotOffered = static_cast<float>(atof(offered.c_str()));
     auto split = [](const std::string& s) {
         std::vector<std::string> parts;
         for (size_t pos = 0; pos <= s.size();) {
@@ -1204,6 +1322,7 @@ void WritersLoad(const std::map<std::string, std::string>& in)
             s.painted = static_cast<float>(atof(pa[1].c_str()));
             s.voiced = static_cast<float>(atof(pa[2].c_str()));
         }
+        s.mascot = get(Format("s%d.mascot", i)) == "1";
         g_shelf.push_back(s);
     }
     for (const std::string& e : split(get("experience"))) {
