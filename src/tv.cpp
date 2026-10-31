@@ -1108,6 +1108,7 @@ void Install()
     InstallMascot();
     InstallShorts();
     InstallVault();
+    InstallVoices();
     InstallCeremony(g_awardsCeremony);
     InstallAwardsTimeline();
     // The bag, the briefcase and the vault get a group of their own on the HUD's project list.

@@ -544,4 +544,30 @@ std::string ClassName(uintptr_t object)
     return at == std::string::npos ? s : s.substr(0, at);
 }
 
+// Stars (CStar). The game's star rating (+0xCD0) is a weighted sum of the star's qualities plus
+// +0xCCC, a bonus the game itself never sets (only its constructor clears it, and the accessors
+// at 0x00586170/0x00586180 have no callers). FUN_00591BF0 recomputes the rating into +0xCD0.
+constexpr uintptr_t kAllStarsList = 0x0104D054;   // InList<CStar>
+constexpr size_t kStarRating = 0xCD0, kStarBonus = 0xCCC;
+constexpr uintptr_t kRecomputeStarRating = 0x00591BF0;   // void __fastcall(CStar*)
+
+std::vector<uintptr_t> AllStars() { return ReadListItems(kAllStarsList); }
+
+float StarRating(uintptr_t star) { return ReadOr<float>(star + kStarRating, -1.0f); }
+
+float StarBonus(uintptr_t star) { return ReadOr<float>(star + kStarBonus, 0.0f); }
+
+bool SetStarBonus(uintptr_t star, float bonus)
+{
+    if (!star)
+        return false;
+    __try {
+        *reinterpret_cast<float*>(star + kStarBonus) = bonus;
+        reinterpret_cast<void(__fastcall*)(uintptr_t)>(kRecomputeStarRating)(star);
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
+
 } // namespace game

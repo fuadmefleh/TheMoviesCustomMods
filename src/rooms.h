@@ -45,6 +45,8 @@ struct ObjectLabel {
 using ProjectLabel = bool (*)(uintptr_t project, ObjectLabel* label);
 void SetLabeler(ProjectLabel labeler);
 
+// A person's name, as a drop reports it ("" if none is found).
+std::string NameOf(uintptr_t person);
 // A zone's name (room+0x1A4), e.g. "room_tvk_hire", or "" if unreadable.
 std::string ZoneName(uintptr_t room);
 // Puts someone already in a room to work in its AI scene (TMRoom::Admit), e.g. an accountant

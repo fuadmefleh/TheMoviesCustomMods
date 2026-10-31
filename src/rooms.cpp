@@ -824,6 +824,7 @@ void InstallTvScriptHooks()
 
 } // namespace
 
+std::string NameOf(uintptr_t person) { return person ? PersonName(person) : ""; }
 void SetTvScriptTest(ProjectTest test) { g_isTvScript = test; }
 void SetMeshChooser(ProjectMesh chooser) { g_meshFor = chooser; }
 void SetLabeler(ProjectLabel labeler) { g_labeler = labeler; }

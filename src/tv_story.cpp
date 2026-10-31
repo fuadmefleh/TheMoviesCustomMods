@@ -311,6 +311,8 @@ void SeasonFinale(Series& s, float avgShare, float needed)
             Notify(Format("Fans furious over '%s'", s.title.c_str()), "The cliffhanger will never be resolved.", kRed);
     }
 
+    if (s.animated && !s.lead.empty())   // the lead's voice gets known, hit or not
+        VoiceSeason(s.lead, s.title, needed > 0 ? avgShare / needed : 1.0f);
     if (continues && !s.lead.empty()) {
         s.leadSeasons++;
         // Stars of hits want more money; a star who has carried a show for years may move on.

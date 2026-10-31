@@ -301,6 +301,8 @@ float ShortPull(uintptr_t project)
     mod::Log("tv: short '%s' (quality %.2f) plays before '%s' - box office x%.2f", s.title.c_str(), s.quality,
              title.c_str(), 1 + bump);
     MascotShown(s.title, s.quality, kMascotWeight * Showing(year));
+    if (Voiced())
+        VoiceShort(g_shorts.voice, s.title, s.quality * Showing(year) * (0.5f + MascotAppeal()));
     Notify("A short before the film",
            Format("\"%s\" plays before \"%s\"%s", s.title.c_str(), title.c_str(),
                   bump >= 0.005f ? Format(": %d%% more people come to see it.", static_cast<int>(bump * 100 + 0.5f)).c_str()

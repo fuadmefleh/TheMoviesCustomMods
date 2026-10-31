@@ -220,7 +220,8 @@ A second production line next to live action, sized like an expansion pack. Cart
 - [ ] **In-game test** of the vault: the can appearing, its bubble, the drop, the money, and that the game leaves the can alone
 - [ ] Mascot: its own TV cartoon, the mascot on the lot (a statue, a costumed walkabout)
 - [ ] **In-game test** of the booth: seating at the microphones, recording only while there, the role count, the quality it gives
-- [ ] Voice fame: voice work as its own track for a star (a faded actor's comeback)
+- [x] **Voice fame** (`src/tv_voices.cpp`): voice work as its own track for a star. Fame comes from a feature cartoon's release (more for the critics' stars, a third of it again on a re-release), each season of an animated series (its lead), and each short shown (the mascot's voice); it halves in 4 years without voice work. In the Voice Booth a known voice counts as at least its fame; and it lifts the star's rating through CStar+0xCCC, a bonus the game adds to the rating but never sets (`game::SetStarBonus`, recomputed by `FUN_00591BF0`), more for a faded star: notices at a known voice / a voice star / a legend, or "X's comeback" for a star under 1.5 stars
+- [ ] **In-game test** of voice fame: the `voice fame` log lines after a cartoon's release, the star's rating rising on their card, the bonus put back after a load, a rival who hires the star keeping the bonus
 
 ## Not feasible as a mod (or deferred)
 

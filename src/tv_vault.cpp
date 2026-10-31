@@ -250,6 +250,7 @@ bool VaultDrop(const std::string& zone, uintptr_t project)
     g_run.start = Today();
     mod::Log("tv: '%s' re-released (time %d) - expected %.0f", c.title.c_str(), v.reissues, c.take);
     MascotShown(c.title, c.quality, kMascotWeight);
+    VoiceReissue(c.title);
     Notify(Format("\"%s\" is back in cinemas", c.title.c_str()),
            Format("Re-released for a new generation: about %s over the next two months.", Dollars(c.take).c_str()),
            kGold);

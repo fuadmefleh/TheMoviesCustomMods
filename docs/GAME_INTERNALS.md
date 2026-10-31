@@ -188,6 +188,11 @@ Field maps produced this way are in `re\all_fields.txt` and `re\cproject_map.txt
 - `+0x100`: position `float[3]`; `+0xC4`: facing angle in radians (`TMFixedAsset` virtuals `+0x34` / `+0x48`). Built.
 - `CFacilityScriptOffice` `+0x528`: the `CProject` being written (cleared when it is put outside), `+0x52C`: the room writing it. A room's facility is `*(*(room+0xC0)+0x24C)`.
 
+### `CStar`
+- All stars: `InList<CStar>` at `0x0104D054` (the player's and the rivals'); employer at `+0x934`, mood at `+0xC98`.
+- `+0xCD0`: `float` star rating, 0 to 1. Written only by `FUN_00591BF0` (`void __fastcall(CStar*)`, plain `RET`), which stores the result of `FUN_00591720`: a clamped weighted sum of the star's qualities (weights at `0x00E53E88`..`0x00E53EA8`), then `+ *(float*)(star+0xCCC)`, clamped to 0..1. Static.
+- `+0xCCC`: `float` bonus added to the rating. Only the constructor (`FUN_00594760`) writes it (0); its setter/getter at `0x00586170`/`0x00586180` have no callers. MoviesMod uses it for voice fame (`game::SetStarBonus`). Static.
+
 ### RTTI
 
 To get the class name of any polymorphic object:

@@ -94,4 +94,11 @@ std::string ClassName(uintptr_t object);
 // The first pointer inside 'object' (within 'range' bytes) to an object of RTTI class 'cls'.
 uintptr_t FindObjectOfClass(uintptr_t object, const char* cls, int range = 0x400, int* offset = nullptr);
 
+// Every star in the game (the player's and the rivals'), and their star rating (0..1, CStar+0xCD0).
+std::vector<uintptr_t> AllStars();
+float StarRating(uintptr_t star);
+// A bonus added to a star's rating (CStar+0xCCC, unused by the game). Setting it recomputes the rating.
+float StarBonus(uintptr_t star);
+bool  SetStarBonus(uintptr_t star, float bonus);
+
 } // namespace game

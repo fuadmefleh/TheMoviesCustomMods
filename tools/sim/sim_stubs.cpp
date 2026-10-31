@@ -367,6 +367,8 @@ const char* VaultPicture(uintptr_t) { return nullptr; }
 bool VaultLabel(uintptr_t, std::wstring*, std::wstring*, std::wstring*) { return false; }
 bool VaultDrop(const std::string&, uintptr_t) { return false; }
 void VaultInfo() {}
+void InstallVoices() {}
+void VoiceSeason(const std::string&, const std::string&, float) {}
 } // namespace tv
 
 // tv_ceremony.cpp stages the game's awards show; the simulator has none (the papers report).

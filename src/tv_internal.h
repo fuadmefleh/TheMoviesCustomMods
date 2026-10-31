@@ -378,6 +378,15 @@ const char* VaultPicture(uintptr_t project);
 bool  VaultLabel(uintptr_t project, std::wstring* kind, std::wstring* phase, std::wstring* status);
 bool  VaultDrop(const std::string& zone, uintptr_t project);   // true if it was the vault
 void  VaultInfo();   // its card on the HUD list was clicked
+// Voice fame (tv_voices.cpp): voice work as its own track, lifting a star's rating.
+void  InstallVoices();
+void  VoiceSeen(const std::string& name, uintptr_t person);   // a star dropped in the Voice Booth
+float VoiceRating(const std::string& name, float rating);     // what their voice is worth: at least their fame
+void  VoiceCast(const std::string& title, const std::vector<std::string>& names);   // credited at release
+void  VoiceCredit(const std::string& name, float amount, const std::string& what);
+void  VoiceSeason(const std::string& lead, const std::string& title, float success);   // an animated season ended
+void  VoiceShort(const std::string& voice, const std::string& title, float weight);    // a short played
+void  VoiceReissue(const std::string& title);   // a cartoon came out of the vault
 // The lines of their hover bubble (kind, phase, status); false if it isn't one of them.
 // The right-hand HUD list's picture for one (ui/shares_*.dds), and the Studio shares screen.
 const char* ShareObjectPicture(uintptr_t project);

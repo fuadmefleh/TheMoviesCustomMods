@@ -205,6 +205,11 @@ void Finish()
 {
     std::string title = g_cartoon.title;
     g_done[title] = { Performance(), g_cartoon.cgi };
+    std::vector<std::string> cast;
+    for (const Voice& v : g_cartoon.voices)
+        if (v.recorded >= kVoiceDays)
+            cast.push_back(v.name);
+    VoiceCast(title, cast);
     bool ok = production::FinishWithoutShoot(g_cartoon.project);
     mod::Log("tv: cartoon '%s' %s after %.0f days (voice performance %.2f)", title.c_str(),
              ok ? "finished" : "FAILED to finish", game::DateDays() - g_cartoon.started, g_done[title].performance);
@@ -371,6 +376,8 @@ bool VoiceDrop(uintptr_t room, uintptr_t person, const std::string& personClass,
         Notify("The Voice Booth", "Only actors voice cartoons.", kYellow);
         return true;
     }
+    VoiceSeen(personName, person);
+    rating = VoiceRating(personName, rating);   // a known voice is worth its fame
     if (g_cartoon.title.empty())   // no feature: a TV cartoon's lead, or the mascot for the shorts
         return PilotVoiceDrop(room, person, personName, rating) || ShortsVoiceDrop(room, person, personName, rating);
     std::string name = personName.empty() ? Format("Star #%04X", static_cast<unsigned>(person & 0xFFFF)) : personName;
