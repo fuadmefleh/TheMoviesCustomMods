@@ -148,8 +148,14 @@ bool ObjectShown(uintptr_t obj)   // CProjectObject +0x64
 
 void __fastcall HookOnDrop(uintptr_t room, void* /*edx*/, uintptr_t who)
 {
-    g_original(room, who);
     std::string name = RoomName(room);
+    // A person dropped on a leisure building isn't taken into the zone: the mod sends them to
+    // one of its spots (leisure.cpp), where the game's own interaction takes over.
+    if (name.rfind("room_tvl_", 0) == 0 && g_handler && game::ClassName(who) != "CProjectObject") {
+        Report(room, who, name, false);
+        return;
+    }
+    g_original(room, who);
     if (game::ClassName(who) == "CProjectObject")
         mod::Log("rooms: after the game's drop the object is %s", ObjectShown(who) ? "shown" : "hidden");
     if (name.rfind("room_tv", 0) != 0 || !g_handler) {

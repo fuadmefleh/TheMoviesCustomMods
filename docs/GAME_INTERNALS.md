@@ -205,6 +205,16 @@ Classes: TMMobile, then TMCharacter, then CPerson, then CStaff (vtable `0x00D267
 - All stars: `InList<CStar>` at `0x0104D054` (the player's and the rivals'); employer at `+0x934`, mood at `+0xC98`.
 - `+0xCD0`: `float` star rating, 0 to 1. Written only by `FUN_00591BF0` (`void __fastcall(CStar*)`, plain `RET`), which stores the result of `FUN_00591720`: a clamped weighted sum of the star's qualities (weights at `0x00E53E88`..`0x00E53EA8`), then `+ *(float*)(star+0xCCC)`, clamped to 0..1. Static.
 - `+0xCCC`: `float` bonus added to the rating. Only the constructor (`FUN_00594760`) writes it (0); its setter/getter at `0x00586170`/`0x00586180` have no callers. MoviesMod uses it for voice fame (`game::SetStarBonus`). Static.
+- `+0xB3C` weight (float, 60..100; a `weight` slider adds value × 40 through `0x00585D80`), `+0xBC8` sex appeal (0..1), `+0xBC4` cuteness, `+0xB9C` drunkenness (0..1). Static.
+
+### Explainers (`CAssetActionExplainer`)
+What a decoration or a facility offers people (`data/explainers/<name>.ini`, one per `[extra_info/explainer/<name>]` of the owner's ini). Static analysis (`re/ex_*.txt`); MoviesMod's leisure buildings (`src/leisure.cpp`) are the first users, untested in game.
+- 0x2F0 bytes, constructor `0x008B2B80` (`__thiscall`, no arguments), vtable `0x00D6450C` (a second at `+0xC8`). Not in the TMForceExplainer list `0x01050254`.
+- `+0x180` type name (String; the ini section name up to the first space), `+0x1A0` full section name, `+0x1E8` interaction flm, `+0x1D4` owner asset, `+0x6C` users, `+0x23C` capacity, `+0x218` world position (owner position + owner rotation × (ini `offset` `+0x208` + `[pos]` `+0x1D8`)).
+- Vfuncs: `+0x04` CanExplain(float* cost, person, action), `+0x08` `CActivity* Explain(person, desire, int)` (builds the scene and activity, doesn't queue it), `+0x18` can-accept, `+0x1C` finished(person), `+0x20` started(person).
+- `[aisliders]` (parsed by `0x008ADAC0` into `+0xC0`): each `[aisliders/ai_ai_x]` fires when the scene sets its flm variable `ai_ai_x` to 1 (`0x008AC9E0` → `0x008AC360`), adding value × a factor `min(1, 0.5 + 0.002 × ticks since this star last fired it)`. Names: `stress`, `boredom`, `weight`, `sexappeal`, `cuteness`, `drunkeness` (stars only), `desire_<name>` (anyone), `genre_*`; `addiction_food` does nothing.
+- `typeinterval` (ticks of 0.1 s) is per type name, game-wide: after anyone starts one, no one starts another of that type for that long. `reexplainticks` is per person, `globalreexplainticks` for everyone. Cost = `distancecost` × distance + `queuecost` × queue + `nicenesscost` × (1 − niceness); `range` limits the distance.
+- The propinteract desire just grows by its increment (no stress term found).
 
 ### RTTI
 

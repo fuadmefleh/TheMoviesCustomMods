@@ -377,6 +377,12 @@ std::string MascotVoice(float*) { return ""; }
 void VoiceSeason(const std::string&, const std::string&, float) {}
 } // namespace tv
 
+// leisure.cpp sends stars to the leisure buildings; the simulator has none.
+namespace leisure {
+bool IsZone(const std::string&) { return false; }
+std::string OnDrop(const std::string&, uintptr_t) { return ""; }
+} // namespace leisure
+
 // tv_ceremony.cpp stages the game's awards show; the simulator has none (the papers report).
 namespace tv {
 bool CeremonyEnabled() { return false; }

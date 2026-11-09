@@ -137,6 +137,7 @@ extern "C" HRESULT WINAPI Proxy_DirectInput8Create(HINSTANCE inst, DWORD version
             tv::Install();
             news::Install();
             manager::Install();
+            leisure::Install();
             selfcheck::Install();
             moviemaker::Install();
             sandbox::Install();

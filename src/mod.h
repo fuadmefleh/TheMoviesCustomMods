@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 
 namespace mod {
 
@@ -64,6 +65,14 @@ void Install();   // selfcheck.cpp: logs PASS/FAIL for the game structures the m
 
 namespace manager {
 void Install();   // manager.cpp: rest breaks for idle stars, handymen sent to run-down buildings
+}
+
+namespace leisure {
+void Install();   // leisure.cpp: stressed or bored stars sent to the gym, games yard, spa or garden
+bool IsZone(const std::string& zone);   // a leisure building's drop zone (room_tvl_*)
+// Someone dropped on a leisure zone: sends them to a free spot there. Returns a message for the
+// player ("" when they're on their way).
+std::string OnDrop(const std::string& zone, uintptr_t person);
 }
 
 namespace ratings {

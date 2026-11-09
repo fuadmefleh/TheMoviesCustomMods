@@ -837,7 +837,10 @@ def build(work, name, install=False):
     fac_objs = objects('fac')
     if not fac_objs:
         sys.exit('no fac.* objects in building.obj - nothing to build')
-    building_pts = [p for o in fac_objs if not base_name(o.name)[1].startswith('_land_') for p in obj_points(o)]
+    # Not the ground pad, nor the decorations of an open-air building (tools/blender_props.py
+    # 'ornament' parts): people walk among them.
+    building_pts = [p for o in fac_objs if not base_name(o.name)[1].startswith(('_land_', 'tv_open'))
+                    for p in obj_points(o)]
     all_fac_pts = [p for o in fac_objs for p in obj_points(o)]
 
     # Shared parts: controls, zones, volumes, anchors.

@@ -228,6 +228,16 @@ A second production line next to live action, sized like an expansion pack. Cart
 - [x] **Voice fame** (`src/tv_voices.cpp`): voice work as its own track for a star. Fame comes from a feature cartoon's release (more for the critics' stars, a third of it again on a re-release), each season of an animated series (its lead), and each short shown (the mascot's voice); it halves in 4 years without voice work. In the Voice Booth a known voice counts as at least its fame; and it lifts the star's rating through CStar+0xCCC, a bonus the game adds to the rating but never sets (`game::SetStarBonus`, recomputed by `FUN_00591BF0`), more for a faded star: notices at a known voice / a voice star / a legend, or "X's comeback" for a star under 1.5 stars
 - [ ] **In-game test** of voice fame: the `voice fame` log lines after a cartoon's release, the star's rating rising on their card, the bonus put back after a load, a rival who hires the star keeping the bonus
 
+## Leisure: somewhere to unwind besides the bar
+
+- [x] **Four leisure buildings** (`tools/make_tv_models.py` 'spots', `src/leisure.cpp`), open-air lots of the game's own decorations around a small clubhouse, each decoration with its own copy of its AI interaction (an explainer `data/explainers/l<xxx>_<kind><n>.ini` and its scene moved into place):
+  - Studio Gym (1920, $12,000): bench presses, free weights, step-ups, chin-up bars. Stress and boredom, and weight off.
+  - Reading Garden (1920, $5,000): blossom trees, reading against a trunk, park benches, a parasol. A little of both.
+  - Games Yard (1935, $18,000): eight pinball tables and a basketball court. Boredom above all.
+  - Spa & Pool Deck (1950, $35,000): sun loungers by a pool, soaking tubs (they sober a drunk star up), a parasol. Stress, the most.
+  The game itself sends anyone with the propinteract desire to a free spot and applies each spot's [aisliders] as its scene fires them; the mod sends an idle star of the player's whose stress (45% of their limit) or boredom (55%) is building up to the best free spot first, and a star dropped on a building's main zone (`room_tvl_*`) to a free spot there. Spots are found by hooking the explainer constructor (`0x008B2B80`)
+- [ ] **In-game test** of the leisure buildings: the menu entries and models, people standing at the right place for each piece of equipment (the scenes are moved, not rotated), stars using the spots on their own, `leisure: N spot(s)` and `leisure: <star> goes to ...` in the log, a star's stress falling (the per-firing values are first guesses: drinking is about -0.003 stress a second), the zone drop, dropping a star on a piece of equipment, the reading spot against the tree (its scene was all at its owner's origin)
+
 ## Not feasible as a mod (or deferred)
 
 - **New animations** (little background scenes). These need the game's `.flm` animation format. New building models are now possible (see BUILDINGS.md); new film sets would use the same `.msh` format.

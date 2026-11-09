@@ -265,7 +265,26 @@ def make_star(s):
         finish(bpy.context.active_object, s['glove'], smooth=True)
 
 
-BUILDERS = {'sign': make_sign, 'tower': make_tower, 'dish': make_dish, 'box': make_box, 'mast': make_mast, 'spot': make_spot,
+def make_ornament(s):
+    """One of the game's lot decorations (exported by make_tv_models.export_ornaments), on the
+    ground at x, y, unrotated: its AI interaction scene is placed for it as it stands."""
+    data = json.load(open(os.path.join(WORK, 'ornaments', s['mesh'] + '.json')))
+    for i, me in enumerate(data['meshes']):
+        mesh = bpy.data.meshes.new('%s.%d' % (s['mesh'], i))
+        mesh.from_pydata([(v[0] + s['x'], v[1] + s['y'], v[2]) for v in me['verts']], [], [tuple(f) for f in me['faces']])
+        if me['uvs']:
+            layer = mesh.uv_layers.new(name='UVMap')
+            for loop in mesh.loops:
+                layer.data[loop.index].uv = me['uvs'][loop.vertex_index]
+        o = bpy.data.objects.new(mesh.name, mesh)
+        bpy.context.collection.objects.link(o)
+        finish(o, me['texture'] or 'tvp_metal.png', smooth=True)
+        open_air.add(o.name)
+
+
+open_air = set()   # decorations people walk among: kept out of the building's outline
+
+BUILDERS = {'ornament': make_ornament, 'sign': make_sign, 'tower': make_tower, 'dish': make_dish, 'box': make_box, 'mast': make_mast, 'spot': make_spot,
             'star': make_star}
 for spec in SPEC.get('props', []):
     BUILDERS[spec['type']](spec)
@@ -276,9 +295,9 @@ for o in others:
 # One object per material, named so tools/building.py makes them a new 'tv_props' group.
 by_material = {}
 for o in created:
-    by_material.setdefault(o.data.materials[0].name, []).append(o)
+    by_material.setdefault((o.name in open_air, o.data.materials[0].name), []).append(o)
 index = 0
-for name, objs in by_material.items():
+for (outside, name), objs in by_material.items():
     bpy.ops.object.select_all(action='DESELECT')
     for o in objs:
         o.select_set(True)
@@ -287,7 +306,7 @@ for name, objs in by_material.items():
         bpy.ops.object.join()
     obj = bpy.context.view_layer.objects.active
     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-    obj.name = 'fac.tv_props.%02d' % index
+    obj.name = ('fac.tv_open.%02d' if outside else 'fac.tv_props.%02d') % index
     index += 1
 
 bpy.ops.wm.obj_export(filepath=os.path.join(WORK, 'building.obj'), export_materials=True, path_mode='RELATIVE')

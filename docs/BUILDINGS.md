@@ -116,6 +116,16 @@ not the zone's, so the copied scenes are moved until their people stand at the m
 their new zone. `stand_scenes` makes scenes from scratch for zones with no donor scene: one
 person standing at each listed place (the Accounting Office's jobseekers' spot outside).
 
+Open-air buildings (the leisure buildings) take a few more keys. `lot` is a new lot boundary,
+`land` a new ground pad (`rect`, `texture`, `tile`, and `patches` laid on top), and
+`only_zones` drops the donor's other zones. `spots` places the game's own lot decorations,
+each with its own copy of the decoration's AI interaction: `{'kind': 'lounger', 'x': -7.0,
+'y': -4.6}` (kinds in `SPOT_KINDS`). The decoration's model goes in unrotated (an `ornament`
+part in `tools/blender_props.py`, kept out of the building's outline so people walk among
+them). Its explainer is written as `data/explainers/<spot_prefix>_<kind><n>.ini`, with the scene
+moved into place, the building's `sliders` for that kind and a shorter `typeinterval`. The
+facility ini's `[extra_info]` and everything after it are rewritten to list them.
+
 The construction ghost (`blp`) is drawn with a blueprint sheet of its own:
 `tools/blender_blueprint.py` renders the outside model from straight above over the lot
 boundary, and `building.py` turns it into `textures/bpf_<name>.dds`.

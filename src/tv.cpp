@@ -572,6 +572,13 @@ bool ModObjectLabel(uintptr_t project, rooms::ObjectLabel* l)
 
 bool OnRoomDrop(const rooms::Drop& d)
 {
+    // The leisure buildings: a star dropped there goes to one of its spots.
+    if (leisure::IsZone(d.room)) {
+        std::string msg = leisure::OnDrop(d.room, d.project ? 0 : d.person);
+        if (!msg.empty())
+            Notify("Leisure", msg, kYellow);
+        return true;
+    }
     // Shares go to the Accounting Office; nothing else is dealt with there yet.
     if (d.project && SharesDrop(d.room, d.project))
         return true;

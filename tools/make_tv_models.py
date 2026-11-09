@@ -292,6 +292,112 @@ BUILDINGS = [
              'texture': 'tvp_plaque.png', 'frame': 'tvp_plaque.png'},
         ],
     },
+    # Leisure: open-air places where stars unwind without the bar (src/leisure.cpp). The game's
+    # own lot decorations, each with its own copy of their AI interaction ('spots', see
+    # SPOT_KINDS), around a small clubhouse. Zone 'room_tvl_<x>' takes a dropped star to a free spot.
+    {
+        'name': 'leisure_gym', 'donor': 'detox', 'only_zones': True, 'spot_prefix': 'lgym',
+        # Per firing of the spot's scene (a use fires it a few times); drinking is about
+        # -0.003 stress a second at the bar. The decorations' own: -0.01 stress or -0.05 boredom.
+        'sliders': {'bench': {'desire_propinteract': -0.30, 'stress': -0.05, 'boredom': -0.04, 'weight': -0.05, 'sexappeal': 0.03},
+                    'weights': {'desire_propinteract': -0.30, 'stress': -0.05, 'boredom': -0.04, 'weight': -0.03, 'sexappeal': 0.03},
+                    'steps': {'desire_propinteract': -0.30, 'stress': -0.04, 'boredom': -0.04, 'weight': -0.02, 'sexappeal': 0.02},
+                    'chinup': {'desire_propinteract': -0.30, 'stress': -0.04, 'boredom': -0.04, 'weight': -0.02, 'sexappeal': 0.01}},
+        'style': {'wall': 'brick_ph02', 'base': 'wall_ph55', 'trim': 'wall_ph40', 'door': 'door_ph02'},
+        'lot': [-8.5, -7.5, 8.5, 7.5],
+        'land': {'rect': [-8.0, -7.0, 8.0, 7.0], 'texture': 'grou_ph32c', 'tile': 2.0,
+                 'patches': [{'rect': [-7.6, -6.4, 4.8, 1.8], 'texture': 'gen_tilewood'}]},
+        'blocks': [{'x': 0.0, 'y': 5.0, 'w': 10.0, 'd': 3.6, 'h': 3.6, 'floors': 1, 'roof': 'flat',
+                    'doors': [{'side': 'f', 'w': 1.8}], 'windows': {'spacing': 2.6}}],
+        'rooms': {},
+        'zones': {'room_': [-8.0, -7.0, 8.0, 7.0], 'room_tvl_gym': [-7.6, -6.4, 4.8, 1.8]},
+        'props': [],
+        'spots': [
+            {'kind': 'bench', 'x': -6.8, 'y': -3.6}, {'kind': 'bench', 'x': -6.8, 'y': 0.2},
+            {'kind': 'weights', 'x': -3.6, 'y': -4.2}, {'kind': 'weights', 'x': -3.6, 'y': -0.6},
+            {'kind': 'steps', 'x': 0.0, 'y': -4.8}, {'kind': 'steps', 'x': 1.4, 'y': -4.8},
+            {'kind': 'steps', 'x': 2.8, 'y': -4.8},
+            {'kind': 'chinup', 'x': 0.6, 'y': -0.8}, {'kind': 'chinup', 'x': 3.4, 'y': -0.8},
+        ],
+    },
+    {
+        'name': 'leisure_games', 'donor': 'detox', 'only_zones': True, 'spot_prefix': 'lgam',
+        # Per firing of the spot's scene (a use fires it a few times); drinking is about
+        # -0.003 stress a second at the bar. The decorations' own: -0.01 stress or -0.05 boredom.
+        'sliders': {'pinball': {'desire_propinteract': -0.30, 'boredom': -0.12, 'stress': -0.02},
+                    'hoop': {'desire_propinteract': -0.30, 'boredom': -0.12, 'stress': -0.03, 'weight': -0.02},
+                    'seat': {'desire_propinteract': -0.05, 'stress': -0.03}},
+        'style': {'wall': 'wall_ph48', 'base': 'brick_ph03', 'trim': 'wall_ph40', 'door': 'door_ph10'},
+        'lot': [-9.5, -8.0, 9.5, 8.0],
+        'land': {'rect': [-9.0, -7.5, 9.0, 7.5], 'texture': 'grou_ph32c', 'tile': 2.0,
+                 'patches': [{'rect': [1.4, -6.0, 8.4, 3.2], 'texture': 'gen_tile01'}]},
+        'blocks': [{'x': 4.9, 'y': 5.6, 'w': 7.6, 'd': 3.2, 'h': 3.8, 'floors': 1, 'roof': 'flat',
+                    'doors': [{'side': 'f', 'w': 1.8}], 'windows': {'spacing': 2.4}}],
+        'rooms': {},
+        'zones': {'room_': [-9.0, -7.5, 9.0, 7.5], 'room_tvl_games': [1.4, -6.0, 8.4, 3.2]},
+        'props': [],
+        'spots': [
+            {'kind': 'hoop', 'x': -4.2, 'y': 6.0},
+            {'kind': 'pinball', 'x': 2.6, 'y': 2.0}, {'kind': 'pinball', 'x': 4.2, 'y': 2.0},
+            {'kind': 'pinball', 'x': 5.8, 'y': 2.0}, {'kind': 'pinball', 'x': 7.4, 'y': 2.0},
+            {'kind': 'pinball', 'x': 2.6, 'y': -3.4}, {'kind': 'pinball', 'x': 4.2, 'y': -3.4},
+            {'kind': 'pinball', 'x': 5.8, 'y': -3.4}, {'kind': 'pinball', 'x': 7.4, 'y': -3.4},
+            {'kind': 'seat', 'x': -6.6, 'y': -4.6}, {'kind': 'seat', 'x': -2.6, 'y': -4.6},
+        ],
+    },
+    {
+        'name': 'leisure_spa', 'donor': 'detox', 'only_zones': True, 'spot_prefix': 'lspa',
+        # Per firing of the spot's scene (a use fires it a few times); drinking is about
+        # -0.003 stress a second at the bar. The decorations' own: -0.01 stress or -0.05 boredom.
+        'sliders': {'lounger': {'desire_propinteract': -0.20, 'stress': -0.07},
+                    'tub': {'desire_propinteract': -0.30, 'stress': -0.06, 'drunkeness': -0.15},
+                    'parasol': {'desire_propinteract': -0.30, 'stress': -0.06}},
+        'style': {'wall': 'wall_ph55c', 'base': 'wall_ph55', 'trim': 'wall_ph40', 'door': 'glas_ph08'},
+        'lot': [-9.5, -8.5, 9.5, 8.5],
+        'land': {'rect': [-9.0, -8.0, 9.0, 8.0], 'texture': 'gen_tile01', 'tile': 1.5},
+        'game_textures': ['water2.dds', 'gen_tile02.dds'],
+        'blocks': [{'x': 6.2, 'y': 6.2, 'w': 4.6, 'd': 2.8, 'h': 3.2, 'floors': 1, 'roof': 'flat',
+                    'doors': [{'side': 'f', 'w': 1.6}], 'windows': {'spacing': 2.2}}],
+        'rooms': {},
+        'zones': {'room_': [-9.0, -8.0, 9.0, 8.0], 'room_tvl_spa': [-8.4, -7.6, 8.4, 4.8]},
+        'props': [
+            {'type': 'box', 'x': -0.5, 'y': 0.4, 'w': 10.0, 'd': 4.4, 'h': 0.16, 'z': 0, 'texture': 'gen_tile02.dds'},
+            {'type': 'box', 'x': -0.5, 'y': 0.4, 'w': 9.2, 'd': 3.6, 'h': 0.2, 'z': 0, 'texture': 'water2.dds'},
+        ],
+        'spots': [
+            {'kind': 'lounger', 'x': -7.0, 'y': -4.6}, {'kind': 'lounger', 'x': -4.6, 'y': -4.6},
+            {'kind': 'lounger', 'x': -2.2, 'y': -4.6}, {'kind': 'lounger', 'x': 2.2, 'y': -4.6},
+            {'kind': 'lounger', 'x': 4.6, 'y': -4.6}, {'kind': 'lounger', 'x': 7.0, 'y': -4.6},
+            {'kind': 'tub', 'x': -7.6, 'y': 4.6}, {'kind': 'tub', 'x': -5.6, 'y': 4.6},
+            {'kind': 'tub', 'x': -3.6, 'y': 4.6},
+            {'kind': 'parasol', 'x': 0.4, 'y': 5.4},
+        ],
+    },
+    {
+        'name': 'leisure_garden', 'donor': 'detox', 'only_zones': True, 'spot_prefix': 'lgdn',
+        # Per firing of the spot's scene (a use fires it a few times); drinking is about
+        # -0.003 stress a second at the bar. The decorations' own: -0.01 stress or -0.05 boredom.
+        'sliders': {'tree': {'desire_propinteract': -0.25, 'stress': -0.04, 'boredom': -0.02},
+                    'read': {'desire_propinteract': -0.20, 'stress': -0.04, 'boredom': -0.06},
+                    'seat': {'desire_propinteract': -0.05, 'stress': -0.04},
+                    'parasol': {'desire_propinteract': -0.30, 'stress': -0.05}},
+        'style': {'wall': 'wall_ph40', 'base': 'brick_ph03', 'trim': 'wall_ph55', 'tiles': 'roof_ph04'},
+        'lot': [-9.0, -8.0, 9.0, 8.0],
+        'land': {'rect': [-8.5, -7.5, 8.5, 7.5], 'texture': 'land_grass00', 'tile': 3.0,
+                 'patches': [{'rect': [-8.0, -6.0, 8.0, -4.6], 'texture': 'grou_ph32c'}]},
+        'blocks': [{'x': 0.0, 'y': 6.0, 'w': 4.4, 'd': 2.4, 'h': 2.8, 'floors': 1, 'roof': 'hip', 'pitch': 1.2,
+                    'doors': [{'side': 'f', 'w': 1.4}], 'windows': {'spacing': 2.0}}],
+        'rooms': {},
+        'zones': {'room_': [-8.5, -7.5, 8.5, 7.5], 'room_tvl_garden': [-8.0, -7.0, 8.0, 4.4]},
+        'props': [],
+        'spots': [
+            {'kind': 'tree', 'x': -5.0, 'y': 1.6}, {'kind': 'tree', 'x': 5.0, 'y': 1.6},
+            {'kind': 'read', 'x': -4.55, 'y': 1.6}, {'kind': 'read', 'x': 5.45, 'y': 1.6},
+            {'kind': 'seat', 'x': -6.4, 'y': -5.3}, {'kind': 'seat', 'x': -2.2, 'y': -5.3},
+            {'kind': 'seat', 'x': 2.0, 'y': -5.3}, {'kind': 'seat', 'x': 6.2, 'y': -5.3},
+            {'kind': 'parasol', 'x': 0.0, 'y': 0.6},
+        ],
+    },
 ]
 
 
@@ -583,6 +689,160 @@ def badge_thumbnail(donor, label, path):
     img.save(path)
 
 
+# ---------------------------------------------------------------------------------------
+# Leisure spots: the game's own lot decorations (bench press, pinball table, sun lounger...)
+# built into a facility, each with its own copy of the decoration's AI interaction. Stars use
+# them on their own (the propinteract desire) like the decorations, and the mod adds the real
+# rest (src/leisure.cpp). Per spot: the decoration's model at (x, y), unrotated, and an
+# explainer data/explainers/<prefix>_<kind><n>.ini whose interaction scene
+# (ai_<prefix>_<kind><n>.flm) and position are the decoration's, moved by (x, y).
+SPOT_KINDS = {
+    #  kind        decoration model      explainer the scene comes from
+    'bench':     ('p_benchpress',       'gym_bench'),
+    'weights':   ('p_weights_free',     'gym_weights'),
+    'steps':     ('p_stepup',           'gym_steps'),
+    'chinup':    ('p_chinup_bar',       'gym_bar'),
+    'pinball':   ('p_pinball_table',    'pinball'),
+    'hoop':      ('p_basketball_hoop',  'basketball'),
+    'lounger':   ('p_sun_lounger',      'sunlounger'),
+    'tub':       ('p_bath',             'bath'),
+    'parasol':   ('p_large_parasol',    'large_parasol'),
+    'tree':      ('p_tree_pinkblossom', 'blossomtree'),
+    'seat':      ('p_parkbench',        'seat'),
+    'read':      (None,                 'treesitspot'),   # reading against a tree trunk
+}
+
+
+def export_ornaments(b, work):
+    """The decorations' models as JSON meshes for tools/blender_props.py ('ornament' parts),
+    their textures copied to the work folder."""
+    out = os.path.join(work, 'ornaments')
+    os.makedirs(out, exist_ok=True)
+    parts = []
+    for spot in b['spots']:
+        mesh = SPOT_KINDS[spot['kind']][0]
+        if not mesh:
+            continue
+        path = os.path.join(out, mesh + '.json')
+        if not os.path.exists(path):
+            m = building.load_model('data/meshes/%s.msh' % mesh)
+            meshes = []
+            for g in m['groups']:
+                for me in g['meshes']:
+                    _, imgs = building.mat_signature(m, me['material'])
+                    texture = imgs[0]
+                    if texture and not building.export_texture(texture, os.path.join(work, 'textures')):
+                        # Decorations keep theirs in data/textures/props/ (copied as the building's own).
+                        data = building.game_file('data/textures/props/' + texture)
+                        if data is None:
+                            texture = None
+                        else:
+                            open(os.path.join(work, 'textures', texture), 'wb').write(data)
+                    meshes.append({'verts': [list(v) for v in me['verts']], 'faces': [list(f) for f in me['faces']],
+                                   'uvs': [list(t) for t in me['uvs']] if me['uvs'] else None, 'texture': texture})
+            json.dump({'meshes': meshes}, open(path, 'w'))
+        parts.append({'type': 'ornament', 'mesh': mesh, 'x': spot['x'], 'y': spot['y']})
+    for t in b.get('game_textures', []):
+        building.export_texture(t, os.path.join(work, 'textures'))
+    return parts
+
+
+def spot_names(b):
+    counts, names = {}, []
+    for spot in b['spots']:
+        counts[spot['kind']] = counts.get(spot['kind'], 0) + 1
+        names.append('%s_%s%d' % (b['spot_prefix'], spot['kind'], counts[spot['kind']]))
+    return names
+
+
+def facility_tail(names):
+    """Everything after [extra_info] in a leisure building's facility file: its explainers."""
+    tail = ['[extra_info]', '', '[extra_info/explainer]', '']
+    for name in names:
+        tail += ['\t[extra_info/explainer/%s]' % name, '\t\toffset = 0 0', '\t\tangle = 0', '\t\tqueueangle = 0', '']
+    return '\n'.join(tail)
+
+
+def make_spots(b, install):
+    """The spots' explainers and interaction scenes, and the facility file's explainer list."""
+    sys.path.insert(0, TOOLS)
+    import re
+    import struct
+    import scenes as flm
+    exp_out = os.path.join(building.CONTENT, 'data', 'explainers')
+    scn_out = os.path.join(building.CONTENT, 'data', 'scene', 'interactions')
+    os.makedirs(exp_out, exist_ok=True)
+    os.makedirs(scn_out, exist_ok=True)
+    sliders = b.get('sliders', {})
+
+    def put(folder, game_folder, name, data):
+        open(os.path.join(folder, name), 'wb').write(data)
+        if install:
+            dst = os.path.join(building.GAME, 'Data', *game_folder.split('/'))
+            os.makedirs(dst, exist_ok=True)
+            open(os.path.join(dst, name), 'wb').write(data)
+
+    names = spot_names(b)
+    for spot, name in zip(b['spots'], names):
+        src = SPOT_KINDS[spot['kind']][1]
+        text = building.game_file('data/explainers/%s.ini' % src).decode('latin1')
+        scene = re.search(r'interaction\s*=\s*(\S+)', text).group(1)
+        raw = flm.unwrap(building.game_file('data/scene/interactions/' + scene))
+        dx, dy = spot['x'], spot['y']
+        if spot['kind'] == 'read':
+            # The tree-sit scene is all at its owner's origin (0, 0), and shift_scene leaves
+            # zeros alone: move its person and boxes by hand.
+            d = bytearray(raw)
+            for kind, size, at in flm.parse(raw)['recs']:
+                for i in SCENE_XY.get(kind, ()):
+                    o = at + 8 + i * 4
+                    if o + 8 <= at + size:
+                        x, y = struct.unpack_from('<2f', d, o)
+                        struct.pack_into('<2f', d, o, x + dx, y + dy)
+            moved = bytes(d)
+        else:
+            moved = shift_scene(raw, dx, dy)
+        put(scn_out, 'scene/interactions', 'ai_%s.flm' % name, flm.wrap(moved))
+
+        # The explainer: the decoration's, with this spot's scene and position, the building's
+        # sliders for its kind, and open to players' drops.
+        own = sliders.get(spot['kind'])
+        lines, section = ['interactive = 1'], ''
+        for line in text.splitlines():
+            s = line.strip()
+            if s.startswith('['):
+                section = s.strip('[]').lower()
+            m = re.match(r'(\s*)(\w+)\s*=\s*(.*)', line)
+            key = m.group(2).lower() if m else ''
+            if key == 'interaction' and section == '':
+                line = '%sinteraction = ai_%s.flm' % (m.group(1), name)
+            elif key in ('localpositionx', 'localpositiony'):
+                v = float(m.group(3).split()[0]) + (dx if key.endswith('x') else dy)
+                line = '%s%s=%f' % (m.group(1), m.group(2), v)
+            elif key == 'interactive':
+                continue
+            elif key == 'typeinterval':
+                line = '%stypeinterval = %d' % (m.group(1), b.get('typeinterval', 250))
+            elif section.startswith('aisliders/') and key and own is not None:
+                continue   # replaced by the building's own below
+            lines.append(line)
+            if section.startswith('aisliders/') and s.startswith('[') and own is not None:
+                lines += ['\t\t%s = %s' % (k, v) for k, v in own.items()]
+        put(exp_out, 'explainers', name + '.ini', ('\r\n'.join(lines) + '\r\n').encode('latin1'))
+
+    # The facility file lists its explainers (everything from [extra_info] on is generated).
+    ini = os.path.join(building.CONTENT, 'data', 'facility', 'facility_%s.ini' % b['name'])
+    if os.path.exists(ini):
+        head = open(ini, encoding='latin1').read().split('[extra_info]')[0]
+        text = head + facility_tail(names) + '\n'
+        open(ini, 'w', encoding='latin1', newline='\r\n').write(text)
+        if install:
+            dst = os.path.join(building.GAME, 'Data', 'facility')
+            os.makedirs(dst, exist_ok=True)
+            open(os.path.join(dst, os.path.basename(ini)), 'w', encoding='latin1', newline='\r\n').write(text)
+    print('  %d leisure spots: %s' % (len(names), ', '.join(names)))
+
+
 def stand_scenes(zones, install):
     """Scenes of one person standing about at a given spot (x, y in the building's own
     coordinates), one per place: the script office's idle scene moved there."""
@@ -735,6 +995,9 @@ def main():
         if b.get('blocks'):
             style = dict(BUILD_STYLE, **b.get('style', {}))
             textures = set(style.values()) | {t for blk in b['blocks'] for t in blk.get('roles', {}).values()}
+            land = b.get('land')
+            if land:
+                textures |= {land['texture']} | {p['texture'] for p in land.get('patches', [])}
             for tex in textures:   # the game textures the new building is dressed in
                 dst = os.path.join(work, 'textures', tex + '.dds')
                 if not os.path.exists(dst):
@@ -743,10 +1006,14 @@ def main():
                         sys.exit('no game texture ' + tex)
                     open(dst, 'wb').write(data)
             run_blender(blender, 'blender_build.py', work, {'rooms': b['rooms'], 'zones': b.get('zones', {}), 'style': style,
-                                                            'blocks': b['blocks']},
+                                                            'blocks': b['blocks'], 'only_zones': b.get('only_zones', False),
+                                                            'lot': b.get('lot'), 'land': b.get('land')},
                         b['name'], 'blender_build: removed')
+        props = list(b['props'])
+        if b.get('spots'):
+            props += export_ornaments(b, work)
         spec = os.path.join(work, 'spec.json')
-        json.dump({'rooms': b['rooms'], 'props': b['props']}, open(spec, 'w'), indent=1)
+        json.dump({'rooms': b['rooms'], 'props': props}, open(spec, 'w'), indent=1)
         r = subprocess.run([blender, '-b', '--factory-startup', '-P', os.path.join(TOOLS, 'blender_props.py'), '--', work, spec],
                            capture_output=True, text=True)
         lines = [l for l in r.stdout.splitlines() if 'blender_props' in l or 'Error' in l or 'Traceback' in l]
@@ -779,6 +1046,8 @@ def main():
         copy_scenes(b.get('scenes', {}), install, b.get('zones'))
         copy_scenes(b.get('extra_scenes', {}), install, b.get('zones'))
         stand_scenes(b.get('stand_scenes', {}), install)
+        if b.get('spots'):
+            make_spots(b, install)
 
 
 if __name__ == '__main__':

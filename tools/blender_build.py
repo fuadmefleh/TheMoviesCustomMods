@@ -16,7 +16,9 @@ a cornice or parapet, a darker plinth, tiled or flat roofs, doors under canopies
 comes from the lightmap baked afterwards (tools/blender_bake.py).
 
 spec.json: {"rooms": {"old": "new"}, "zones": {name: [x0, y0, x1, y1] or outline}, "style": {role: texture},
-            "blocks": [block, ...]}
+            "blocks": [block, ...], "only_zones": true (drop the donor's other zones),
+            "lot": [x0, y0, x1, y1] (a new lot boundary), "land": {"rect": [x0, y0, x1, y1],
+            "texture": "grou_ph43k", "tile": 2.0} (a new ground pad in place of the donor's)}
 Game coordinates: metres, Z up, the street side is -Y. A block:
   x y w d h        centre of the footprint, its size and wall height
   z                base height (default 0: on the ground)
@@ -136,6 +138,30 @@ for zname, shape in SPEC.get('zones', {}).items():
     zm = bpy.data.meshes.new('room.' + zname)
     zm.from_pydata([(x, y, 0.0) for x, y in shape], [], [tuple(range(len(shape)))])
     bpy.context.collection.objects.link(bpy.data.objects.new('room.' + zname, zm))
+
+# "only_zones": the donor's other zones go (a building that must not keep, say, the detox
+# clinic's treatment room).
+if SPEC.get('only_zones'):
+    for o in list(bpy.data.objects):
+        if kind(o) == 'room' and o.name.split('.')[1] not in SPEC.get('zones', {}):
+            bpy.data.objects.remove(o)
+
+
+def flat_rect(name, rect):
+    x0, y0, x1, y1 = rect
+    m = bpy.data.meshes.new(name)
+    m.from_pydata([(x0, y0, 0.0), (x1, y0, 0.0), (x1, y1, 0.0), (x0, y1, 0.0)], [], [(0, 1, 2, 3)])
+    o = bpy.data.objects.new(name, m)
+    bpy.context.collection.objects.link(o)
+    return o
+
+
+# "lot": [x0, y0, x1, y1] replaces the donor's lot boundary (the space the building claims).
+if SPEC.get('lot'):
+    for o in list(bpy.data.objects):
+        if kind(o) == 'ctl' and o.name.split('.')[1] == 'lot_boundary':
+            bpy.data.objects.remove(o)
+    flat_rect('ctl.lot_boundary', SPEC['lot'])
 
 removed = 0
 for o in list(bpy.data.objects):
@@ -451,6 +477,19 @@ for b in SPEC['blocks']:
     volumes.append(bpy.context.active_object)
 faces = B.faces
 body = B.finish('fac.body.00')
+
+# A new ground pad (the open-air leisure buildings: a gym yard, a pool deck, a garden).
+if SPEC.get('land'):
+    land = SPEC['land']
+    for o in list(bpy.data.objects):
+        if '._land_.' in o.name:
+            bpy.data.objects.remove(o)
+    L = Builder()
+    for rect, texture in [(land['rect'], land['texture'])] + [(p['rect'], p['texture']) for p in land.get('patches', [])]:
+        x0, y0, x1, y1 = rect
+        z = 0.0 if rect is land['rect'] else 0.01
+        L.poly([(x0, y0, z), (x1, y0, z), (x1, y1, z), (x0, y1, z)], (0, 0, 1), texture, land.get('tile', 2.0))
+    L.finish('fac._land_.00')
 
 # The floor plan: the same body, its walls given thickness inwards so the cut-away shows them.
 plan = body.copy()
