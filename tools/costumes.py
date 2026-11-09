@@ -30,7 +30,8 @@ colour assigned to the layer whose palette it is closest to (skin, hair and the 
 background are left alone).
 
 Pack entries (JSON list; every key except name/donor is optional):
-  {"name": "m_mm_wes_dusk",            m_/f_ prefix = gender; at most 20 characters
+  {"name": "m_mm_wes_dusk",            m_/f_ prefix = gender (g_ = either, from a g_ donor);
+                                       at most 20 characters
    "donor": "m_wes_1",
    "title": "Dusk Rider",              -> COSNAME_M_MM_WES_DUSK in MoviesMod.ini [text]
    "category": "category_western",     wardrobe tab (default: the donor's)
@@ -723,8 +724,8 @@ def apply_remix(cos, entry, warn):
 
 def build_entry(entry, out_files, warn):
     name, donor = entry['name'].lower(), entry['donor'].lower()
-    if not re.match(r'^[mf]_[a-z0-9_]+$', name) or len(name) > 20:
-        raise ValueError(f'bad costume name {name}: m_/f_ prefix, a-z0-9_, at most 20 chars')
+    if not re.match(r'^[mfg]_[a-z0-9_]+$', name) or len(name) > 20:
+        raise ValueError(f'bad costume name {name}: m_/f_/g_ prefix, a-z0-9_, at most 20 chars')
     if gender(name) != gender(donor):
         raise ValueError(f'{name}: donor {donor} is the other gender')
     ini_text = game_file(f'data/costume/{donor}.ini').decode('latin1')

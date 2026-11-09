@@ -30,6 +30,7 @@ Game coordinates: metres, Z up, the street side is -Y. A block:
   doors            [{"side": "f", "at": 0.0 (offset from the side's centre), "w": 2.0,
                      "h": 2.6, "role": "door", "canopy": true}]
   bands            true: a band at each floor line; cornice: true; plinth: 0.6 (metres)
+  parapet          height of a flat roof's parapet (default 0.8; 0 for a plain capped top)
   roles            per-block texture overrides, e.g. {"wall": "brick_ph01"}
 Texture roles: wall, base, trim, glass, frame, door, roof (flat deck), tiles (pitched),
 gable (pitched-roof ends, default = wall).
@@ -347,10 +348,11 @@ def make_block(B, b):
     if roof == 'flat':
         B.poly([(cx - w / 2, cy - d / 2, top), (cx + w / 2, cy - d / 2, top), (cx + w / 2, cy + d / 2, top),
                 (cx - w / 2, cy + d / 2, top)], (0, 0, 1), tex(b, 'roof'), TILE['roof'])
-        t, ph = 0.3, 0.8   # parapet
-        for (px, py, sx, sy) in ((cx, cy - d / 2 + t / 2, w, t), (cx, cy + d / 2 - t / 2, w, t),
-                                 (cx - w / 2 + t / 2, cy, t, d - 2 * t), (cx + w / 2 - t / 2, cy, t, d - 2 * t)):
-            B.box((px, py, top + ph / 2), (sx, sy, ph), tex(b, 'wall'), TILE['wall'], faces=('+x', '-x', '+y', '-y'))
+        t, ph = 0.3, b.get('parapet', 0.8)   # parapet (0: none, a plain top like a plinth's)
+        if ph > 0:
+            for (px, py, sx, sy) in ((cx, cy - d / 2 + t / 2, w, t), (cx, cy + d / 2 - t / 2, w, t),
+                                     (cx - w / 2 + t / 2, cy, t, d - 2 * t), (cx + w / 2 - t / 2, cy, t, d - 2 * t)):
+                B.box((px, py, top + ph / 2), (sx, sy, ph), tex(b, 'wall'), TILE['wall'], faces=('+x', '-x', '+y', '-y'))
         B.box((cx, cy, top + ph + 0.06), (w + 0.12, d + 0.12, 0.12), trim, TILE['trim'], faces=('+x', '-x', '+y', '-y', '+z'))
         if b.get('cornice', True):
             B.box((cx, cy, top - 0.15), (w + 0.4, d + 0.4, 0.3), trim, TILE['trim'], faces=('+x', '-x', '+y', '-y', '-z', '+z'))
@@ -382,6 +384,8 @@ def make_block(B, b):
     elif roof == 'temple':
         temple(B, b, z, top, trim)
         return top + b.get('pitch', 0.18 * w)
+    if roof == 'flat':
+        return top + b.get('parapet', 0.8) + 0.12
     return top + (b.get('pitch', 0.3 * min(w, d)) if roof in ('gable', 'hip') else 0.9)
 
 

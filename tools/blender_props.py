@@ -14,6 +14,11 @@ Part types:
   box       x y w d h texture [z] [face]            a rooftop unit (air conditioning, etc.)
   mast      x y height [z]                          a thin striped antenna
   spot      x y [face] [z]                          a stage spotlight on a stand
+  star      x y radius [depth] [face] [z] texture body glove
+                                                    the studio mascot as a statue: a five-pointed
+                                                    star standing on its two lower points, the
+                                                    face (texture: the star drawn at 0.95 of a
+                                                    square picture) in front, white gloves
 """
 import json
 import math
@@ -206,7 +211,62 @@ def make_spot(s):
     strut((x, y, z0 + 1.4), (x + aim.x, y + aim.y, z0 + 1.4 + aim.z), 0.22, 'tvp_lamp.png', 12)
 
 
-BUILDERS = {'sign': make_sign, 'tower': make_tower, 'dish': make_dish, 'box': make_box, 'mast': make_mast, 'spot': make_spot}
+def make_star(s):
+    import bmesh
+    x, y, r = s['x'], s['y'], s['radius']
+    depth = s.get('depth', 0.4)
+    rot = facing(s)
+    inner = 0.44
+    # Point k at 90 - 36k degrees: k = 0 the head, 2 and 8 the arms, 4 and 6 the feet.
+    outline = []
+    for k in range(10):
+        a = math.radians(90 - 36 * k)
+        rr = r if k % 2 == 0 else r * inner
+        outline.append((rr * math.cos(a), rr * math.sin(a)))
+    zc = place_z(s, x, y) + r * math.sin(math.radians(54))   # the feet on the ground below
+    spin = Matrix.Rotation(rot, 3, 'Z')
+
+    def world(u, w, side):
+        return Vector((x, y, zc)) + spin @ Vector((u, side * depth / 2, w))
+
+    def flat(texture, side, mapped):
+        mesh = bpy.data.meshes.new('star')
+        bm = bmesh.new()
+        uv = bm.loops.layers.uv.new()
+        verts = [bm.verts.new(world(u, w, side)) for u, w in outline]
+        # the outline runs clockwise seen from the front: reverse it so the face looks out
+        face = bm.faces.new(list(reversed(verts)) if side < 0 else verts)
+        for loop in face.loops:
+            i = verts.index(loop.vert)
+            u, w = outline[i]
+            loop[uv].uv = (0.5 + 0.475 * u / r, 0.5 + 0.475 * w / r) if mapped else (0.5, 0.5)
+        bm.to_mesh(mesh)
+        bm.free()
+        o = bpy.data.objects.new('star', mesh)
+        bpy.context.collection.objects.link(o)
+        return finish(o, texture)
+
+    flat(s['texture'], -1, True)          # the face, towards 'face'
+    flat(s['body'], 1, False)             # the back
+    mesh = bpy.data.meshes.new('star_rim')
+    bm = bmesh.new()
+    for i in range(10):
+        (u0, w0), (u1, w1) = outline[i], outline[(i + 1) % 10]
+        bm.faces.new([bm.verts.new(world(u0, w0, -1)), bm.verts.new(world(u1, w1, -1)),
+                      bm.verts.new(world(u1, w1, 1)), bm.verts.new(world(u0, w0, 1))])
+    bm.to_mesh(mesh)
+    bm.free()
+    o = bpy.data.objects.new('star_rim', mesh)
+    bpy.context.collection.objects.link(o)
+    finish(o, s['body'])
+    for k in (2, 8):   # white gloves on the arms, waving
+        u, w = outline[k]
+        bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8, radius=r * 0.17, location=world(u * 0.92, w * 0.92, 0))
+        finish(bpy.context.active_object, s['glove'], smooth=True)
+
+
+BUILDERS = {'sign': make_sign, 'tower': make_tower, 'dish': make_dish, 'box': make_box, 'mast': make_mast, 'spot': make_spot,
+            'star': make_star}
 for spec in SPEC.get('props', []):
     BUILDERS[spec['type']](spec)
 

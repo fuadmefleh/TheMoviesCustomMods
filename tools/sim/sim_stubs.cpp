@@ -368,6 +368,8 @@ bool VaultLabel(uintptr_t, std::wstring*, std::wstring*, std::wstring*) { return
 bool VaultDrop(const std::string&, uintptr_t) { return false; }
 void VaultInfo() {}
 void InstallVoices() {}
+void InstallMascotLot() {}
+bool MascotLotDrop(const std::string&, uintptr_t, uintptr_t, uintptr_t) { return false; }
 std::string MascotName(bool) { return ""; }
 float MascotAppeal() { return 0; }
 void MascotShown(const std::string&, float, float) {}

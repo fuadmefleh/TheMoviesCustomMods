@@ -578,6 +578,9 @@ bool OnRoomDrop(const rooms::Drop& d)
     // People on the Accounts Floor or the Animation Studio's desks: they sit down to work.
     if (!d.project && d.person && StaffDrop(d.room, d.roomObject, d.person))
         return true;
+    // The Mascot Statue: someone dropped on it puts on the mascot suit.
+    if (MascotLotDrop(d.room, d.roomObject, d.project, d.person))
+        return true;
     // The vault: dropped on the Animation Studio, a cartoon goes back into cinemas.
     if (d.project && VaultDrop(d.room, d.project))
         return true;
@@ -1113,6 +1116,7 @@ void Install()
     InstallShorts();
     InstallVault();
     InstallVoices();
+    InstallMascotLot();
     InstallCeremony(g_awardsCeremony);
     InstallAwardsTimeline();
     // The bag, the briefcase and the vault get a group of their own on the HUD's project list.

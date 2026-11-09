@@ -372,6 +372,12 @@ bool  ShortsVoiceDrop(uintptr_t room, uintptr_t person, const std::string& perso
 std::string ShortsStatus();   // a sentence on the short in the works and the shelf
 std::string MascotVoice(float* rating);   // the star who voices the mascot ("" = none yet) and their rating
 bool  MascotShowOnAir();   // the mascot's TV cartoon is on the air (tv.cpp)
+// The mascot on the lot (tv_mascot_lot.cpp): the Mascot Statue and the costumed walkabout.
+void  InstallMascotLot();
+float MascotLotMerch();   // merchandise factor (1 = nothing on the lot)
+float MascotLotFade();    // how much longer the mascot's appeal takes to fade (1 = as usual)
+// Something dropped on a Mascot Statue (room_tvm_*); true if it was one.
+bool  MascotLotDrop(const std::string& zone, uintptr_t room, uintptr_t project, uintptr_t person);
 // The vault (tv_vault.cpp): cartoons re-released every 7 years. A film can on the lot, dropped
 // on the Animation Studio.
 void  InstallVault();

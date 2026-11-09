@@ -271,6 +271,26 @@ BUILDINGS = [
             {'type': 'sign', 'x': 0.0, 'y': -6.9, 'w': 5.0, 'h': 0.8, 'z': 3.2, 'legs': 0, 'texture': 'tvp_renderfarm.png'},
         ],
     },
+    {
+        # Toon Studio: the mascot's statue. A painted star with white gloves on a stone plinth,
+        # on the portaloo's tiny footprint (its walk points and lot boundary fit). Someone dropped
+        # on it puts on the mascot suit and walks the lot (src/tv_mascot_lot.cpp).
+        'name': 'mascot_statue', 'donor': 'toilet1',
+        'style': {'wall': 'wall_ph40', 'base': 'wall_ph55', 'trim': 'wall_ph55'},
+        'blocks': [
+            {'x': 0.0, 'y': 0.0, 'w': 1.5, 'd': 1.5, 'h': 0.9, 'floors': 1, 'roof': 'flat', 'parapet': 0,
+             'bands': False, 'plinth': 0.25, 'windows': {'w': 0}},
+        ],
+        'rooms': {},
+        # One zone only: drops on the whole-building zone ('room_') wouldn't reach the mod.
+        'zones': {'room_tvm_statue': [-1.1, -1.9, 1.1, 1.6]},
+        'props': [
+            {'type': 'star', 'x': 0.0, 'y': 0.0, 'radius': 1.05, 'depth': 0.38, 'texture': 'tvp_starface.png',
+             'body': 'tvp_staryellow.png', 'glove': 'tvp_glove.png'},
+            {'type': 'sign', 'x': 0.0, 'y': -0.82, 'w': 0.9, 'h': 0.3, 'z': 0.35, 'legs': 0, 'depth': 0.06,
+             'texture': 'tvp_plaque.png', 'frame': 'tvp_plaque.png'},
+        ],
+    },
 ]
 
 
@@ -443,6 +463,33 @@ def make_textures(out):
     for gx, gy in ((40, 108), (216, 108)):
         d.ellipse([gx - 16, gy - 14, gx + 16, gy + 14], fill=(255, 255, 255), outline=(40, 30, 20), width=3)
     img.save(os.path.join(out, 'tvp_mascot.png'))
+
+    # The mascot statue: the star's face, drawn to fit the statue's outline exactly (outer
+    # points at 0.95 of the picture, inner at 0.44 of that, as blender_props' star), its painted
+    # yellow body, the white gloves and a brass plaque.
+    n = 512
+    img = Image.new('RGBA', (n, n), (250, 200, 35, 255))
+    d = ImageDraw.Draw(img)
+    c, ro = n / 2, n / 2 * 0.95
+    def star_pt(k, scale=1.0):
+        rr = (ro if k % 2 == 0 else ro * 0.44) * scale
+        a = math.radians(90 - 36 * k)
+        return (c + rr * math.cos(a), c - rr * math.sin(a))
+    d.polygon([star_pt(k, 0.9) for k in range(10)], fill=(255, 218, 60))      # a lighter centre
+    for ex in (c - 34, c + 34):
+        d.ellipse([ex - 30, c - 92, ex + 30, c - 8], fill=(255, 255, 255), outline=(40, 30, 20), width=6)
+        d.ellipse([ex - 10, c - 58, ex + 16, c - 16], fill=(30, 25, 25))
+        d.ellipse([ex - 2, c - 52, ex + 8, c - 42], fill=(255, 255, 255))
+    d.chord([c - 70, c - 20, c + 70, c + 70], 15, 165, fill=(150, 30, 30), outline=(40, 30, 20), width=6)
+    d.ellipse([c - 105, c - 10, c - 75, c + 14], fill=(250, 150, 110))   # cheeks
+    d.ellipse([c + 75, c - 10, c + 105, c + 14], fill=(250, 150, 110))
+    d.line([star_pt(k) for k in range(10)] + [star_pt(0)], fill=(40, 30, 20), width=8)
+    img.save(os.path.join(out, 'tvp_starface.png'))
+    Image.new('RGBA', (32, 32), (245, 190, 30, 255)).save(os.path.join(out, 'tvp_staryellow.png'))
+    Image.new('RGBA', (32, 32), (250, 250, 250, 255)).save(os.path.join(out, 'tvp_glove.png'))
+    img = sign(384, 128, (200, 160, 70), (150, 110, 40), (90, 60, 20))
+    centred_text(img, 'OUR STAR', 64, (70, 45, 15))
+    img.save(os.path.join(out, 'tvp_plaque.png'))
 
     # The CGI Render Farm: RENDER FARM over a wireframe floor, in 1990s computer cyan.
     img = sign(1024, 160, (10, 18, 45), (2, 4, 16), (60, 230, 255))

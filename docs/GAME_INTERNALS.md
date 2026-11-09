@@ -189,6 +189,18 @@ Field maps produced this way are in `re\all_fields.txt` and `re\cproject_map.txt
 - `+0x2B8`: `int` construction stage (`TMFixedAsset`). 1-2 while builders work, 5 once finished (`0x0052E790` sets it; `CFacility` code such as `0x00848AF0` tests `== 5`). Build work done `float` at `+0x3B8`, needed at `+0x2DC` (the debug `ass_build` at `0x00527D00` copies one to the other). Static.
 - `CFacilityScriptOffice` `+0x528`: the `CProject` being written (cleared when it is put outside), `+0x52C`: the room writing it. A room's facility is `*(*(room+0xC0)+0x24C)`.
 
+### People (`TMCharacter` / `CStaff`)
+Classes: TMMobile, then TMCharacter, then CPerson, then CStaff (vtable `0x00D267CC`), then CExtra / CStar / CWannabe. Career `+0x814` (4 = extra), employer `+0x934`, gender `+0x4A0`, room `+0x198`. Static unless noted (`src/tv_mascot_lot.cpp` uses all of these; untested in game).
+- **Costumes:** worn `+0x568`, wanted `+0x56C` (PDesiredCostume), own clothes `+0x570` (PNormalCostume). A `CCostume` is reference-counted at `+0x48`, and its name `String` is at `+0x78`.
+  - `0x004335F0 __cdecl(CCostume** out, String* name, int gender, 0, 0, 0)` builds one. A name starting m/f/g is a single costume; any other name is a `costume/<list>`, picked at random. The caller owns the reference it returns.
+  - Put it on with vfunc `+0x128` (`0x0059BAC0`, `__thiscall(person, CCostume*, char rebuild)`, which addrefs it). Set the wanted costume with `0x0059BB60` (addrefs). `0x0059BBD0` (fastcall) returns their own clothes.
+  - The DesireUpdateCostume AI changes anyone whose worn costume differs from the wanted one back into the wanted one, so set both. The game's dresser is `0x00598540 __cdecl(staff, career)`.
+- **Activities:** a queue of `CActivity` objects at `+0x4F8`, each an AI scene placed in the world.
+  - Make a scene with `new(0x2E0)` + `0x00445F60 __thiscall(mem, float pos[3], float angle)`, then scene vfunc `+0xB0(String* "ai_x.flm")`.
+  - Make the activity with `new(0x2B4)` + `0x00402380 __thiscall(mem, person, scene)`. Set its desire with `0x00401A00`; get a desire with `0x0059C530 __thiscall(person, const char* name)` (names are in `data/rule/desires.csv`). `0x00401050(act, 0)` makes it uninterruptible.
+  - The current activity is `0x005998E0` (fastcall); cancel one with `0x0059ADD0`; queue one with AddAction `0x0059C020`. The forced janitor tidy `0x00462BE0` also sets `+0x292 = 1` and `+0x240 = 2`.
+  - `0x004EEBE0 __cdecl(float out[2], person, float dist)` is a random walkable point (the wander behaviour, `0x008BE1B0`).
+
 ### `CStar`
 - All stars: `InList<CStar>` at `0x0104D054` (the player's and the rivals'); employer at `+0x934`, mood at `+0xC98`.
 - `+0xCD0`: `float` star rating, 0 to 1. Written only by `FUN_00591BF0` (`void __fastcall(CStar*)`, plain `RET`), which stores the result of `FUN_00591720`: a clamped weighted sum of the star's qualities (weights at `0x00E53E88`..`0x00E53EA8`), then `+ *(float*)(star+0xCCC)`, clamped to 0..1. Static.

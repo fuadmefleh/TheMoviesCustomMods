@@ -12,6 +12,7 @@
   "data/costume/datas/f_mm_hor_scarlet.cos",
   "data/costume/datas/f_mm_wes_belle.cos",
   "data/costume/datas/f_mm_wes_prairie.cos",
+  "data/costume/datas/g_mm_mascot.cos",
   "data/costume/datas/m_mm_20s_tweed.cos",
   "data/costume/datas/m_mm_30s_riviera.cos",
   "data/costume/datas/m_mm_50s_varsity.cos",
@@ -36,6 +37,7 @@
   "data/costume/f_mm_hor_scarlet.ini",
   "data/costume/f_mm_wes_belle.ini",
   "data/costume/f_mm_wes_prairie.ini",
+  "data/costume/g_mm_mascot.ini",
   "data/costume/m_mm_20s_tweed.ini",
   "data/costume/m_mm_30s_riviera.ini",
   "data/costume/m_mm_50s_varsity.ini",
@@ -70,6 +72,7 @@
   "data/textures/costumes/com_f_mm_wes_belle_1.dds",
   "data/textures/costumes/com_f_mm_wes_prairie_1.dds",
   "data/textures/costumes/com_f_mm_wes_prairie_2.dds",
+  "data/textures/costumes/com_g_mm_mascot_0.dds",
   "data/textures/costumes/com_m_mm_20s_tweed_2.dds",
   "data/textures/costumes/com_m_mm_20s_tweed_4.dds",
   "data/textures/costumes/com_m_mm_20s_tweed_5.dds",
@@ -108,6 +111,7 @@
   "data/textures/thumbs/costumes/f_mm_hor_scarlet.dds",
   "data/textures/thumbs/costumes/f_mm_wes_belle.dds",
   "data/textures/thumbs/costumes/f_mm_wes_prairie.dds",
+  "data/textures/thumbs/costumes/g_mm_mascot.dds",
   "data/textures/thumbs/costumes/m_mm_20s_tweed.dds",
   "data/textures/thumbs/costumes/m_mm_30s_riviera.dds",
   "data/textures/thumbs/costumes/m_mm_50s_varsity.dds",
@@ -150,6 +154,7 @@
   "f_mm_fut_nova",
   "m_mm_fut_violet",
   "m_mm_hor_greywolf",
-  "f_mm_hor_scarlet"
+  "f_mm_hor_scarlet",
+  "g_mm_mascot"
  ]
 }

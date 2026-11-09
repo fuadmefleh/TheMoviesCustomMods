@@ -159,5 +159,13 @@
   "ini": {"cost": 1900, "glamour": 0.85, "boredom": 0.13,
           "fashionable": {"start": 1935, "peak": 0.8, "end": 2100},
           "genre": {"horror": 1, "romance": 0.5}},
-  "recolor": {"cos_dress": {"colorize": [355, 0.85], "val": 2.2}}}
+  "recolor": {"cos_dress": {"colorize": [355, 0.85], "val": 2.2}}},
+
+ {"name": "g_mm_mascot", "donor": "g_chicken", "title": "Studio Mascot Suit",
+  "category": "NONE",
+  "ini": {"cost": 1250, "glamour": 0, "boredom": 0.17,
+          "fashionable": {"start": 1928, "peak": 0.3, "end": 2200},
+          "genre": {"comedy": 1}},
+  "recolor": {"#0": {"colorize": [46, 0.9], "val": 1.05}},
+  "thumb": "all"}
 ]
