@@ -282,8 +282,9 @@ BUILDINGS = [
              'bands': False, 'plinth': 0.25, 'windows': {'w': 0}},
         ],
         'rooms': {},
-        # One zone only: drops on the whole-building zone ('room_') wouldn't reach the mod.
-        'zones': {'room_tvm_statue': [-1.1, -1.9, 1.1, 1.6]},
+        # 'room_' first: the game skips zone 0 (the whole building) and sets up the rest, and a
+        # building with a single zone crashes it (TMRoom list count 1, array empty: 0x009386B6).
+        'zones': {'room_': [-1.1, -1.9, 1.1, 1.6], 'room_tvm_statue': [-1.1, -1.9, 1.1, 1.6]},
         'props': [
             {'type': 'star', 'x': 0.0, 'y': 0.0, 'radius': 1.05, 'depth': 0.38, 'texture': 'tvp_starface.png',
              'body': 'tvp_staryellow.png', 'glove': 'tvp_glove.png'},

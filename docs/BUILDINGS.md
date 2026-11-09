@@ -74,6 +74,10 @@ BLURB_FACILITY_TV_STUDIO = What it's for.
 The facility file must be called `facility_<name>.ini`: the build menu ignores anything
 that does not start with `facility` or `trailer`.
 
+**A building with drop zones needs `room_` (the whole building) as its first zone, and at least
+one more.** The game treats zone 0 as the building itself and only sets up zones 1 onwards; a
+building with a single zone crashes the game when placed.
+
 **Zones are saved with each placed building.** After changing a model's zones, demolish
 and rebuild that building in the game.
 
