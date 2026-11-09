@@ -108,7 +108,7 @@ void Relink()
 
 void Clear() { g_cartoon = Cartoon{}; }
 
-int Farms() { return game::CountFacilities(kFarm); }
+int Farms() { return game::CountFacilities(kFarm, true); }   // a farm under construction renders nothing
 
 // The words for the cartoon's two steps: drawn and painted, or animated and rendered.
 const char* Drawn() { return g_cartoon.cgi ? "animated" : "drawn"; }

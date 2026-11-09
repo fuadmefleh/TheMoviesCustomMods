@@ -45,6 +45,7 @@ struct Studio {
 struct Facility {
     uintptr_t   address = 0;
     std::string type;        // building file name, e.g. "facility_stage" or "tv_production_office"
+    bool        built = true; // construction finished (false while builders are still at it)
 };
 
 bool  Ready();                       // a game is loaded and the player studio exists
@@ -76,7 +77,8 @@ std::vector<Project> RivalFilms();
 // Every building on the lot. The type (its "facility/<name>" path) is located at runtime
 // and the layout logged once; on v1.2 it is a String at facility+0x33C.
 std::vector<Facility> Facilities();
-int CountFacilities(const char* type);
+// Buildings of a type; with builtOnly, only those whose construction is finished.
+int CountFacilities(const char* type, bool builtOnly = false);
 void LogBlueprints(const char* filter);   // building blueprints whose name contains filter (all if null)
 
 // A building's position on the lot and the angle it faces (radians).

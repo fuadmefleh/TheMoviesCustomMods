@@ -140,11 +140,11 @@ std::vector<Project> RivalFilms()
 }
 std::vector<Facility> Facilities() { return sim::g_facilities; }
 
-int CountFacilities(const char* type)
+int CountFacilities(const char* type, bool builtOnly)
 {
     int n = 0;
     for (const Facility& f : sim::g_facilities)
-        n += f.type == type;
+        n += f.type == type && (f.built || !builtOnly);
     return n;
 }
 

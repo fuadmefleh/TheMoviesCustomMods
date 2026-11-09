@@ -28,6 +28,10 @@ constexpr uintptr_t kWStringAssign   = 0x004036D0;   // void __thiscall WString:
 // TMFixedAsset (buildings)
 constexpr size_t kAssetAngle    = 0x0C4;   // float, radians
 constexpr size_t kAssetPosition = 0x100;   // float[3]
+// Construction stage: 1-2 while being built (the debug ass_build at 0x00527D00 sets 2 and
+// fills the work), 5 once finished (set by 0x0052E790; CFacility code tests == 5).
+constexpr size_t kAssetBuildStage = 0x2B8;   // int
+constexpr int    kStageBuilt      = 5;
 
 // CStudio / CStudioPlayer
 constexpr size_t kStudioBackCatalogue = 0x0C0;   // InList<CProject>
@@ -456,7 +460,7 @@ std::vector<Facility> Facilities()
 {
     std::vector<Facility> out;
     for (uintptr_t item : ReadListItems(kAllFacilitiesList))
-        out.push_back({ item, FacilityType(item) });
+        out.push_back({ item, FacilityType(item), ReadOr<int>(item + kAssetBuildStage, kStageBuilt) == kStageBuilt });
     return out;
 }
 
@@ -477,11 +481,11 @@ void LogBlueprints(const char* filter)
     }
 }
 
-int CountFacilities(const char* type)
+int CountFacilities(const char* type, bool builtOnly)
 {
     int n = 0;
     for (const Facility& f : Facilities())
-        n += f.type == type;
+        n += f.type == type && (f.built || !builtOnly);
     return n;
 }
 

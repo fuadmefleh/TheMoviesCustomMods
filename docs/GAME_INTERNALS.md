@@ -186,6 +186,7 @@ Field maps produced this way are in `re\all_fields.txt` and `re\cproject_map.txt
 ### `CFacility`
 - `+0x33C`: `String` holding the building's `facility/<name>` path (found at runtime). Verified.
 - `+0x100`: position `float[3]`; `+0xC4`: facing angle in radians (`TMFixedAsset` virtuals `+0x34` / `+0x48`). Built.
+- `+0x2B8`: `int` construction stage (`TMFixedAsset`). 1-2 while builders work, 5 once finished (`0x0052E790` sets it; `CFacility` code such as `0x00848AF0` tests `== 5`). Build work done `float` at `+0x3B8`, needed at `+0x2DC` (the debug `ass_build` at `0x00527D00` copies one to the other). Static.
 - `CFacilityScriptOffice` `+0x528`: the `CProject` being written (cleared when it is put outside), `+0x52C`: the room writing it. A room's facility is `*(*(room+0xC0)+0x24C)`.
 
 ### `CStar`
