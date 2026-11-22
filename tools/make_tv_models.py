@@ -326,7 +326,10 @@ BUILDINGS = [
         # -0.003 stress a second at the bar. The decorations' own: -0.01 stress or -0.05 boredom.
         'sliders': {'pinball': {'desire_propinteract': -0.30, 'boredom': -0.12, 'stress': -0.02},
                     'hoop': {'desire_propinteract': -0.30, 'boredom': -0.12, 'stress': -0.03, 'weight': -0.02},
-                    'seat': {'desire_propinteract': -0.05, 'stress': -0.03}},
+                    'seat': {'desire_propinteract': -0.05, 'stress': -0.03},
+                    'drinks': {'desire_propinteract': -0.20, 'boredom': -0.06, 'drunkeness': -0.08, 'stress': -0.01},
+                    'gum': {'desire_propinteract': -0.30, 'boredom': -0.08},
+                    'ball': {'desire_propinteract': -0.30, 'boredom': -0.10, 'stress': -0.02, 'weight': -0.01}},
         'style': {'wall': 'wall_ph48', 'base': 'brick_ph03', 'trim': 'wall_ph40', 'door': 'door_ph10'},
         'lot': [-9.5, -8.0, 9.5, 8.0],
         'land': {'rect': [-9.0, -7.5, 9.0, 7.5], 'texture': 'grou_ph32c', 'tile': 2.0,
@@ -343,6 +346,11 @@ BUILDINGS = [
             {'kind': 'pinball', 'x': 2.6, 'y': -3.4}, {'kind': 'pinball', 'x': 4.2, 'y': -3.4},
             {'kind': 'pinball', 'x': 5.8, 'y': -3.4}, {'kind': 'pinball', 'x': 7.4, 'y': -3.4},
             {'kind': 'seat', 'x': -6.6, 'y': -4.6}, {'kind': 'seat', 'x': -2.6, 'y': -4.6},
+            # A snack corner by the court and a kickabout on the yard (new spots go last, so
+            # the older ones keep their names in saved games).
+            {'kind': 'drinks', 'x': -8.2, 'y': -0.4},
+            {'kind': 'gum', 'x': -6.6, 'y': -0.4}, {'kind': 'gum', 'x': -5.6, 'y': -0.4},
+            {'kind': 'ball', 'x': -2.6, 'y': -1.6}, {'kind': 'ball', 'x': -0.6, 'y': -6.6},
         ],
     },
     {
@@ -351,7 +359,11 @@ BUILDINGS = [
         # -0.003 stress a second at the bar. The decorations' own: -0.01 stress or -0.05 boredom.
         'sliders': {'lounger': {'desire_propinteract': -0.20, 'stress': -0.07},
                     'tub': {'desire_propinteract': -0.30, 'stress': -0.06, 'drunkeness': -0.15},
-                    'parasol': {'desire_propinteract': -0.30, 'stress': -0.06}},
+                    'parasol': {'desire_propinteract': -0.30, 'stress': -0.06},
+                    # The lion fountain: sitting on its rim, or a plunge that sobers anyone up.
+                    'lionfountain': {'ai_ai_sit': {'desire_propinteract': -0.20, 'stress': -0.05},
+                                     'ai_ai_plunge': {'drunkeness': -0.35, 'stress': -0.02}},
+                    'water': {'desire_propinteract': -0.30, 'drunkeness': -0.10, 'stress': -0.02}},
         'style': {'wall': 'wall_ph55c', 'base': 'wall_ph55', 'trim': 'wall_ph40', 'door': 'glas_ph08'},
         'lot': [-9.5, -8.5, 9.5, 8.5],
         'land': {'rect': [-9.0, -8.0, 9.0, 8.0], 'texture': 'gen_tile01', 'tile': 1.5},
@@ -371,6 +383,8 @@ BUILDINGS = [
             {'kind': 'tub', 'x': -7.6, 'y': 4.6}, {'kind': 'tub', 'x': -5.6, 'y': 4.6},
             {'kind': 'tub', 'x': -3.6, 'y': 4.6},
             {'kind': 'parasol', 'x': 0.4, 'y': 5.4},
+            {'kind': 'lionfountain', 'x': 6.6, 'y': 0.4},
+            {'kind': 'water', 'x': -7.8, 'y': 0.6},
         ],
     },
     {
@@ -380,7 +394,10 @@ BUILDINGS = [
         'sliders': {'tree': {'desire_propinteract': -0.25, 'stress': -0.04, 'boredom': -0.02},
                     'read': {'desire_propinteract': -0.20, 'stress': -0.04, 'boredom': -0.06},
                     'seat': {'desire_propinteract': -0.05, 'stress': -0.04},
-                    'parasol': {'desire_propinteract': -0.30, 'stress': -0.05}},
+                    'parasol': {'desire_propinteract': -0.30, 'stress': -0.05},
+                    'plinth': {'desire_propinteract': -0.30, 'boredom': -0.08, 'stress': -0.01},
+                    'longfountain': {'ai_ai_sit': {'desire_propinteract': -0.15, 'stress': -0.04},
+                                     'ai_ai_plunge': {'drunkeness': -0.30}}},
         'style': {'wall': 'wall_ph40', 'base': 'brick_ph03', 'trim': 'wall_ph55', 'tiles': 'roof_ph04'},
         'lot': [-9.0, -8.0, 9.0, 8.0],
         'land': {'rect': [-8.5, -7.5, 8.5, 7.5], 'texture': 'land_grass00', 'tile': 3.0,
@@ -396,6 +413,45 @@ BUILDINGS = [
             {'kind': 'seat', 'x': -6.4, 'y': -5.3}, {'kind': 'seat', 'x': -2.2, 'y': -5.3},
             {'kind': 'seat', 'x': 2.0, 'y': -5.3}, {'kind': 'seat', 'x': 6.2, 'y': -5.3},
             {'kind': 'parasol', 'x': 0.0, 'y': 0.6},
+            {'kind': 'plinth', 'x': -1.9, 'y': 3.3}, {'kind': 'plinth', 'x': 1.9, 'y': 3.3},
+            {'kind': 'longfountain', 'x': 7.6, 'y': -1.6},
+        ],
+    },
+    {
+        # The odd one out: modern sculpture (the game's alien rocks), cacti people can't help
+        # touching, plinths to strike a pose on, and a lion fountain to fall into. Boredom first.
+        'name': 'leisure_park', 'donor': 'detox', 'only_zones': True, 'spot_prefix': 'lprk',
+        'sliders': {'rocka': {'desire_propinteract': -0.25, 'boredom': -0.10, 'stress': -0.02},
+                    'rockb': {'desire_propinteract': -0.25, 'boredom': -0.10, 'stress': -0.02},
+                    'rockc': {'desire_propinteract': -0.25, 'boredom': -0.10, 'stress': -0.02},
+                    'cactus': {'desire_propinteract': -0.30, 'boredom': -0.08, 'stress': 0.01},   # ouch
+                    'plinth': {'desire_propinteract': -0.30, 'boredom': -0.10, 'stress': -0.01},
+                    'lionfountain': {'ai_ai_sit': {'desire_propinteract': -0.20, 'stress': -0.04, 'boredom': -0.02},
+                                     'ai_ai_plunge': {'drunkeness': -0.35, 'boredom': -0.05}},
+                    'seat': {'desire_propinteract': -0.05, 'stress': -0.03},
+                    'ball': {'desire_propinteract': -0.30, 'boredom': -0.10, 'stress': -0.02, 'weight': -0.01},
+                    'drinks': {'desire_propinteract': -0.20, 'boredom': -0.06, 'drunkeness': -0.08, 'stress': -0.01},
+                    'gum': {'desire_propinteract': -0.30, 'boredom': -0.08}},
+        'style': {'wall': 'wall_ph55', 'base': 'brick_ph03', 'trim': 'wall_ph40', 'tiles': 'roof_ph04'},
+        'lot': [-9.5, -8.5, 9.5, 8.5],
+        'land': {'rect': [-9.0, -8.0, 9.0, 8.0], 'texture': 'land_grass00', 'tile': 3.0,
+                 'patches': [{'rect': [-8.6, -1.0, 8.6, 1.4], 'texture': 'grou_ph32c'},
+                             {'rect': [-1.2, -7.6, 1.2, 5.6], 'texture': 'grou_ph32c'}]},
+        'blocks': [{'x': 0.0, 'y': 6.4, 'w': 4.4, 'd': 2.0, 'h': 2.8, 'floors': 1, 'roof': 'hip', 'pitch': 1.1,
+                    'doors': [{'side': 'f', 'w': 1.4}], 'windows': {'spacing': 2.0}}],
+        'rooms': {},
+        'zones': {'room_': [-9.0, -8.0, 9.0, 8.0], 'room_tvl_park': [-8.6, -7.6, 8.6, 5.0]},
+        'props': [],
+        'spots': [
+            {'kind': 'lionfountain', 'x': 0.0, 'y': 0.0},
+            {'kind': 'plinth', 'x': -3.0, 'y': -2.8}, {'kind': 'plinth', 'x': 0.0, 'y': -4.0},
+            {'kind': 'plinth', 'x': 3.0, 'y': -2.8},
+            {'kind': 'rocka', 'x': -6.6, 'y': 3.2}, {'kind': 'rockb', 'x': 6.8, 'y': 3.6},
+            {'kind': 'rockc', 'x': 3.6, 'y': -5.4},
+            {'kind': 'cactus', 'x': -7.4, 'y': -1.0}, {'kind': 'cactus', 'x': -6.4, 'y': -2.2},
+            {'kind': 'seat', 'x': -2.8, 'y': 3.6}, {'kind': 'seat', 'x': 2.8, 'y': 3.6},
+            {'kind': 'ball', 'x': -3.0, 'y': 0.4}, {'kind': 'ball', 'x': 6.0, 'y': -1.0},
+            {'kind': 'drinks', 'x': 4.2, 'y': 6.4}, {'kind': 'gum', 'x': -3.4, 'y': 6.4},
         ],
     },
 ]
@@ -710,7 +766,19 @@ SPOT_KINDS = {
     'tree':      ('p_tree_pinkblossom', 'blossomtree'),
     'seat':      ('p_parkbench',        'seat'),
     'read':      (None,                 'treesitspot'),   # reading against a tree trunk
+    'drinks':    ('p_drinksmachine_ai', 'drinkmachine'),
+    'gum':       ('p_bubblegum_machine', 'bubblegum'),
+    'ball':      ('p_beachball',        'beachball'),
+    'water':     ('p_water_fountain',   'water_fountain'),
+    'lionfountain': ('p_fountain_lionhead', 'fountain_lionhead'),   # sliders ai_ai_sit, ai_ai_plunge
+    'longfountain': ('p_fountain_rectangle', 'fountain_rectangle'),   # the same two
+    'plinth':    ('p_plynth',           'plynth'),
+    'rocka':     ('p_alien_rock_02',    'alien_rock_2'),
+    'rockb':     ('p_alien_rock_03',    'alien_rock_3'),
+    'rockc':     ('p_alien_rock_04',    'alien_rock_4'),
+    'cactus':    ('p_cactus_02',        'touch_cactus'),
 }
+# Kind names have no digits: a spot's name is <prefix>_<kind><n>.
 
 
 def export_ornaments(b, work):
@@ -806,7 +874,16 @@ def make_spots(b, install):
 
         # The explainer: the decoration's, with this spot's scene and position, the building's
         # sliders for its kind, and open to players' drops.
-        own = sliders.get(spot['kind'])
+        # The building's sliders for the kind: one set for every [aisliders/...] section, or
+        # per section ({'ai_ai_sit': {...}, 'ai_ai_plunge': {...}}; sections left out stay as they are).
+        kind_own = sliders.get(spot['kind'])
+        per_section = bool(kind_own) and all(isinstance(v, dict) for v in kind_own.values())
+
+        def own_for(sec):
+            if not sec.startswith('aisliders/') or kind_own is None:
+                return None
+            return kind_own.get(sec[len('aisliders/'):]) if per_section else kind_own
+
         lines, section = ['interactive = 1'], ''
         for line in text.splitlines():
             s = line.strip()
@@ -823,11 +900,11 @@ def make_spots(b, install):
                 continue
             elif key == 'typeinterval':
                 line = '%stypeinterval = %d' % (m.group(1), b.get('typeinterval', 250))
-            elif section.startswith('aisliders/') and key and own is not None:
+            elif key and own_for(section) is not None:
                 continue   # replaced by the building's own below
             lines.append(line)
-            if section.startswith('aisliders/') and s.startswith('[') and own is not None:
-                lines += ['\t\t%s = %s' % (k, v) for k, v in own.items()]
+            if s.startswith('[') and own_for(section) is not None:
+                lines += ['\t\t%s = %s' % (k, v) for k, v in own_for(section).items()]
         put(exp_out, 'explainers', name + '.ini', ('\r\n'.join(lines) + '\r\n').encode('latin1'))
 
     # The facility file lists its explainers (everything from [extra_info] on is generated).

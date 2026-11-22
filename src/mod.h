@@ -24,6 +24,7 @@ void Install();   // production.cpp: continuity makeup and the second unit
 bool FinishWithoutShoot(uintptr_t project);
 int  SceneCount(uintptr_t project);   // the film's scenes (its script's shots), -1 if unreadable
 int  RoleCount(uintptr_t project);    // the film's acting roles (not extras), -1 if unreadable
+int  Cast(uintptr_t project, uintptr_t* out, int max);   // its actors and stunt doubles, each once
 }
 
 namespace tv {
@@ -68,7 +69,7 @@ void Install();   // manager.cpp: rest breaks for idle stars, handymen sent to r
 }
 
 namespace leisure {
-void Install();   // leisure.cpp: stressed or bored stars sent to the gym, games yard, spa or garden
+void Install();   // leisure.cpp: worn-out stars sent to the leisure buildings; wrap parties
 bool IsZone(const std::string& zone);   // a leisure building's drop zone (room_tvl_*)
 // Someone dropped on a leisure zone: sends them to a free spot there. Returns a message for the
 // player ("" when they're on their way).

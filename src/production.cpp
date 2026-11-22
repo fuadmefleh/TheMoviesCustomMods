@@ -325,6 +325,8 @@ void Frame()
 
 } // namespace
 
+int Cast(uintptr_t project, uintptr_t* out, int max) { return CastOf(project, out, max); }
+
 int RoleCount(uintptr_t project)
 {
     int n = 0;
